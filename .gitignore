@@ -1,0 +1,72 @@
+# Gradle
+.gradle/
+/build/
+
+# Gradle wrapper
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+
+# Android/IntelliJ
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# Android Studio captures and outputs
+captures/
+outputs/
+
+# Build generated
+app/build/
+**/build/
+
+# Kotlin
+*.kotlin_module
+
+# Log files
+*.log
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Keystore
+*.jks
+*.keystore
+
+# NDK
+.externalNativeBuild/
+.cxx/
+
+# Android packaging
+*.ap_
+*.dex
+
+# Crashlytics
+crashlytics-build.properties
+
+# Kotlin Symbol Processing caches
+kspCaches/
+
+# JetBrains
+out/
+
+# VS Code
+.vscode/
+
+# Environment files
+.env
+.env.*
+
+# Others
+.gradle/
+
+# Ignore generated lint reports
+lint/intermediates/
+
+# Ignore stitch-assets (if generated)
+stitch-assets/
