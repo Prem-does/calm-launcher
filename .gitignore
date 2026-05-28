@@ -42,6 +42,10 @@ Thumbs.db
 .externalNativeBuild/
 .cxx/
 
+# Local gradle caches (do not commit)
+.gradle-local/
+.gradle-user-home/
+
 # Android packaging
 *.ap_
 *.dex

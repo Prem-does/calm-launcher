@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>App Launcher</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-container": "#e5e2e1",
+                    "on-surface": "#e2e2e2",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-tertiary-fixed-variant": "#474746",
+                    "outline": "#8e9192",
+                    "on-background": "#e2e2e2",
+                    "surface-variant": "#353535",
+                    "primary": "#ffffff",
+                    "on-primary-fixed": "#1a1c1c",
+                    "on-secondary-container": "#b5b5b5",
+                    "on-secondary": "#303031",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "inverse-surface": "#e2e2e2",
+                    "surface-container": "#1f1f1f",
+                    "error": "#ffb4ab",
+                    "background": "#131313",
+                    "tertiary-fixed": "#e5e2e1",
+                    "secondary-fixed-dim": "#c7c6c6",
+                    "error-container": "#93000a",
+                    "on-error": "#690005",
+                    "surface-container-low": "#1b1b1b",
+                    "surface-dim": "#131313",
+                    "inverse-on-surface": "#303030",
+                    "on-tertiary": "#303030",
+                    "primary-container": "#e2e2e2",
+                    "surface-container-high": "#2a2a2a",
+                    "surface": "#131313",
+                    "inverse-primary": "#5d5f5f",
+                    "on-error-container": "#ffdad6",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "surface-tint": "#c6c6c7",
+                    "primary-fixed": "#e2e2e2",
+                    "tertiary-fixed-dim": "#c8c6c5",
+                    "secondary-container": "#464747",
+                    "on-primary": "#2f3131",
+                    "on-tertiary-container": "#656464",
+                    "outline-variant": "#444748",
+                    "surface-container-highest": "#353535",
+                    "on-primary-container": "#636565",
+                    "on-secondary-fixed-variant": "#464747",
+                    "tertiary": "#ffffff",
+                    "secondary": "#c7c6c6",
+                    "on-surface-variant": "#c4c7c8",
+                    "secondary-fixed": "#e3e2e2",
+                    "surface-bright": "#393939",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "on-primary-fixed-variant": "#454747"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "margin": "24px",
+                    "xs": "4px",
+                    "xl": "48px",
+                    "gutter": "16px",
+                    "unit": "4px",
+                    "md": "16px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "display-lg-mobile": ["IBM Plex Sans"],
+                    "label-sm": ["JetBrains Mono"],
+                    "display-lg": ["IBM Plex Sans"],
+                    "headline-md": ["IBM Plex Sans"],
+                    "body-lg": ["Inter"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #131313;
+            color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        .app-item:active {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 2px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #222222;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col min-h-screen">
+<!-- Top Status Bar (Based on TopAppBar Shared Component) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin py-sm bg-background border-b border-on-tertiary-fixed-variant">
+<span class="font-label-sm text-label-sm text-primary">12:45 • MON OCT 23 • 85%</span>
+<div class="flex gap-gutter">
+<button class="font-label-sm text-label-sm text-primary hover:bg-on-primary hover:text-background transition-none">MENU</button>
+<button class="font-label-sm text-label-sm text-primary hover:bg-on-primary hover:text-background transition-none">LOG</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-xl pb-xl px-margin custom-scrollbar overflow-y-auto">
+<!-- App List Section -->
+<section class="mt-lg">
+<div class="flex flex-col">
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Phone</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Messages</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Alarm</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Calculator</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Calendar</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Camera</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Maps</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Notes</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Music</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+<a class="app-item group py-md border-b border-on-tertiary-fixed-variant flex justify-between items-center transition-none" href="#">
+<span class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg">Settings</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-none" style="font-variation-settings: 'wght' 100;">arrow_forward</span>
+</a>
+</div>
+</section>
+<!-- Extra spacing for bottom clear -->
+<div class="h-xl"></div>
+</main>
+<!-- Bottom Action Area (Task-focused Suppression of Nav) -->
+<footer class="fixed bottom-0 w-full z-50 px-margin py-lg bg-background flex justify-center">
+<button class="w-full border border-primary py-md font-label-sm text-label-sm text-primary hover:bg-primary hover:text-background transition-none uppercase tracking-widest" onclick="window.history.back()">
+            BACK
+        </button>
+</footer>
+<!-- Bottom Navigation (Shared Component - Conditional Visibility) -->
+<!-- Hidden because this is a focused task/launcher list view -->
+<nav class="hidden fixed bottom-0 w-full z-50 flex justify-between items-center px-margin py-md bg-background border-t border-on-tertiary-fixed-variant">
+<div class="flex items-center gap-xs text-primary px-md py-xs">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-label-sm text-label-sm">SEARCH</span>
+</div>
+<div class="flex items-center gap-xs bg-primary text-background px-md py-xs">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">HOME</span>
+</div>
+</nav>
+<script>
+        // Micro-interaction: Smooth hover states and haptic simulation
+        const appItems = document.querySelectorAll('.app-item');
+        appItems.forEach(item => {
+            item.addEventListener('touchstart', () => {
+                item.style.backgroundColor = '#ffffff';
+                item.style.color = '#000000';
+            });
+            item.addEventListener('touchend', () => {
+                item.style.backgroundColor = 'transparent';
+                item.style.color = '#ffffff';
+            });
+        });
+
+        // Suppression Logic Check
+        // Since this is the "App List" (Launcher), we follow the design instruction 
+        // to show a simple "BACK" button at the bottom instead of the standard Nav Bar.
+    </script>
+</body></html>

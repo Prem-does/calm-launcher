@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Calm Launcher</string>
+    <string name="focus_block_accessibility_description">Blocks distracting apps, quick settings, rapid switching, and fast scrolling during focus rules.</string>
+    <string name="greyscale_accessibility_description">Adds a calm dim overlay across the device when grayscale or recovery rules are active.</string>
+    <string name="device_admin_description">Allows Calm Launcher to apply stricter focus restrictions when enabled by the user.</string>
+</resources>

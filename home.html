@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@100..900&amp;family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #131313;
+            color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Hide scrollbars for a cleaner look */
+        ::-webkit-scrollbar { display: none; }
+        * { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#e5e2e1",
+                      "on-surface": "#e2e2e2",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-tertiary-fixed-variant": "#474746",
+                      "outline": "#8e9192",
+                      "on-background": "#e2e2e2",
+                      "surface-variant": "#353535",
+                      "primary": "#ffffff",
+                      "on-primary-fixed": "#1a1c1c",
+                      "on-secondary-container": "#b5b5b5",
+                      "on-secondary": "#303031",
+                      "on-tertiary-fixed": "#1b1c1c",
+                      "inverse-surface": "#e2e2e2",
+                      "surface-container": "#1f1f1f",
+                      "error": "#ffb4ab",
+                      "background": "#131313",
+                      "tertiary-fixed": "#e5e2e1",
+                      "secondary-fixed-dim": "#c7c6c6",
+                      "error-container": "#93000a",
+                      "on-error": "#690005",
+                      "surface-container-low": "#1b1b1b",
+                      "surface-dim": "#131313",
+                      "inverse-on-surface": "#303030",
+                      "on-tertiary": "#303030",
+                      "primary-container": "#e2e2e2",
+                      "surface-container-high": "#2a2a2a",
+                      "surface": "#131313",
+                      "inverse-primary": "#5d5f5f",
+                      "on-error-container": "#ffdad6",
+                      "on-secondary-fixed": "#1b1c1c",
+                      "surface-tint": "#c6c6c7",
+                      "primary-fixed": "#e2e2e2",
+                      "tertiary-fixed-dim": "#c8c6c5",
+                      "secondary-container": "#464747",
+                      "on-primary": "#2f3131",
+                      "on-tertiary-container": "#656464",
+                      "outline-variant": "#444748",
+                      "surface-container-highest": "#353535",
+                      "on-primary-container": "#636565",
+                      "on-secondary-fixed-variant": "#464747",
+                      "tertiary": "#ffffff",
+                      "secondary": "#c7c6c6",
+                      "on-surface-variant": "#c4c7c8",
+                      "secondary-fixed": "#e3e2e2",
+                      "surface-bright": "#393939",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "on-primary-fixed-variant": "#454747"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "margin": "24px",
+                      "xs": "4px",
+                      "xl": "48px",
+                      "gutter": "16px",
+                      "unit": "4px",
+                      "md": "16px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "display-lg-mobile": ["IBM Plex Sans"],
+                      "label-sm": ["JetBrains Mono"],
+                      "display-lg": ["IBM Plex Sans"],
+                      "headline-md": ["IBM Plex Sans"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "display-lg-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "500"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-primary min-h-screen flex flex-col font-body-md overflow-hidden">
+<!-- Top Status Bar (TopAppBar) -->
+<!-- Content from JSON: 12:45 • MON OCT 23 • 85% -->
+<header class="flex justify-between items-center px-margin py-sm w-full bg-background dark:bg-background border-b border-on-tertiary-fixed-variant docked full-width top-0">
+<div class="font-label-sm text-label-sm text-primary uppercase">
+            12:45 • MON OCT 23 • 85%
+        </div>
+<div class="flex gap-gutter">
+<button class="font-label-sm text-label-sm text-primary transition-none hover:bg-on-primary hover:text-background px-xs">MENU</button>
+<button class="font-label-sm text-label-sm text-primary transition-none hover:bg-on-primary hover:text-background px-xs">LOG</button>
+</div>
+</header>
+<!-- Main Content Canvas (Minimalist Calm Void) -->
+<main class="flex-grow flex flex-col items-start justify-center px-margin relative">
+<div class="w-full flex flex-col gap-xl">
+<!-- Asymmetric typographic focal point -->
+<div class="max-w-md">
+<h1 class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg leading-tight">
+                    Focus on the essential.
+                </h1>
+<div class="mt-md w-12 h-px bg-primary"></div>
+</div>
+<!-- List of Apps (Launcher Style) -->
+<nav class="flex flex-col gap-sm mt-xl">
+<a class="font-headline-md text-headline-md opacity-40 hover:opacity-100 transition-opacity flex items-center group" href="#">
+                    CAMERA
+                    <span class="ml-sm opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+</a>
+<a class="font-headline-md text-headline-md opacity-40 hover:opacity-100 transition-opacity flex items-center group" href="#">
+                    BROWSER
+                    <span class="ml-sm opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+</a>
+<a class="font-headline-md text-headline-md opacity-40 hover:opacity-100 transition-opacity flex items-center group" href="#">
+                    CALENDAR
+                    <span class="ml-sm opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+</a>
+<a class="font-headline-md text-headline-md opacity-40 hover:opacity-100 transition-opacity flex items-center group" href="#">
+                    NOTES
+                    <span class="ml-sm opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+</a>
+</nav>
+</div>
+<!-- Subtle Atmospheric Background Detail (No Images/No Bloat) -->
+<div class="absolute inset-0 -z-10 opacity-5 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0); background-size: 48px 48px;"></div>
+</main>
+<!-- Bottom Navigation (BottomNavBar) -->
+<!-- Content from JSON: SEARCH, HOME -->
+<!-- User Request Override: PHONE and MESSAGES links below thin divider -->
+<footer class="fixed bottom-0 w-full z-50 bg-background dark:bg-background border-t border-on-tertiary-fixed-variant px-margin py-md flex flex-col gap-md">
+<!-- Primary Action Area -->
+<div class="flex justify-between items-center">
+<div class="flex gap-xl">
+<a class="font-label-sm text-label-sm text-primary tracking-widest hover:bg-on-primary hover:text-background transition-none py-xs" href="#">PHONE</a>
+<a class="font-label-sm text-label-sm text-primary tracking-widest hover:bg-on-primary hover:text-background transition-none py-xs" href="#">MESSAGES</a>
+</div>
+<!-- Secondary Navigation Grouping (JSON Alignment) -->
+<div class="flex gap-md">
+<button class="text-primary px-md py-xs font-label-sm text-label-sm hover:bg-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 16px;">search</span>
+                    SEARCH
+                </button>
+<button class="bg-primary text-background px-md py-xs font-label-sm text-label-sm flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">home</span>
+                    HOME
+                </button>
+</div>
+</div>
+</footer>
+<!-- Interactive Layer: Simple hover effect logic -->
+<script>
+        document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                // Potential for haptic feedback triggers here
+            });
+        });
+        
+        // Dynamic time update for status bar (Simulated)
+        function updateTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const timeString = `${hours}:${minutes} • ${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()} • 85%`;
+            
+            // Updating the first div in header with class font-label-sm
+            const statusBar = document.querySelector('header div.font-label-sm');
+            if (statusBar) statusBar.textContent = timeString;
+        }
+        
+        // Minimal clock tick every minute
+        setInterval(updateTime, 60000);
+    </script>
+</body></html>
