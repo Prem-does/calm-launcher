@@ -14,5 +14,5 @@ dependencyResolutionManagement {
 	}
 }
 
-rootProject.name = "CalmLauncher"
+rootProject.name = "Calm Launcher"
 include(":app")

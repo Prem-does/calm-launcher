@@ -1,6 +1,7 @@
 package com.calmlauncher.navigation
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
 import android.media.AudioManager
@@ -66,7 +67,12 @@ fun LauncherNavHost(launcherStateViewModel: LauncherStateViewModel) {
         }
         audioManager?.let { manager ->
             if (uiState.settings.shouldSilentModeDefault()) {
-                manager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                // Switching to silent/vibrate touches DND policy, which requires
+                // ACCESS_NOTIFICATION_POLICY granted by the user, or setRingerMode throws.
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                if (notificationManager?.isNotificationPolicyAccessGranted == true) {
+                    runCatching { manager.ringerMode = AudioManager.RINGER_MODE_SILENT }
+                }
             }
         }
         if (uiState.settings.kioskModeEnabledPref() || uiState.settings.preventLauncherExit()) {

@@ -85,14 +85,20 @@ fun HomeScreen(
     val showSuggestions = settings.shouldShowAppSuggestions() && recentApps.isNotEmpty() && !useMinimalSurface
     val showRecent = settings.shouldShowRecentAppStrip() && recentApps.isNotEmpty() && !useMinimalSurface
     val showWidgets = !settings.disableWidgets() && !useMinimalSurface
-    val clockStyle = if (settings.largeClockStyle()) androidx.compose.material3.MaterialTheme.typography.displayLarge else androidx.compose.material3.MaterialTheme.typography.headlineLarge
+    val clockStyle = if (settings.largeClockStyle() || settings.environmentModeChoiceValue() == "Drive") androidx.compose.material3.MaterialTheme.typography.displayLarge else androidx.compose.material3.MaterialTheme.typography.headlineLarge
     val infoStyle = if (settings.useComfortableDensity()) androidx.compose.material3.MaterialTheme.typography.bodyLarge else androidx.compose.material3.MaterialTheme.typography.labelSmall
 
     BackHandler(enabled = settings.shouldLockLauncherExit()) { }
 
     LauncherChrome(
         statusText = if (settings.showTime()) "$timeText • $dateText • ${batteryPercent}%" else dateText,
-        rightActions = listOf("MENU", "LOG"),
+        rightActions = listOf("APPS", "SETTINGS"),
+        onRightAction = { action ->
+            when (action) {
+                "APPS" -> onOpenApps()
+                "SETTINGS" -> onOpenSettings()
+            }
+        },
         bottomActions = if (showNavigation) listOfNotNull(
             BottomAction("PHONE", onClick = { phoneApp?.let(onLaunchApp) }),
             BottomAction("MESSAGES", onClick = { messagesApp?.let(onLaunchApp) }),
@@ -122,6 +128,7 @@ fun HomeScreen(
                             }
                             when {
                                 vertical > horizontal && dragY > 110f && settings.swipeDownForSearch() -> onOpenSearch()
+                                vertical > horizontal && dragY < -110f -> onOpenApps()
                                 horizontal > vertical && dragX > 110f && settings.swipeRightForFocusMode() -> onOpenFocus()
                                 horizontal > vertical && dragX < -110f && settings.swipeLeftForNotes() -> onOpenNotes()
                             }
@@ -243,6 +250,10 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 Text(if (focusModeEnabled) "FOCUS MODE ON" else "FOCUS MODE OFF", color = Color.White.copy(alpha = 0.45f), style = infoStyle)
+                if (settings.environmentModeChoiceValue() != "Study") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(settings.environmentModeLabel().uppercase(), color = Color.White.copy(alpha = 0.45f), style = infoStyle)
+                }
                 if (settings.unlockCounter()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("UNLOCKS $unlockCount", color = Color.White.copy(alpha = 0.35f), style = infoStyle)

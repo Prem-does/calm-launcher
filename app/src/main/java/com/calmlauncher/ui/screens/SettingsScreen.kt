@@ -79,6 +79,7 @@ fun SettingsScreen(
 
     val toggleState = remember(state.preferences) {
         mutableStateMapOf(
+            "Enforcement" to persistedEnabled("Enforcement", false),
             "Show Time" to persistedEnabled("Show Time", true),
             "Show Date" to persistedEnabled("Show Date", true),
             "Show Battery %" to persistedEnabled("Show Battery %", true),
@@ -375,6 +376,17 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
+            sectionHeader("ENFORCEMENT")
+            checkboxRow("Enforcement", toggleState)
+            Text(
+                if (toggleState["Enforcement"] == true)
+                    "On. App hiding, blocking, delays, and locks apply per the settings below."
+                else
+                    "Off. The launcher stays minimal but restricts nothing. Turn on to activate hiding, blocking, delays, and locks.",
+                color = Color.White.copy(alpha = 0.5f),
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall
+            )
+
             sectionHeader("APPEARANCE")
             choiceRow("Theme", choiceState["Theme"] ?: "Pure Black", listOf("Pure Black", "Dark Gray", "Paper White"), choiceState)
             choiceRow("Grayscale Mode", choiceState["Grayscale Mode"] ?: "Always On", listOf("Always On", "Scheduled", "Off"), choiceState)
@@ -598,7 +610,7 @@ fun SettingsScreen(
             checkboxRow("Deep Work Session Timer", toggleState)
 
             sectionHeader("MODES")
-            choiceRow("Environment Mode", choiceState["Environment Mode"] ?: "Study", listOf("Study", "Sleep", "Gym", "Deep Work", "Outside"), choiceState)
+            choiceRow("Environment Mode", choiceState["Environment Mode"] ?: "Study", listOf("Study", "Sleep", "Gym", "Deep Work", "Drive", "Minimal", "Recovery", "Nature", "Social"), choiceState)
             choiceRow("Friction Level", choiceState["Friction Level"] ?: "Light", listOf("Light", "Monk", "Hardcore Monk"), choiceState)
             checkboxRow("Intent-Based App Opening", toggleState)
             checkboxRow("Dopamine Detection Engine", toggleState)

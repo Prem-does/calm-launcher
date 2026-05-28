@@ -57,8 +57,11 @@ private val addictiveKeywords = listOf(
 private val browserKeywords = listOf("browser", "chrome", "firefox", "samsung internet", "brave", "edge")
 private val storeKeywords = listOf("play store", "store", "app store", "market")
 
-// Toggle this for local testing to disable all restrictive behaviors (set to false to restore behavior)
-private const val TESTING_MODE = true
+// Master switch. When OFF (the default) the launcher behaves as a clean, non-restrictive
+// minimal launcher: nothing is hidden, blocked, delayed, or locked. Turning "Enforcement" ON
+// in Settings activates the signature restrictive behaviors below. Defaulting OFF keeps the
+// device safe and fully reversible until the user explicitly opts in.
+fun LauncherSettingsState.enforcementActive(): Boolean = prefEnabled("Enforcement", false)
 
 fun LauncherSettingsState.prefEnabled(key: String, defaultValue: Boolean = false): Boolean {
     return preferences[key]?.let { value ->
@@ -81,22 +84,22 @@ fun LauncherSettingsState.largeClockStyle(): Boolean = prefEnabled("Large Clock 
 fun LauncherSettingsState.hideSearchBar(): Boolean = prefEnabled("Hide Search Bar", false)
 fun LauncherSettingsState.hideNavigationBar(): Boolean = prefEnabled("Hide Navigation Bar", false)
 fun LauncherSettingsState.disableWidgets(): Boolean = prefEnabled("Disable Widgets", true)
-fun LauncherSettingsState.allowedAppsListEnabled(): Boolean = if (TESTING_MODE) false else prefEnabled("Allowed Apps List", true)
+fun LauncherSettingsState.allowedAppsListEnabled(): Boolean = if (!enforcementActive()) false else prefEnabled("Allowed Apps List", true)
 fun LauncherSettingsState.hiddenAppsEnabled(): Boolean = prefEnabled("Hidden Apps", false)
-fun LauncherSettingsState.lockAppsEnabled(): Boolean = if (TESTING_MODE) false else prefEnabled("Lock Apps", true)
+fun LauncherSettingsState.lockAppsEnabled(): Boolean = if (!enforcementActive()) false else prefEnabled("Lock Apps", true)
 fun LauncherSettingsState.focusModeAppsEnabled(): Boolean = prefEnabled("Focus Mode Apps", true)
 fun LauncherSettingsState.essentialAppsOnly(): Boolean = prefEnabled("Essential Apps Only", true)
-fun LauncherSettingsState.blockAppInstallation(): Boolean = if (TESTING_MODE) false else prefEnabled("Block App Installation", true)
-fun LauncherSettingsState.disableAppSuggestions(): Boolean = if (TESTING_MODE) false else prefEnabled("Disable App Suggestions", true)
-fun LauncherSettingsState.disableRecentlyUsedApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Disable Recently Used Apps", true)
-fun LauncherSettingsState.requireIntentBeforeOpening(): Boolean = if (TESTING_MODE) false else prefEnabled("Require Intent Before Opening", true)
+fun LauncherSettingsState.blockAppInstallation(): Boolean = if (!enforcementActive()) false else prefEnabled("Block App Installation", true)
+fun LauncherSettingsState.disableAppSuggestions(): Boolean = if (!enforcementActive()) false else prefEnabled("Disable App Suggestions", true)
+fun LauncherSettingsState.disableRecentlyUsedApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Disable Recently Used Apps", true)
+fun LauncherSettingsState.requireIntentBeforeOpening(): Boolean = if (!enforcementActive()) false else prefEnabled("Require Intent Before Opening", true)
 fun LauncherSettingsState.intentBasedAppOpening(): Boolean = prefEnabled("Intent-Based App Opening", true)
-fun LauncherSettingsState.requireLongPress(): Boolean = if (TESTING_MODE) false else prefEnabled("Require Long Press", true)
-fun LauncherSettingsState.requirePinForApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Require PIN For Apps", false)
+fun LauncherSettingsState.requireLongPress(): Boolean = if (!enforcementActive()) false else prefEnabled("Require Long Press", true)
+fun LauncherSettingsState.requirePinForApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Require PIN For Apps", false)
 fun LauncherSettingsState.dailyUsageLimitsEnabled(): Boolean = prefEnabled("Daily Usage Limits", false)
 fun LauncherSettingsState.appCooldownTimerEnabled(): Boolean = prefEnabled("App Cooldown Timer", false)
 fun LauncherSettingsState.appTimeoutAutoCloseEnabled(): Boolean = prefEnabled("App Timeout Auto-Close", false)
-fun LauncherSettingsState.focusModeEnabledPref(): Boolean = if (TESTING_MODE) false else prefEnabled("Enable Focus Mode", true)
+fun LauncherSettingsState.focusModeEnabledPref(): Boolean = if (!enforcementActive()) false else prefEnabled("Enable Focus Mode", true)
 fun LauncherSettingsState.scheduleFocusMode(): Boolean = prefEnabled("Schedule Focus Mode", false)
 fun LauncherSettingsState.emergencyBypassEnabled(): Boolean = prefEnabled("Emergency Bypass", true)
 fun LauncherSettingsState.slowModeEnabled(): Boolean = prefEnabled("Slow Mode", false)
@@ -108,17 +111,17 @@ fun LauncherSettingsState.dynamicMinimalism(): Boolean = prefEnabled("Dynamic Mi
 fun LauncherSettingsState.recoveryMode(): Boolean = prefEnabled("Recovery Mode", false)
 fun LauncherSettingsState.eInkSimulation(): Boolean = prefEnabled("E-Ink Simulation", false)
 fun LauncherSettingsState.breathUnlock(): Boolean = prefEnabled("Breath Unlock", false)
-fun LauncherSettingsState.invisibleSocialApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Invisible Social Apps", true)
-fun LauncherSettingsState.minimalSocialLayer(): Boolean = if (TESTING_MODE) false else prefEnabled("Minimal Social Layer", true)
+fun LauncherSettingsState.invisibleSocialApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Invisible Social Apps", true)
+fun LauncherSettingsState.minimalSocialLayer(): Boolean = if (!enforcementActive()) false else prefEnabled("Minimal Social Layer", true)
 fun LauncherSettingsState.rewardRealLife(): Boolean = prefEnabled("Reward Real Life", true)
 fun LauncherSettingsState.calmAIAssistant(): Boolean = prefEnabled("Calm AI Assistant", true)
 fun LauncherSettingsState.usageReflectionScreen(): Boolean = prefEnabled("Usage Reflection Screen", true)
-fun LauncherSettingsState.blockBrowser(): Boolean = if (TESTING_MODE) false else prefEnabled("Block Browser", true)
-fun LauncherSettingsState.blockSocialMedia(): Boolean = if (TESTING_MODE) false else prefEnabled("Block Social Media", true)
-fun LauncherSettingsState.blockPlayStore(): Boolean = if (TESTING_MODE) false else prefEnabled("Block Play Store", true)
+fun LauncherSettingsState.blockBrowser(): Boolean = if (!enforcementActive()) false else prefEnabled("Block Browser", true)
+fun LauncherSettingsState.blockSocialMedia(): Boolean = if (!enforcementActive()) false else prefEnabled("Block Social Media", true)
+fun LauncherSettingsState.blockPlayStore(): Boolean = if (!enforcementActive()) false else prefEnabled("Block Play Store", true)
 fun LauncherSettingsState.hideNotifications(): Boolean = prefEnabled("Hide Notifications", true)
 fun LauncherSettingsState.lockQuickSettings(): Boolean = prefEnabled("Lock Quick Settings", true)
-fun LauncherSettingsState.ultraMinimalScreen(): Boolean = if (TESTING_MODE) false else prefEnabled("Ultra Minimal Screen", true)
+fun LauncherSettingsState.ultraMinimalScreen(): Boolean = if (!enforcementActive()) false else prefEnabled("Ultra Minimal Screen", true)
 fun LauncherSettingsState.allowCallsOnly(): Boolean = prefEnabled("Allow Calls Only", false)
 fun LauncherSettingsState.allowMessagesOnly(): Boolean = prefEnabled("Allow Messages Only", false)
 fun LauncherSettingsState.silentNotifications(): Boolean = prefEnabled("Silent Notifications", true)
@@ -135,9 +138,9 @@ fun LauncherSettingsState.relapseRiskDetection(): Boolean = prefEnabled("Relapse
 fun LauncherSettingsState.dopamineDetoxMode(): Boolean = prefEnabled("Dopamine Detox Mode", true)
 fun LauncherSettingsState.weeklyUsageReport(): Boolean = prefEnabled("Weekly Usage Report", true)
 fun LauncherSettingsState.disableInternetAccess(): Boolean = prefEnabled("Disable Internet Access", false)
-fun LauncherSettingsState.blackAndWhiteOnly(): Boolean = if (TESTING_MODE) false else prefEnabled("Black & White Only", true)
-fun LauncherSettingsState.disableEntertainmentApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Disable Entertainment Apps", true)
-fun LauncherSettingsState.hideAllNonEssentialApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Hide All Non-Essential Apps", true)
+fun LauncherSettingsState.blackAndWhiteOnly(): Boolean = if (!enforcementActive()) false else prefEnabled("Black & White Only", true)
+fun LauncherSettingsState.disableEntertainmentApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Disable Entertainment Apps", true)
+fun LauncherSettingsState.hideAllNonEssentialApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Hide All Non-Essential Apps", true)
 fun LauncherSettingsState.lockDeviceDuringFocusSessions(): Boolean = prefEnabled("Lock Device During Focus Sessions", false)
 fun LauncherSettingsState.calmUnlockScreen(): Boolean = prefEnabled("Calm Unlock Screen", true)
 fun LauncherSettingsState.breathingUnlockAnimation(): Boolean = prefEnabled("Breathing Unlock Animation", false)
@@ -162,12 +165,12 @@ fun LauncherSettingsState.disableInternetAtNight(): Boolean = prefEnabled("Disab
 fun LauncherSettingsState.sleepReminder(): Boolean = prefEnabled("Sleep Reminder", false)
 fun LauncherSettingsState.bedtimeLock(): Boolean = prefEnabled("Bedtime Lock", false)
 fun LauncherSettingsState.disableBrightnessBoost(): Boolean = prefEnabled("Disable Brightness Boost", true)
-fun LauncherSettingsState.pinProtectSettings(): Boolean = if (TESTING_MODE) false else prefEnabled("PIN Protect Settings", true)
-fun LauncherSettingsState.preventLauncherExit(): Boolean = if (TESTING_MODE) false else prefEnabled("Prevent Launcher Exit", true)
+fun LauncherSettingsState.pinProtectSettings(): Boolean = if (!enforcementActive()) false else prefEnabled("PIN Protect Settings", true)
+fun LauncherSettingsState.preventLauncherExit(): Boolean = if (!enforcementActive()) false else prefEnabled("Prevent Launcher Exit", false)
 fun LauncherSettingsState.setAsPermanentHomeApp(): Boolean = prefEnabled("Set As Permanent Home App", true)
 fun LauncherSettingsState.kioskModeEnabledPref(): Boolean = prefEnabled("Kiosk Mode", false)
 fun LauncherSettingsState.lockSafeModeAccess(): Boolean = prefEnabled("Lock Safe Mode Access", true)
-fun LauncherSettingsState.hideSensitiveApps(): Boolean = if (TESTING_MODE) false else prefEnabled("Hide Sensitive Apps", true)
+fun LauncherSettingsState.hideSensitiveApps(): Boolean = if (!enforcementActive()) false else prefEnabled("Hide Sensitive Apps", true)
 fun LauncherSettingsState.emergencyContactAccess(): Boolean = prefEnabled("Emergency Contact Access", true)
 fun LauncherSettingsState.breathingExerciseScreen(): Boolean = prefEnabled("Breathing Exercise Screen", true)
 fun LauncherSettingsState.focusTimer(): Boolean = prefEnabled("Focus Timer", true)
@@ -237,12 +240,12 @@ fun LauncherSettingsState.shouldDeadEndFeedFor(label: String): Boolean {
 }
 
 fun LauncherSettingsState.requiresLaunchConfirmation(label: String): Boolean {
-    if (TESTING_MODE) return false
+    if (!enforcementActive()) return false
     return lockAppsEnabled() || requireIntentBeforeOpening() || intentBasedAppOpening() || requireLongPress() || requirePinForApps() || isSensitiveLabel(label) || breathUnlock() || oneAppAtATimeMode() || analogMode() || frictionLevelChoiceValue() != "Light"
 }
 
 fun LauncherSettingsState.isLaunchBlocked(label: String, screenTimeMinutes: Int): Boolean {
-    if (TESTING_MODE) return false
+    if (!enforcementActive()) return false
     if (dailyUsageLimitsEnabled()) {
         val maxMinutes = dailyPhoneLimitChoice().substringBefore(" ").toIntOrNull() ?: 120
         if (screenTimeMinutes >= maxMinutes) {
@@ -278,11 +281,24 @@ fun LauncherSettingsState.isLaunchBlocked(label: String, screenTimeMinutes: Int)
         "Deep Work" -> {
             if (isBrowserLabel(label) || isSocialLabel(label) || isEntertainmentLabel(label) || isStoreLabel(label)) return true
         }
-        "Outside" -> {
-            if (isSocialLabel(label) || isEntertainmentLabel(label) || isBrowserLabel(label)) return true
+        "Outside", "Nature" -> {
+            if (isNatureBlockedLabel(label)) return true
         }
         "Gym" -> {
             if (!isGymAllowedLabel(label)) return true
+        }
+        "Drive" -> {
+            if (!isDriveAllowedLabel(label)) return true
+        }
+        "Minimal" -> {
+            if (!isMinimalAllowedLabel(label)) return true
+        }
+        "Recovery" -> {
+            if (isRecoveryBlockedLabel(label)) return true
+        }
+        "Social" -> {
+            // Social mode allows social apps but keeps other distractions out.
+            if (isEntertainmentLabel(label) || isStoreLabel(label)) return true
         }
     }
 
@@ -294,7 +310,7 @@ fun LauncherSettingsState.isLaunchBlocked(label: String, screenTimeMinutes: Int)
 }
 
 fun LauncherSettingsState.shouldShowAppInLists(label: String, focusModeActive: Boolean): Boolean {
-    if (TESTING_MODE) return true
+    if (!enforcementActive()) return true
     if (!allowedAppsListEnabled()) {
         if (hideSensitiveApps() && isSensitiveLabel(label)) return false
         if (blockAppInstallation() && isStoreLabel(label)) return false
@@ -308,6 +324,8 @@ fun LauncherSettingsState.shouldShowAppInLists(label: String, focusModeActive: B
     when (environmentModeChoiceValue()) {
         "Sleep" -> return isSleepAllowedLabel(label)
         "Gym" -> return isGymAllowedLabel(label)
+        "Drive" -> return isDriveAllowedLabel(label)
+        "Minimal" -> return isMinimalAllowedLabel(label)
     }
 
     if (hiddenAppsEnabled() && !isEssentialLabel(label)) {
@@ -352,7 +370,9 @@ fun LauncherSettingsState.shouldShowAppInLists(label: String, focusModeActive: B
 
     when (environmentModeChoiceValue()) {
         "Deep Work" -> if (isBrowserLabel(label) || isSocialLabel(label) || isEntertainmentLabel(label) || isStoreLabel(label)) return false
-        "Outside" -> if (isSocialLabel(label) || isEntertainmentLabel(label) || isBrowserLabel(label)) return false
+        "Outside", "Nature" -> if (isNatureBlockedLabel(label)) return false
+        "Recovery" -> if (isRecoveryBlockedLabel(label)) return false
+        "Social" -> if (isEntertainmentLabel(label) || isStoreLabel(label)) return false
     }
 
     return true
@@ -360,7 +380,7 @@ fun LauncherSettingsState.shouldShowAppInLists(label: String, focusModeActive: B
 
 fun LauncherSettingsState.shouldShowRecentApps(): Boolean = !disableRecentlyUsedApps()
 fun LauncherSettingsState.shouldShowSuggestions(): Boolean = !disableAppSuggestions()
-fun LauncherSettingsState.shouldUseDynamicMinimalUi(riskMessage: String): Boolean = ultraMinimalScreen() || (dynamicMinimalism() && riskMessage.isNotBlank())
+fun LauncherSettingsState.shouldUseDynamicMinimalUi(riskMessage: String): Boolean = ultraMinimalScreen() || environmentModeChoiceValue() == "Minimal" || (dynamicMinimalism() && riskMessage.isNotBlank())
 fun LauncherSettingsState.showSearchOnlyText(): Boolean = textOnlyAppSearch()
 fun LauncherSettingsState.useCompactDensity(): Boolean = uiDensityChoice().equals("Compact", ignoreCase = true)
 fun LauncherSettingsState.useComfortableDensity(): Boolean = uiDensityChoice().equals("Comfortable", ignoreCase = true)
@@ -389,7 +409,11 @@ fun LauncherSettingsState.environmentModeLabel(): String {
         "Sleep" -> "sleep mode"
         "Gym" -> "gym mode"
         "Deep Work" -> "deep work mode"
-        "Outside" -> "outside mode"
+        "Outside", "Nature" -> "nature mode"
+        "Drive" -> "drive mode"
+        "Minimal" -> "minimal mode"
+        "Recovery" -> "recovery mode"
+        "Social" -> "social mode"
         else -> "study mode"
     }
 }
@@ -412,6 +436,28 @@ private fun isSleepAllowedLabel(label: String): Boolean {
 
 private fun isGymAllowedLabel(label: String): Boolean {
     return listOf("Phone", "Messages", "Music", "Maps", "Camera", "Settings").any { it.equals(label, ignoreCase = true) }
+}
+
+// Drive mode: only navigation, music, and calls (plus Settings to switch modes). Texting is blocked.
+private fun isDriveAllowedLabel(label: String): Boolean {
+    return listOf("Phone", "Maps", "Music", "Settings").any { it.equals(label, ignoreCase = true) }
+}
+
+// Minimal mode (signature): only calls, SMS, notes, maps, camera, music, clock remain.
+private fun isMinimalAllowedLabel(label: String): Boolean {
+    return listOf("Phone", "Messages", "Notes", "Maps", "Camera", "Music", "Clock", "Alarm", "Timer", "Settings")
+        .any { it.equals(label, ignoreCase = true) }
+}
+
+// Nature mode: outdoor focus — maps, weather, compass, camera, music, calls; no social/entertainment/browser.
+private fun isNatureBlockedLabel(label: String): Boolean {
+    return isSocialLabel(label) || isEntertainmentLabel(label) || isBrowserLabel(label)
+}
+
+// Recovery mode: digital detox — block every addictive surface.
+private fun isRecoveryBlockedLabel(label: String): Boolean {
+    return isAddictiveLabel(label) || isSocialLabel(label) || isEntertainmentLabel(label) ||
+        isBrowserLabel(label) || isStoreLabel(label)
 }
 
 private fun isSensitiveLabel(label: String): Boolean {

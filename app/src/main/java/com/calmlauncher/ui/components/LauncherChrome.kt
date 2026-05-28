@@ -34,9 +34,11 @@ fun LauncherChrome(
     statusText: String,
     rightActions: List<String>,
     bottomActions: List<BottomAction>? = null,
+    onRightAction: ((String) -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val settings = LocalLauncherSettings.current
+    val haptics = LocalHapticFeedback.current
     val animated = launcherAnimationEnabled(settings)
     val motionDuration = launcherMotionDurationMillis(settings)
     val backgroundAlpha by animateFloatAsState(
@@ -62,7 +64,22 @@ fun LauncherChrome(
             Text(statusText, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 rightActions.forEach { label ->
-                    Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground)
+                    val labelModifier = if (onRightAction != null) {
+                        Modifier.clickable {
+                            if (!settings.shouldQuietInteractions()) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            onRightAction(label)
+                        }.padding(vertical = 4.dp, horizontal = 4.dp)
+                    } else {
+                        Modifier
+                    }
+                    Text(
+                        label,
+                        modifier = labelModifier,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
             }
         }
