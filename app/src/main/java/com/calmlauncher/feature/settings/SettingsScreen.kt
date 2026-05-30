@@ -1,5 +1,9 @@
 package com.calmlauncher.feature.settings
 
+import android.content.ComponentName
+import android.content.Intent
+import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
@@ -18,11 +23,10 @@ import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmToggle
 import com.calmlauncher.core.designsystem.component.SectionLabel
 import com.calmlauncher.core.designsystem.component.SettingRow
-import com.calmlauncher.core.designsystem.grayscale
-import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
+import com.calmlauncher.domain.model.AppDisplayMode
 
 /**
  * The Settings hub: a focused (no bottom-nav) sub-page fronted by a [CalmBackBar]. A big
@@ -45,7 +49,6 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val screenTimeText by viewModel.screenTimeText.collectAsStateWithLifecycle()
-    val restriction by viewModel.restriction.collectAsStateWithLifecycle()
 
     CalmScaffold(
         modifier = modifier,
@@ -55,7 +58,6 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .grayscale(restriction.grayscale, restriction.grayscaleAmount)
                 .verticalScroll(rememberScrollState()),
         ) {
             Text(
@@ -103,8 +105,21 @@ fun SettingsScreen(
             SettingRow(
                 title = "Greyscale Mode",
                 trailing = {
+                    val context = LocalContext.current
                     CalmToggle(settings.grayscaleEnabled) { checked ->
                         viewModel.update { it.copy(grayscaleEnabled = checked) }
+                        if (checked) {
+                            if (!openColorCorrectionSettings(context)) {
+                                Toast.makeText(context, "Unable to open Colour Correction settings.", Toast.LENGTH_SHORT).show()
+                                return@CalmToggle
+                            }
+
+                            Toast.makeText(
+                                context,
+                                "Enable Colour Correction and select Greyscale.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
                     }
                 },
             )
@@ -230,4 +245,32 @@ fun SettingsScreen(
             Spacer(Modifier.height(Spacing.stackLg))
         }
     }
+}
+
+private fun openColorCorrectionSettings(context: android.content.Context): Boolean {
+    val pm = context.packageManager
+
+    val candidates = listOf(
+        Intent("com.android.settings.ACCESSIBILITY_COLOR_SPACE_SETTINGS")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        Intent(Intent.ACTION_MAIN)
+            .setComponent(
+                ComponentName(
+                    "com.android.settings",
+                    "com.android.settings.Settings\$AccessibilityDaltonizerSettingsActivity",
+                ),
+            )
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+
+    for (intent in candidates) {
+        if (pm.resolveActivity(intent, 0) != null) {
+            context.startActivity(intent)
+            return true
+        }
+    }
+
+    return false
 }

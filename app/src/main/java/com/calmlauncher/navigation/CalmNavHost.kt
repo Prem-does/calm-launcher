@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.feature.applist.AppListScreen
 import com.calmlauncher.feature.focus.FocusScreen
@@ -37,8 +38,14 @@ import com.calmlauncher.feature.settings.SettingsScreen
 @Composable
 fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val onboardingComplete by rootViewModel.onboardingComplete.collectAsStateWithLifecycle()
+    val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
 
-    Box(modifier = Modifier.fillMaxSize().background(CalmBlack)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CalmBlack)
+            .grayscale(restriction.grayscale, restriction.grayscaleAmount),
+    ) {
         val complete = onboardingComplete
         if (complete != null) {
             val navController = rememberNavController()

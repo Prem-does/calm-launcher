@@ -20,7 +20,6 @@ import com.calmlauncher.core.designsystem.component.AppListRow
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
 import com.calmlauncher.core.designsystem.component.CalmBottomNav
-import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.navigation.Routes
 
@@ -41,10 +40,7 @@ fun AppListScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     CalmScaffold(
-        modifier = modifier.grayscale(
-            enabled = state.restriction.grayscale,
-            amount = state.restriction.grayscaleAmount,
-        ),
+        modifier = modifier,
         topBar = { CalmStatusBar(batteryText = state.batteryText, signalText = state.signalText) },
         bottomBar = { CalmBottomNav(current = Routes.APPS, onSelect = onSelectTab) },
     ) { padding ->

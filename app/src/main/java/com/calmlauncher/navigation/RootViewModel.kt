@@ -2,7 +2,9 @@ package com.calmlauncher.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calmlauncher.domain.model.UiRestrictionState
 import com.calmlauncher.domain.repository.SettingsRepository
+import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,9 +19,13 @@ import javax.inject.Inject
 @HiltViewModel
 class RootViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
+    observeRestriction: ObserveRestrictionStateUseCase,
 ) : ViewModel() {
     val onboardingComplete: StateFlow<Boolean?> =
         settingsRepository.settings
             .map { it.onboardingComplete }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val restriction: StateFlow<UiRestrictionState> = observeRestriction()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiRestrictionState())
 }

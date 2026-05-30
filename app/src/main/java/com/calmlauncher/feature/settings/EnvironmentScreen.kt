@@ -19,7 +19,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.ThinDivider
-import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
@@ -51,7 +50,6 @@ fun EnvironmentScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .grayscale(restriction.grayscale, restriction.grayscaleAmount)
                 .verticalScroll(rememberScrollState()),
         ) {
             EnvironmentMode.entries.forEach { mode ->

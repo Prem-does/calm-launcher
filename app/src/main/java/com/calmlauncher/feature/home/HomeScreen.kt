@@ -21,7 +21,6 @@ import com.calmlauncher.core.designsystem.component.CalmBottomNav
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
 import com.calmlauncher.core.designsystem.component.HomeShortcutRow
-import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
@@ -70,7 +69,6 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .grayscale(state.restriction.grayscale, state.restriction.grayscaleAmount)
                 .pointerInput(Unit) {
                     detectVerticalDragGestures { _, dragAmount ->
                         if (dragAmount > 40f) onOpenSearch()

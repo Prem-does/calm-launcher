@@ -20,7 +20,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.EInkBackdrop
 import com.calmlauncher.core.designsystem.component.HoldToConfirm
-import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
@@ -56,7 +55,6 @@ fun FocusScreen(
         modifier = modifier
             .fillMaxSize()
             .background(CalmBlack)
-            .grayscale(state.grayscale, state.grayscaleAmount),
     ) {
         // Bottom layer: barely-perceptible e-ink speckle, never intercepts input.
         EInkBackdrop(Modifier.matchParentSize())
