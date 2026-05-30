@@ -24,8 +24,8 @@ class RootViewModel @Inject constructor(
     val onboardingComplete: StateFlow<Boolean?> =
         settingsRepository.settings
             .map { it.onboardingComplete }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val restriction: StateFlow<UiRestrictionState> = observeRestriction()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiRestrictionState())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UiRestrictionState())
 }

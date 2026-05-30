@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AirplanemodeActive
+import androidx.compose.material.icons.filled.SignalCellularOff
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -57,7 +59,7 @@ fun CalmStatusBar(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.base),
             ) {
                 Icon(
-                    imageVector = Icons.Filled.SignalCellularAlt,
+                    imageVector = signalIcon(signalText),
                     contentDescription = null,
                     tint = CalmWhite,
                 )
@@ -84,6 +86,12 @@ fun CalmStatusBar(
         }
         ThinDivider()
     }
+}
+
+private fun signalIcon(signalText: String) = when (signalText) {
+    "Airplane" -> Icons.Filled.AirplanemodeActive
+    "Offline" -> Icons.Filled.SignalCellularOff
+    else -> Icons.Filled.SignalCellularAlt
 }
 
 /**

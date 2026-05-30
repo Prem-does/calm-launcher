@@ -1,12 +1,17 @@
 package com.calmlauncher.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -16,6 +21,10 @@ import androidx.navigation.compose.rememberNavController
 import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmTheme
+import com.calmlauncher.core.designsystem.theme.CalmGray
+import com.calmlauncher.core.designsystem.theme.CalmType
+import com.calmlauncher.core.designsystem.theme.CalmWhite
+import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.feature.applist.AppListScreen
 import com.calmlauncher.feature.focus.FocusScreen
 import com.calmlauncher.feature.gate.LaunchGateHost
@@ -43,6 +52,7 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val themeViewModel: ThemeViewModel = hiltViewModel()
     val themePreference by themeViewModel.themePreference.collectAsStateWithLifecycle()
     val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
+    val navController = rememberNavController()
 
     CalmTheme(themePreference = themePreference) {
         Box(
@@ -52,16 +62,40 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
                 .grayscale(restriction.grayscale, restriction.grayscaleAmount),
         ) {
             val complete = onboardingComplete
-            if (complete != null) {
-                val navController = rememberNavController()
+            if (complete == null) {
+                LoadingRootSurface()
+            } else {
                 CalmNavHost(
                     navController = navController,
                     startDestination = if (complete) Routes.HOME else Routes.ONBOARDING,
                 )
-                // Sits above the nav host; renders nothing unless a launch is being gated.
-                LaunchGateHost(onNavigateToReset = { navController.navigate(Routes.RESET) })
             }
+            // Sits above the nav host; renders nothing unless a launch is being gated.
+            LaunchGateHost(onNavigateToReset = { navController.navigate(Routes.RESET) })
         }
+    }
+}
+
+@Composable
+private fun LoadingRootSurface(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = Spacing.marginMobile),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        androidx.compose.material3.Text(
+            text = "CALM",
+            style = CalmType.headlineLgMobile,
+            color = CalmWhite,
+        )
+        androidx.compose.material3.Text(
+            text = "Starting...",
+            style = CalmType.labelMd,
+            color = CalmGray,
+            modifier = Modifier.padding(top = Spacing.stackSm),
+        )
     }
 }
 

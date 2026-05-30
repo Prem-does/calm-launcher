@@ -30,7 +30,7 @@ import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 
-private val BarWidth = 96.dp
+private val BarWidth = 192.dp
 private val BarHeight = 2.dp
 
 /** Resting / sub-label opacity for the hold control. */

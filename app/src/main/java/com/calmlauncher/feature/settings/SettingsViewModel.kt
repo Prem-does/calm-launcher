@@ -46,7 +46,7 @@ class SettingsViewModel @Inject constructor(
 
     val settings: StateFlow<LauncherSettings> = settingsRepository.settings.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.Eagerly,
         initialValue = LauncherSettings(),
     )
 
@@ -55,13 +55,13 @@ class SettingsViewModel @Inject constructor(
         .map { "${it.format()} today" }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = ScreenTimeRecord.empty(0L).format() + " today",
         )
 
     val restriction: StateFlow<UiRestrictionState> = observeRestriction().stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.Eagerly,
         initialValue = UiRestrictionState(),
     )
 

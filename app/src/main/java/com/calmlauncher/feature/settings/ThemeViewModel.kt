@@ -22,7 +22,7 @@ class ThemeViewModel @Inject constructor(
         .map { it.themePreference }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = ThemePreference.DARK,
         )
 

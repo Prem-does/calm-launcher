@@ -1,10 +1,14 @@
 package com.calmlauncher.data.system
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.provider.Settings
 import android.telephony.TelephonyManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -40,6 +44,14 @@ class ConnectivityObserver @Inject constructor(
             trySend(currentLabel(manager))
         }
 
+        val airplaneReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                emitCurrent()
+            }
+        }
+        val airplaneFilter = IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+        context.registerReceiver(airplaneReceiver, airplaneFilter)
+
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = emitCurrent()
             override fun onLost(network: Network) = emitCurrent()
@@ -49,23 +61,29 @@ class ConnectivityObserver @Inject constructor(
             ) = emitCurrent()
         }
 
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
         val registered = runCatching {
-            manager.registerNetworkCallback(request, callback)
+            manager.registerDefaultNetworkCallback(callback)
             true
-        }.getOrDefault(false)
+        }.getOrElse {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            runCatching {
+                manager.registerNetworkCallback(request, callback)
+                true
+            }.getOrDefault(false)
+        }
 
         emitCurrent() // initial value
 
         awaitClose {
+            runCatching { context.unregisterReceiver(airplaneReceiver) }
             if (registered) runCatching { manager.unregisterNetworkCallback(callback) }
         }
     }.conflate().distinctUntilChanged()
 
     private fun currentLabel(manager: ConnectivityManager): String {
+        if (isAirplaneModeOn()) return AIRPLANE
         val network = manager.activeNetwork ?: return OFFLINE
         val caps = runCatching { manager.getNetworkCapabilities(network) }.getOrNull()
             ?: return OFFLINE
@@ -77,6 +95,16 @@ class ConnectivityObserver @Inject constructor(
             caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
             else -> "Online"
         }
+    }
+
+    private fun isAirplaneModeOn(): Boolean {
+        return runCatching {
+            Settings.Global.getInt(
+                context.contentResolver,
+                Settings.Global.AIRPLANE_MODE_ON,
+                0,
+            ) == 1
+        }.getOrDefault(false)
     }
 
     private fun cellularLabel(): String {
@@ -104,6 +132,7 @@ class ConnectivityObserver @Inject constructor(
     }
 
     private companion object {
+        const val AIRPLANE = "Airplane"
         const val OFFLINE = "Offline"
         const val MOBILE = "Mobile"
     }

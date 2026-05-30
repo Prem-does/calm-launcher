@@ -24,7 +24,7 @@ class ManageAppsViewModel @Inject constructor(
 
     val apps: StateFlow<List<AppEntry>> = appRepository.observeApps().stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.Eagerly,
         initialValue = emptyList(),
     )
 

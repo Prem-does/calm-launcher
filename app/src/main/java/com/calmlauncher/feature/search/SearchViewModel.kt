@@ -38,7 +38,7 @@ class SearchViewModel @Inject constructor(
         .mapLatest { q -> appRepository.search(q) }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList(),
         )
 

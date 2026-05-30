@@ -93,6 +93,7 @@ fun FocusScreen(
             HoldToConfirm(
                 label = "End Focus",
                 subLabel = "Hold to exit",
+                holdMillis = 3000L,
                 onConfirm = {
                     viewModel.endFocus()
                     onExit()

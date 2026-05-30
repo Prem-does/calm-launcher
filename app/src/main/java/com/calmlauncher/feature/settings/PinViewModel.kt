@@ -28,7 +28,7 @@ class PinViewModel @Inject constructor(
         .map { it.pinEnabled }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = false,
         )
 

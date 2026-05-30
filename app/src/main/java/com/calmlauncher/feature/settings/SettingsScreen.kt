@@ -4,11 +4,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -342,31 +337,11 @@ private fun ThemeModeSwitch(
     onSelected: (ThemePreference) -> Unit,
 ) {
     val darkSelected = selected == ThemePreference.DARK
-    val background by animateColorAsState(
-        targetValue = if (darkSelected) Color(0xFF1F2530) else Color(0xFFF3F2EC),
-        animationSpec = tween(durationMillis = 240),
-        label = "themeSwitchTrack",
-    )
-    val thumbColor by animateColorAsState(
-        targetValue = if (darkSelected) Color(0xFF36404E) else Color(0xFFFAFAF4),
-        animationSpec = tween(durationMillis = 240),
-        label = "themeSwitchThumb",
-    )
-    val thumbTint by animateColorAsState(
-        targetValue = if (darkSelected) Color(0xFFF7F8FB) else Color(0xFF232323),
-        animationSpec = tween(durationMillis = 240),
-        label = "themeSwitchIconTint",
-    )
-    val thumbOffset by animateDpAsState(
-        targetValue = if (darkSelected) 78.dp else 6.dp,
-        animationSpec = tween(durationMillis = 240),
-        label = "themeSwitchThumbOffset",
-    )
-    val trackElevation by animateDpAsState(
-        targetValue = if (darkSelected) 8.dp else 10.dp,
-        animationSpec = tween(durationMillis = 240),
-        label = "themeSwitchTrackElevation",
-    )
+    val background = if (darkSelected) Color(0xFF1F2530) else Color(0xFFF3F2EC)
+    val thumbColor = if (darkSelected) Color(0xFF36404E) else Color(0xFFFAFAF4)
+    val thumbTint = if (darkSelected) Color(0xFFF7F8FB) else Color(0xFF232323)
+    val thumbOffset = if (darkSelected) 78.dp else 6.dp
+    val trackElevation = if (darkSelected) 8.dp else 10.dp
     val interaction = remember { MutableInteractionSource() }
 
     Box(
@@ -409,17 +384,11 @@ private fun ThemeModeSwitch(
                 .background(thumbColor),
             contentAlignment = Alignment.Center,
         ) {
-            Crossfade(
-                targetState = darkSelected,
-                animationSpec = tween(durationMillis = 240),
-                label = "themeSwitchIcon",
-            ) {
                 Icon(
-                    imageVector = if (it) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
+                    imageVector = if (darkSelected) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
                     contentDescription = null,
                     tint = thumbTint,
                 )
-            }
         }
     }
 }
