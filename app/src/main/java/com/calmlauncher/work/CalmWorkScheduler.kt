@@ -2,7 +2,9 @@ package com.calmlauncher.work
 
 import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -22,6 +24,12 @@ class CalmWorkScheduler @Inject constructor(
 ) {
     fun scheduleAll() {
         val wm = WorkManager.getInstance(context)
+
+        wm.enqueueUniqueWork(
+            SCREEN_TIME_BOOTSTRAP,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<ScreenTimeRollupWorker>().build(),
+        )
 
         wm.enqueueUniquePeriodicWork(
             SCREEN_TIME,
@@ -54,6 +62,7 @@ class CalmWorkScheduler @Inject constructor(
     }
 
     private companion object {
+        const val SCREEN_TIME_BOOTSTRAP = "calm_screen_time_bootstrap"
         const val SCREEN_TIME = "calm_screen_time_rollup"
         const val RISK_EVAL = "calm_risk_evaluation"
         const val REFLECTION = "calm_nightly_reflection"

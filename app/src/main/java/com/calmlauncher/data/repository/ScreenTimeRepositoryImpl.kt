@@ -9,7 +9,7 @@ import com.calmlauncher.domain.model.ScreenTimeRecord
 import com.calmlauncher.domain.repository.ScreenTimeRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-.\gradlew.bat assembleDebugimport kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject

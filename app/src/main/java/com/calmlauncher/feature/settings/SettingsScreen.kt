@@ -108,18 +108,20 @@ fun SettingsScreen(
                     val context = LocalContext.current
                     CalmToggle(settings.grayscaleEnabled) { checked ->
                         viewModel.update { it.copy(grayscaleEnabled = checked) }
-                        if (checked) {
-                            if (!openColorCorrectionSettings(context)) {
-                                Toast.makeText(context, "Unable to open Colour Correction settings.", Toast.LENGTH_SHORT).show()
-                                return@CalmToggle
-                            }
-
-                            Toast.makeText(
-                                context,
-                                "Enable Colour Correction and select Greyscale.",
-                                Toast.LENGTH_LONG,
-                            ).show()
+                        if (!openColorCorrectionSettings(context)) {
+                            Toast.makeText(context, "Unable to open Colour Correction settings.", Toast.LENGTH_SHORT).show()
+                            return@CalmToggle
                         }
+
+                        Toast.makeText(
+                            context,
+                            if (checked) {
+                                "Enable Colour Correction and select Greyscale."
+                            } else {
+                                "Disable Colour Correction to return to normal colours."
+                            },
+                            Toast.LENGTH_LONG,
+                        ).show()
                     }
                 },
             )
