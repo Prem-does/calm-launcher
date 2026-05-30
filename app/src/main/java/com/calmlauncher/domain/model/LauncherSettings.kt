@@ -40,6 +40,7 @@ data class LauncherSettings(
     val deadEndFeedsEnabled: Boolean = true,
     val einkSimulationEnabled: Boolean = false,
     val grayscaleEnabled: Boolean = false,
+    val themePreference: ThemePreference = ThemePreference.DARK,
 
     // Security
     val pinEnabled: Boolean = false,

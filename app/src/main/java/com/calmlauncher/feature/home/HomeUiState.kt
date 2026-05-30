@@ -12,6 +12,7 @@ import com.calmlauncher.domain.model.UiRestrictionState
 data class HomeUiState(
     val time: String = "",
     val date: String = "",
+    val screenTimeText: String = "0m today",
     val batteryText: String = "",
     val signalText: String = "",
     val favorites: List<AppEntry> = emptyList(),

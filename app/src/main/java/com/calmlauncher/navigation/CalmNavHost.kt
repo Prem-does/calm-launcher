@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.calmlauncher.core.designsystem.grayscale
 import com.calmlauncher.core.designsystem.theme.CalmBlack
+import com.calmlauncher.core.designsystem.theme.CalmTheme
 import com.calmlauncher.feature.applist.AppListScreen
 import com.calmlauncher.feature.focus.FocusScreen
 import com.calmlauncher.feature.gate.LaunchGateHost
@@ -29,6 +30,7 @@ import com.calmlauncher.feature.settings.ManageAppsScreen
 import com.calmlauncher.feature.settings.PinScreen
 import com.calmlauncher.feature.settings.ScreenTimeScreen
 import com.calmlauncher.feature.settings.SettingsScreen
+import com.calmlauncher.feature.settings.ThemeViewModel
 
 /**
  * The composition root. Resolves the start destination from onboarding state, hosts the
@@ -38,23 +40,27 @@ import com.calmlauncher.feature.settings.SettingsScreen
 @Composable
 fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val onboardingComplete by rootViewModel.onboardingComplete.collectAsStateWithLifecycle()
+    val themeViewModel: ThemeViewModel = hiltViewModel()
+    val themePreference by themeViewModel.themePreference.collectAsStateWithLifecycle()
     val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CalmBlack)
-            .grayscale(restriction.grayscale, restriction.grayscaleAmount),
-    ) {
-        val complete = onboardingComplete
-        if (complete != null) {
-            val navController = rememberNavController()
-            CalmNavHost(
-                navController = navController,
-                startDestination = if (complete) Routes.HOME else Routes.ONBOARDING,
-            )
-            // Sits above the nav host; renders nothing unless a launch is being gated.
-            LaunchGateHost(onNavigateToReset = { navController.navigate(Routes.RESET) })
+    CalmTheme(themePreference = themePreference) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(CalmBlack)
+                .grayscale(restriction.grayscale, restriction.grayscaleAmount),
+        ) {
+            val complete = onboardingComplete
+            if (complete != null) {
+                val navController = rememberNavController()
+                CalmNavHost(
+                    navController = navController,
+                    startDestination = if (complete) Routes.HOME else Routes.ONBOARDING,
+                )
+                // Sits above the nav host; renders nothing unless a launch is being gated.
+                LaunchGateHost(onNavigateToReset = { navController.navigate(Routes.RESET) })
+            }
         }
     }
 }

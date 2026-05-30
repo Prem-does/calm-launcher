@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.calmlauncher.core.designsystem.theme.CalmTheme
 import com.calmlauncher.navigation.CalmRoot
 import com.calmlauncher.work.CalmWorkScheduler
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,9 +25,7 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         workScheduler.scheduleAll()
         setContent {
-            CalmTheme {
-                CalmRoot()
-            }
+            CalmRoot()
         }
     }
 }

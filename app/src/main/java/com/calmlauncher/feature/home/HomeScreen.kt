@@ -100,6 +100,12 @@ fun HomeScreen(
                     style = CalmType.headlineMd,
                     color = CalmGray,
                 )
+                Text(
+                    text = state.screenTimeText,
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                    modifier = Modifier.padding(top = Spacing.stackSm),
+                )
             }
 
             // Separate the time block from the shortcut list.

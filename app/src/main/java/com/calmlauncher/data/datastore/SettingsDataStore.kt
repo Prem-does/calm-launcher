@@ -11,6 +11,7 @@ import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.domain.model.FrictionLevel
 import com.calmlauncher.domain.model.LauncherSettings
+import com.calmlauncher.domain.model.ThemePreference
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -67,6 +68,7 @@ class SettingsDataStore @Inject constructor(
             deadEndFeedsEnabled = this[Keys.DEAD_END_FEEDS_ENABLED] ?: defaults.deadEndFeedsEnabled,
             einkSimulationEnabled = this[Keys.EINK_SIMULATION_ENABLED] ?: defaults.einkSimulationEnabled,
             grayscaleEnabled = this[Keys.GRAYSCALE_ENABLED] ?: defaults.grayscaleEnabled,
+            themePreference = this[Keys.THEME_PREFERENCE].toThemePreference(defaults.themePreference),
             pinEnabled = this[Keys.PIN_ENABLED] ?: defaults.pinEnabled,
             pinHash = this[Keys.PIN_HASH] ?: defaults.pinHash,
             kioskModeEnabled = this[Keys.KIOSK_MODE_ENABLED] ?: defaults.kioskModeEnabled,
@@ -100,6 +102,7 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.DEAD_END_FEEDS_ENABLED] = deadEndFeedsEnabled
         prefs[Keys.EINK_SIMULATION_ENABLED] = einkSimulationEnabled
         prefs[Keys.GRAYSCALE_ENABLED] = grayscaleEnabled
+        prefs[Keys.THEME_PREFERENCE] = themePreference.name
         prefs[Keys.PIN_ENABLED] = pinEnabled
         if (pinHash != null) prefs[Keys.PIN_HASH] = pinHash else prefs.remove(Keys.PIN_HASH)
         prefs[Keys.KIOSK_MODE_ENABLED] = kioskModeEnabled
@@ -121,6 +124,9 @@ class SettingsDataStore @Inject constructor(
 
     private fun String?.toDisplayMode(default: AppDisplayMode): AppDisplayMode =
         this?.let { name -> AppDisplayMode.entries.firstOrNull { it.name == name } } ?: default
+
+    private fun String?.toThemePreference(default: ThemePreference): ThemePreference =
+        this?.let { name -> ThemePreference.entries.firstOrNull { it.name == name } } ?: default
 
     private fun String?.toFavorites(default: List<String>): List<String> = when (this) {
         null -> default
@@ -149,6 +155,7 @@ class SettingsDataStore @Inject constructor(
         val DEAD_END_FEEDS_ENABLED = booleanPreferencesKey("dead_end_feeds_enabled")
         val EINK_SIMULATION_ENABLED = booleanPreferencesKey("eink_simulation_enabled")
         val GRAYSCALE_ENABLED = booleanPreferencesKey("grayscale_enabled")
+        val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
         val PIN_ENABLED = booleanPreferencesKey("pin_enabled")
         val PIN_HASH = stringPreferencesKey("pin_hash")
         val KIOSK_MODE_ENABLED = booleanPreferencesKey("kiosk_mode_enabled")

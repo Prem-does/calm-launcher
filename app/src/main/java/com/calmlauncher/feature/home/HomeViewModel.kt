@@ -10,6 +10,7 @@ import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLaunchRequest
 import com.calmlauncher.domain.model.LaunchSource
 import com.calmlauncher.domain.repository.AppRepository
+import com.calmlauncher.domain.repository.ScreenTimeRepository
 import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import com.calmlauncher.launcher.LaunchCoordinator
@@ -33,6 +34,7 @@ class HomeViewModel @Inject constructor(
     batteryObserver: BatteryObserver,
     connectivityObserver: ConnectivityObserver,
     appRepository: AppRepository,
+    screenTimeRepository: ScreenTimeRepository,
     buildInsights: BuildInsightsUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
     private val launchCoordinator: LaunchCoordinator,
@@ -48,6 +50,10 @@ class HomeViewModel @Inject constructor(
 
     private val battery = batteryObserver.status.map { "${it.percent}%" }
 
+    private val screenTime = screenTimeRepository.observeToday().map { record ->
+        "${record.format()} today"
+    }
+
     private val topInsight = buildInsights().map { it.firstOrNull()?.text }
 
     // combine() takes at most 5 flows directly; group the system streams into one combine,
@@ -62,13 +68,15 @@ class HomeViewModel @Inject constructor(
 
     val uiState: StateFlow<HomeUiState> = combine(
         system,
+        screenTime,
         appRepository.observeFavorites(),
         topInsight,
         observeRestriction(),
-    ) { (clockText, batteryText, signalText), favorites, insight, restriction ->
+    ) { (clockText, batteryText, signalText), screenTimeText, favorites, insight, restriction ->
         HomeUiState(
             time = clockText.time,
             date = clockText.date,
+            screenTimeText = screenTimeText,
             batteryText = batteryText,
             signalText = signalText,
             favorites = favorites,
