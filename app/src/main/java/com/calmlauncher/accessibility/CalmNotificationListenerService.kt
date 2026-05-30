@@ -2,48 +2,61 @@ package com.calmlauncher.accessibility
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import com.calmlauncher.launcher.hideNotifications
-import com.calmlauncher.launcher.recoveryMode
-import com.calmlauncher.launcher.silentNotifications
-import com.calmlauncher.launcher.hideNotificationIcons
-import com.calmlauncher.launcher.disableNotificationBadges
-import com.calmlauncher.launcher.disablePopups
+import com.calmlauncher.domain.model.AppCategory
+import com.calmlauncher.domain.model.LauncherSettings
+import com.calmlauncher.domain.repository.AppRepository
+import com.calmlauncher.domain.repository.SettingsRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import com.calmlauncher.data.db.CalmDatabaseProvider
-import com.calmlauncher.data.db.entity.TelemetryEvent
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import javax.inject.Inject
 
-
+/**
+ * Suppresses addictive notification surfacing from distracting apps while a focus
+ * session is active (or the user has chosen to keep social apps invisible). It cancels
+ * the posted notification so it never reaches the shade — a calm, quiet phone. Calls/
+ * messages and tool apps are left untouched.
+ */
+@AndroidEntryPoint
 class CalmNotificationListenerService : NotificationListenerService() {
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var appRepository: AppRepository
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Volatile private var settings: LauncherSettings = LauncherSettings()
+    @Volatile private var categories: Map<String, AppCategory> = emptyMap()
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        settingsRepository.settings
+            .onEach { settings = it }
+            .launchIn(scope)
+        appRepository.observeApps()
+            .onEach { apps -> categories = apps.associate { it.packageName to it.category } }
+            .launchIn(scope)
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        val key = sbn?.key ?: return
-        serviceScope.launch {
-            val settings = PlatformGuardPolicy.settings(this@CalmNotificationListenerService)
-            val shouldSuppress = settings.hideNotifications() || settings.silentNotifications() || settings.recoveryMode() || settings.hideNotificationIcons() || settings.disableNotificationBadges() || settings.disablePopups()
-            if (shouldSuppress) {
-                // Cancel the notification to prevent popups, icons, badges, sounds.
-                cancelNotification(key)
-                // Log telemetry about the suppressed notification
-                try {
-                    val db = CalmDatabaseProvider.get(this@CalmNotificationListenerService)
-                    GlobalScope.launch(Dispatchers.IO) {
-                        val pkg = sbn.packageName ?: "unknown"
-                        val title = sbn.notification.extras?.getString("android.title") ?: ""
-                        db.telemetryDao().insert(TelemetryEvent(type = "notification_suppressed", details = "$pkg|$title", timestampMillis = System.currentTimeMillis()))
-                    }
-                } catch (_: Throwable) { }
-            }
+        val pkg = sbn?.packageName ?: return
+        if (pkg == packageName) return
+        val category = categories[pkg] ?: return
+        val distracting = category == AppCategory.SOCIAL ||
+            category == AppCategory.ENTERTAINMENT ||
+            category == AppCategory.GAME
+        val shouldSuppress = distracting && (settings.focusActive || settings.hideSocialApps)
+        if (shouldSuppress) {
+            runCatching { cancelNotification(sbn.key) }
         }
     }
 
     override fun onDestroy() {
-        serviceScope.cancel()
+        scope.cancel()
         super.onDestroy()
     }
 }

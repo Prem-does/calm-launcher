@@ -3,11 +3,13 @@ package com.calmlauncher.data.db.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "launch_events")
+/** Append-only record of an app open. Mirrors [com.calmlauncher.domain.model.LaunchEvent]. */
+@Entity(tableName = "launch_event")
 data class LaunchEventEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val packageName: String,
-    val label: String,
-    val reason: String,
-    val timestampMillis: Long
+    val category: String,
+    val timestampEpochMs: Long,
+    val reason: String? = null,
+    val source: String,
 )

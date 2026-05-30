@@ -1,111 +1,66 @@
 package com.calmlauncher.accessibility
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import com.calmlauncher.data.db.CalmDatabaseProvider
-import com.calmlauncher.launcher.LauncherSettingsState
-import com.calmlauncher.launcher.blockAppInstallation
-import com.calmlauncher.launcher.blockBrowser
-import com.calmlauncher.launcher.blockPlayStore
-import com.calmlauncher.launcher.blockSocialMedia
-import com.calmlauncher.launcher.disableEntertainmentApps
-import com.calmlauncher.launcher.dopamineDetectionEngine
-import com.calmlauncher.launcher.isLaunchBlocked
-import com.calmlauncher.launcher.oneAppAtATimeMode
-import com.calmlauncher.launcher.recoveryMode
-import kotlinx.coroutines.flow.firstOrNull
+import android.os.PowerManager
+import android.provider.Settings
+import android.text.TextUtils
 
-data class PlatformGuardDecision(
-    val shouldReturnHome: Boolean,
-    val reason: String
-)
-
+/**
+ * Central, honest record of which restrictions the launcher can enforce with normal +
+ * accessibility + device-admin permissions, and which genuinely require OS-level
+ * privileges (device-owner / WRITE_SECURE_SETTINGS) that a sideloaded launcher cannot
+ * obtain. The Settings/Onboarding surfaces use the runtime checks below to show status.
+ *
+ * Hard limits (documented, not silently pretended):
+ *  - True OS-level app killing for One-App-At-A-Time (needs device-owner / usage-kill).
+ *  - Global grayscale/dim enforcement (needs WRITE_SECURE_SETTINGS or device-owner).
+ *  - Blocking quick settings / installs / notifications outside launcher scope.
+ *  - Detecting scroll velocity inside third-party apps.
+ * Everything else is enforced best-effort via the accessibility focus guard, the
+ * notification listener, in-launcher grayscale, and device-admin lock.
+ */
 object PlatformGuardPolicy {
-    private val browserPackages = listOf("chrome", "firefox", "browser", "brave", "edge")
-    private val socialPackages = listOf("instagram", "twitter", "facebook", "threads", "snapchat", "reddit", "tiktok")
-    private val storePackages = listOf("vending", "packageinstaller", "installer", "market")
-    private val entertainmentPackages = listOf("youtube", "netflix", "spotify", "video", "music", "prime")
 
-    suspend fun settings(context: Context): LauncherSettingsState {
-        val entity = CalmDatabaseProvider.get(context).settingsDao().observeSettings().firstOrNull()
-        return LauncherSettingsState(
-            pinHash = entity?.pinHash,
-            pinProtected = entity?.pinProtected ?: false,
-            grayscaleForced = entity?.grayscaleForced ?: true,
-            kioskModeEnabled = entity?.kioskModeEnabled ?: false,
-            hiddenStatusBar = entity?.hiddenStatusBar ?: false,
-            focusModeEnabled = entity?.focusModeEnabled ?: false,
-            preferences = parsePreferencesBlob(entity?.preferencesBlob.orEmpty())
-        )
+    fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
+        val expected = ComponentName(context, service).flattenToString()
+        val enabled = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+        val splitter = TextUtils.SimpleStringSplitter(':').apply { setString(enabled) }
+        while (splitter.hasNext()) {
+            val component = splitter.next()
+            if (component.equals(expected, ignoreCase = true)) return true
+        }
+        return false
     }
 
-    fun decide(
-        context: Context,
-        packageName: String,
-        settings: LauncherSettingsState,
-        previousExternalPackage: String?
-    ): PlatformGuardDecision {
-        if (packageName.isBlank() || packageName == context.packageName) {
-            return PlatformGuardDecision(false, "")
-        }
-
-        val label = appLabel(context, packageName)
-        val normalizedPackage = packageName.lowercase()
-        val normalizedLabel = label.lowercase()
-        val isStore = storePackages.any { normalizedPackage.contains(it) || normalizedLabel.contains(it) }
-        val isBrowser = browserPackages.any { normalizedPackage.contains(it) || normalizedLabel.contains(it) }
-        val isSocial = socialPackages.any { normalizedPackage.contains(it) || normalizedLabel.contains(it) }
-        val isEntertainment = entertainmentPackages.any { normalizedPackage.contains(it) || normalizedLabel.contains(it) }
-
-        if (settings.isLaunchBlocked(label, screenTimeMinutes = 0)) {
-            return PlatformGuardDecision(true, "$label is blocked by launcher focus rules.")
-        }
-        if (settings.blockAppInstallation() && (isStore || normalizedPackage.contains("packageinstaller"))) {
-            return PlatformGuardDecision(true, "App installation is blocked.")
-        }
-        if ((settings.blockBrowser() || settings.recoveryMode()) && isBrowser) {
-            return PlatformGuardDecision(true, "Browser access is blocked.")
-        }
-        if ((settings.blockSocialMedia() || settings.recoveryMode()) && isSocial) {
-            return PlatformGuardDecision(true, "Social apps are blocked.")
-        }
-        if (settings.blockPlayStore() && isStore) {
-            return PlatformGuardDecision(true, "App stores are blocked.")
-        }
-        if (settings.disableEntertainmentApps() && isEntertainment) {
-            return PlatformGuardDecision(true, "Entertainment apps are blocked.")
-        }
-        if (settings.oneAppAtATimeMode() && previousExternalPackage != null && previousExternalPackage != packageName) {
-            return PlatformGuardDecision(true, "One-App-At-A-Time mode returned you home.")
-        }
-        return PlatformGuardDecision(false, "")
+    fun isNotificationListenerEnabled(context: Context): Boolean {
+        val flat = Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners",
+        ) ?: return false
+        return flat.contains(context.packageName)
     }
 
-    fun appLabel(context: Context, packageName: String): String {
+    fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return false
+        return pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    fun hasUsageAccess(context: Context): Boolean {
         return try {
-            val info = context.packageManager.getApplicationInfo(packageName, 0)
-            context.packageManager.getApplicationLabel(info).toString()
-        } catch (_: PackageManager.NameNotFoundException) {
-            packageName.substringAfterLast('.')
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE)
+                as android.app.AppOpsManager
+            val mode = appOps.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName,
+            )
+            mode == android.app.AppOpsManager.MODE_ALLOWED
+        } catch (t: Throwable) {
+            false
         }
-    }
-
-    fun openLauncher(context: Context) {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    }
-
-    fun shouldWatchScroll(settings: LauncherSettingsState): Boolean {
-        return settings.dopamineDetectionEngine() || settings.recoveryMode()
-    }
-
-    private fun parsePreferencesBlob(blob: String): Map<String, String> {
-        if (blob.isBlank()) return emptyMap()
-        return blob.lineSequence().mapNotNull { line ->
-            val index = line.indexOf('=')
-            if (index <= 0) null else line.substring(0, index) to line.substring(index + 1)
-        }.toMap()
     }
 }

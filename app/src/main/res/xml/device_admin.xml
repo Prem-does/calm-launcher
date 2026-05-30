@@ -2,5 +2,7 @@
 <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-policies>
         <force-lock />
+        <watch-login />
+        <disable-keyguard-features />
     </uses-policies>
 </device-admin>

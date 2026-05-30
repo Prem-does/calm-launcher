@@ -1,45 +1,56 @@
 package com.calmlauncher.launcher
 
-import android.app.Activity
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class HomeRoleManager(private val context: Context) {
-    fun shouldPromptForDefaultHome(): Boolean = !isDefaultHomeApp()
-
-    fun isDefaultHomeApp(): Boolean {
-        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-            addCategory(Intent.CATEGORY_DEFAULT)
-        }
-        val resolveInfo = context.packageManager.resolveActivity(homeIntent, 0)
-        return resolveInfo?.activityInfo?.packageName == context.packageName
-    }
-
-    fun requestDefaultHome(activity: Activity) {
+/**
+ * Handles becoming (and detecting) the default home / launcher app. Uses the modern
+ * [RoleManager] ROLE_HOME flow on Android 10+ (works on Samsung One UI), with a
+ * fallback to the home-settings screen.
+ */
+@Singleton
+class HomeRoleManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
+    private val roleManager: RoleManager? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = context.getSystemService(RoleManager::class.java) ?: return
-            if (roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                activity.startActivityForResult(
-                    roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME),
-                    REQUEST_HOME_ROLE
-                )
-                return
-            }
+            context.getSystemService(RoleManager::class.java)
+        } else {
+            null
         }
 
-        activity.startActivity(
-            Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                addCategory(Intent.CATEGORY_DEFAULT)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    fun isDefaultHome(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            roleManager?.let {
+                if (it.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                    return it.isRoleHeld(RoleManager.ROLE_HOME)
+                }
             }
-        )
+        }
+        // Fallback: resolve the current home and compare package.
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolved = context.packageManager.resolveActivity(intent, 0)
+        return resolved?.activityInfo?.packageName == context.packageName
     }
 
-    companion object {
-        const val REQUEST_HOME_ROLE = 7001
+    /**
+     * Intent to request that the user make Calm the default home app. Returns the
+     * RoleManager request on Q+ when available, otherwise the home settings screen.
+     */
+    fun requestDefaultHomeIntent(): Intent {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            roleManager?.let {
+                if (it.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                    return it.createRequestRoleIntent(RoleManager.ROLE_HOME)
+                }
+            }
+        }
+        return Intent(Settings.ACTION_HOME_SETTINGS)
     }
 }

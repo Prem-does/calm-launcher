@@ -1,0 +1,5 @@
+<resources>
+    <color name="calm_black">#FF000000</color>
+    <color name="calm_white">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FF000000</color>
+</resources>

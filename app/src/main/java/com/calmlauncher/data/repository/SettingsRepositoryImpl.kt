@@ -1,10 +1,21 @@
 package com.calmlauncher.data.repository
 
-import com.calmlauncher.data.db.SettingsDao
-import com.calmlauncher.data.db.entity.SettingsEntity
+import com.calmlauncher.data.datastore.SettingsDataStore
+import com.calmlauncher.domain.model.LauncherSettings
+import com.calmlauncher.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class SettingsRepositoryImpl(private val settingsDao: SettingsDao) : SettingsRepository {
-    override fun observeSettings(): Flow<SettingsEntity?> = settingsDao.observeSettings()
-    override suspend fun saveSettings(settings: SettingsEntity) = settingsDao.upsert(settings)
+/** [SettingsRepository] backed by the Preferences [SettingsDataStore]. */
+class SettingsRepositoryImpl @Inject constructor(
+    private val settingsDataStore: SettingsDataStore,
+) : SettingsRepository {
+
+    override val settings: Flow<LauncherSettings> = settingsDataStore.settings
+
+    override suspend fun current(): LauncherSettings = settingsDataStore.current()
+
+    override suspend fun update(transform: (LauncherSettings) -> LauncherSettings) {
+        settingsDataStore.update(transform)
+    }
 }

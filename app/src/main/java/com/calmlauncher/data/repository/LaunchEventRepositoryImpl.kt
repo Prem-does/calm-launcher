@@ -1,20 +1,32 @@
 package com.calmlauncher.data.repository
 
 import com.calmlauncher.data.db.LaunchEventDao
-import com.calmlauncher.data.db.entity.LaunchEventEntity
+import com.calmlauncher.data.db.toDomain
+import com.calmlauncher.data.db.toEntity
+import com.calmlauncher.domain.model.LaunchEvent
+import com.calmlauncher.domain.repository.LaunchEventRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
-class LaunchEventRepositoryImpl(private val launchEventDao: LaunchEventDao) : LaunchEventRepository {
-    override fun observeRecentLaunches(limit: Int): Flow<List<LaunchEventEntity>> = launchEventDao.observeRecentLaunches(limit)
+/** Append-only launch log backed by Room. */
+class LaunchEventRepositoryImpl @Inject constructor(
+    private val launchEventDao: LaunchEventDao,
+) : LaunchEventRepository {
 
-    override suspend fun recordLaunchReason(packageName: String, label: String, reason: String) {
-        launchEventDao.insert(
-            LaunchEventEntity(
-                packageName = packageName,
-                label = label,
-                reason = reason.trim(),
-                timestampMillis = System.currentTimeMillis()
-            )
-        )
+    override suspend fun record(event: LaunchEvent) {
+        launchEventDao.insert(event.toEntity())
+    }
+
+    override fun observeSince(sinceEpochMs: Long): Flow<List<LaunchEvent>> =
+        launchEventDao.observeSince(sinceEpochMs).map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun since(sinceEpochMs: Long): List<LaunchEvent> =
+        launchEventDao.since(sinceEpochMs).map { it.toDomain() }
+
+    override fun observeWeek(): Flow<List<LaunchEvent>> {
+        val weekAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+        return observeSince(weekAgo)
     }
 }

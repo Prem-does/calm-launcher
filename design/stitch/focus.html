@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+
+<html class="" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Focus Mode - Calm Launcher</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {"on-error-container": "#93000a", "surface-container": "#eeeeee", "outline-variant": "#cfc4c5", "on-primary-fixed-variant": "#474747", secondary: "#5e5e5e", "on-secondary-fixed-variant": "#474747", primary: "#000000", "on-surface-variant": "#4c4546", "primary-fixed-dim": "#c6c6c6", "tertiary-fixed": "#e2e2e2", "on-tertiary-container": "#848484", "inverse-on-surface": "#f1f1f1", "secondary-fixed": "#e2e2e2", "tertiary-container": "#1b1b1b", "on-primary-container": "#848484", "tertiary-fixed-dim": "#c6c6c6", tertiary: "#000000", "surface-dim": "#dadada", "inverse-surface": "#303030", "secondary-fixed-dim": "#c6c6c6", "surface-bright": "#f9f9f9", "surface-container-lowest": "#ffffff", "on-primary-fixed": "#1b1b1b", "primary-fixed": "#e2e2e2", "on-secondary-fixed": "#1b1b1b", "surface-container-highest": "#e2e2e2", "on-secondary": "#ffffff", error: "#ba1a1a", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#474747", surface: "#f9f9f9", background: "#f9f9f9", "secondary-container": "#e2e2e2", "on-background": "#1b1b1b", "surface-variant": "#e2e2e2", "surface-container-low": "#f3f3f3", "on-tertiary": "#ffffff", "surface-container-high": "#e8e8e8", "on-tertiary-fixed": "#1b1b1b", outline: "#7e7576", "primary-container": "#1b1b1b", "surface-tint": "#5e5e5e", "on-primary": "#ffffff", "on-secondary-container": "#646464", "inverse-primary": "#c6c6c6", "on-surface": "#1b1b1b", "on-error": "#ffffff"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, spacing: {"stack-md": "12px", "margin-desktop": "64px", "stack-lg": "32px", base: "8px", gutter: "16px", "stack-sm": "4px", "margin-mobile": "24px"}, fontFamily: {"body-md": ["IBM Plex Sans"], "headline-md": ["IBM Plex Sans"], "headline-lg": ["IBM Plex Sans"], "body-lg": ["IBM Plex Sans"], "label-lg": ["IBM Plex Sans"], "headline-lg-mobile": ["IBM Plex Sans"], "label-md": ["IBM Plex Sans"], headline: ["Inter"], display: ["Inter"], body: ["Inter"], label: ["Inter"]}, fontSize: {"body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}], "headline-md": ["24px", {lineHeight: "32px", fontWeight: "500"}], "headline-lg": ["48px", {lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "500"}], "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}], "label-lg": ["14px", {lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600"}], "headline-lg-mobile": ["32px", {lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "500"}], "label-md": ["12px", {lineHeight: "16px", fontWeight: "400"}]}}}};</script>
+<style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent scrolling in focus mode */
+        }
+        
+        .progress-bar {
+            width: 0%;
+            height: 2px;
+            background-color: #ffffff;
+            transition: width 0.1s linear;
+        }
+
+        .focus-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: theme('spacing.margin-mobile');
+            opacity: 1;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .focus-content.fade-out {
+            opacity: 0;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-white selection:text-black flex flex-col justify-between items-center h-screen w-full relative bg-black">
+<!-- Dimmed Status Bar Area (Hidden on purpose, minimal top space) -->
+<div class="w-full h-8 flex justify-end items-center px-4 opacity-20 pointer-events-none">
+<span class="font-label-md text-label-md text-white">--:--</span>
+</div>
+<!-- Main Content Canvas -->
+<main class="focus-content text-center max-w-md mx-auto z-10 relative w-full h-full flex items-center justify-center">
+<!-- Ambient subtle background noise for e-ink feel -->
+<div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E');"></div>
+<div class="px-6 relative z-10">
+<h1 class="font-headline-md text-headline-md md:font-headline-lg md:text-headline-lg text-white tracking-tight leading-snug">
+                "Presence is the greatest gift."
+            </h1>
+</div>
+</main>
+<!-- Bottom Interaction Area -->
+<footer class="w-full pb-12 pt-8 flex flex-col items-center justify-center relative z-20">
+<!-- Progress indicator for long press -->
+<div class="w-24 h-[2px] bg-white mb-6 rounded-full overflow-hidden opacity-50 relative">
+<div class="progress-bar absolute top-0 left-0 h-full" id="longPressProgress"></div>
+</div>
+<button aria-label="Hold to end focus mode" class="font-label-lg text-label-lg text-white transition-opacity duration-300 ease-in-out focus:outline-none uppercase tracking-widest opacity-60 hover:opacity-100 select-none touch-none" id="endFocusBtn">
+            End Focus
+        </button>
+<span class="font-label-md text-label-md text-white mt-2 opacity-50">Hold to exit</span>
+</footer>
+<!-- Interactive Logic -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('endFocusBtn');
+            const progress = document.getElementById('longPressProgress');
+            const content = document.querySelector('.focus-content');
+            
+            let pressTimer;
+            let progressInterval;
+            let currentWidth = 0;
+            const PRESS_DURATION = 1500; // 1.5 seconds to exit
+            const INTERVAL_SPEED = 20;
+            const INCREMENT = (100 / (PRESS_DURATION / INTERVAL_SPEED));
+
+            const startPress = (e) => {
+                e.preventDefault(); // Prevent text selection/magnifier on mobile
+                
+                // Clear any existing timers
+                clearInterval(progressInterval);
+                clearTimeout(pressTimer);
+                currentWidth = 0;
+                
+                // Visual feedback that press started
+                btn.classList.add('opacity-100');
+                btn.classList.remove('opacity-60');
+
+                // Animate progress bar
+                progressInterval = setInterval(() => {
+                    currentWidth += INCREMENT;
+                    progress.style.width = `${currentWidth}%`;
+                    
+                    if (currentWidth >= 100) {
+                        clearInterval(progressInterval);
+                    }
+                }, INTERVAL_SPEED);
+
+                // Setup the exit trigger
+                pressTimer = setTimeout(() => {
+                    executeExit();
+                }, PRESS_DURATION);
+            };
+
+            const endPress = (e) => {
+                e.preventDefault();
+                // Reset everything if released early
+                clearTimeout(pressTimer);
+                clearInterval(progressInterval);
+                
+                progress.style.width = '0%';
+                currentWidth = 0;
+                
+                // Restore visual state
+                btn.classList.remove('opacity-100');
+                btn.classList.add('opacity-60');
+            };
+
+            const executeExit = () => {
+                // Visual feedback of exit
+                content.classList.add('fade-out');
+                btn.textContent = 'EXITING...';
+                
+                // Here you would typically route to the HOME destination
+                // setTimeout(() => window.location.href = '/home', 600);
+            };
+
+            // Touch events for mobile
+            btn.addEventListener('touchstart', startPress, { passive: false });
+            btn.addEventListener('touchend', endPress);
+            btn.addEventListener('touchcancel', endPress);
+
+            // Mouse events for desktop testing
+            btn.addEventListener('mousedown', startPress);
+            btn.addEventListener('mouseup', endPress);
+            btn.addEventListener('mouseleave', endPress);
+            
+            // Prevent context menu on long press
+            btn.addEventListener('contextmenu', e => e.preventDefault());
+        });
+    </script>
+</body></html>
