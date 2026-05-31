@@ -119,7 +119,7 @@ class AppLimitRepositoryImpl @Inject constructor(
         AppLimitSummary(
             blockedLaunchesToday = blocked.size,
             limitedAppsToday = counts.size,
-            estimatedTimeSavedMinutes = blocked.sumOf { 10 },
+            estimatedTimeSavedMinutes = blocked.sumOf { 10L }.toInt(),
             topLimitedPackage = top?.key,
             topLimitedCount = top?.value ?: 0,
         )

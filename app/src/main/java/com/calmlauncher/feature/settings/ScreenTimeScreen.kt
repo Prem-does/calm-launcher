@@ -18,9 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
@@ -35,10 +38,12 @@ import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.AnalyticsCategory
+import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
 import com.calmlauncher.domain.model.AnalyticsRange
 import com.calmlauncher.domain.model.AppUsageRecord
 import com.calmlauncher.domain.model.DailyUsageRecord
 import com.calmlauncher.domain.model.NotificationEventType
+import com.calmlauncher.domain.model.NotificationRecord
 import com.calmlauncher.domain.model.UsageSessionRecord
 import com.calmlauncher.domain.model.UsageSortOrder
 
@@ -62,6 +67,7 @@ fun ScreenTimeScreen(
     ) { innerPadding ->
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState()),
         ) {
@@ -196,9 +202,6 @@ fun ScreenTimeScreen(
                     "This Month: ${state.snapshot.unlocks.count { isWithinDays(it.dayStartEpochMs, 30) }}",
                 ),
             )
-            unlockHourRows(selectedUnlocks).forEach { (label, value) ->
-                UsageRow(label = label, duration = value.toString())
-            }
 
             SectionLabel("Session Analytics")
             SummaryBlock(
@@ -270,7 +273,7 @@ private fun AnalyticsControlRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = title, style = CalmType.bodyLg, color = CalmWhite, modifier = Modifier.weight(1f))
-        CalmToggle(checked, onCheckedChange)
+        CalmToggle(checked = checked, onCheckedChange = onCheckedChange)
     }
     ThinDivider()
 }
@@ -296,10 +299,11 @@ private fun SummaryBlock(title: String, lines: List<String>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm)
+            .clip(RoundedCornerShape(20.dp))
             .background(CalmSurfaceContainer.copy(alpha = 0.85f))
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm)
             .padding(Spacing.marginMobile),
-        verticalArrangement = Arrangement.spacedBy(Spacing.stackXs),
+        verticalArrangement = Arrangement.spacedBy(Spacing.gutter),
     ) {
         Text(text = title, style = CalmType.bodyLg, color = CalmWhite, fontWeight = FontWeight.SemiBold)
         lines.forEach { line ->
@@ -480,15 +484,6 @@ private fun notificationSummaryLines(notifications: List<NotificationRecord>): L
 
 private fun notificationCountsByApp(notifications: List<NotificationRecord>): List<Pair<String, Int>> =
     notifications.groupingBy { it.packageName }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key to it.value }
-
-private fun unlockHourRows(unlocks: List<UnlockRecord>): List<Pair<String, Int>> =
-    (0 until 24).map { hour ->
-        val count = unlocks.count { unlock ->
-            val cal = java.util.Calendar.getInstance().apply { timeInMillis = unlock.timestampEpochMs }
-            cal.get(java.util.Calendar.HOUR_OF_DAY) == hour
-        }
-        "%02d:00 - %02d:00".format(hour, (hour + 1) % 24) to count
-    }
 
 private fun sessionSummaryLines(today: List<UsageSessionRecord>, week: List<UsageSessionRecord>): List<String> {
     val average = week.takeIf { it.isNotEmpty() }?.averageOf { it.durationMinutes } ?: 0.0
