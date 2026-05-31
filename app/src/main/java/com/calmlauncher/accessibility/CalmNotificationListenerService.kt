@@ -3,7 +3,9 @@ package com.calmlauncher.accessibility
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.calmlauncher.domain.model.AppCategory
+import com.calmlauncher.domain.model.NotificationEventType
 import com.calmlauncher.domain.model.LauncherSettings
+import com.calmlauncher.domain.repository.AnalyticsRepository
 import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,6 +28,7 @@ class CalmNotificationListenerService : NotificationListenerService() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var appRepository: AppRepository
+    @Inject lateinit var analyticsRepository: AnalyticsRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -44,6 +47,15 @@ class CalmNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val pkg = sbn?.packageName ?: return
+        if (pkg != packageName) {
+            scope.launch {
+                analyticsRepository.recordNotification(
+                    packageName = pkg,
+                    timestampEpochMs = sbn.postTime,
+                    eventType = NotificationEventType.POSTED,
+                )
+            }
+        }
         if (pkg == packageName) return
         val category = categories[pkg] ?: return
         val distracting = category == AppCategory.SOCIAL ||
@@ -52,6 +64,33 @@ class CalmNotificationListenerService : NotificationListenerService() {
         val shouldSuppress = distracting && (settings.focusActive || settings.hideSocialApps)
         if (shouldSuppress) {
             runCatching { cancelNotification(sbn.key) }
+        }
+    }
+
+    override fun onNotificationRemoved(
+        sbn: StatusBarNotification?,
+        rankingMap: NotificationListenerService.RankingMap?,
+        reason: Int,
+    ) {
+        val pkg = sbn?.packageName ?: return
+        if (pkg == packageName) return
+        val eventType = when (reason) {
+            REASON_CLICK -> NotificationEventType.OPENED
+            REASON_APP_CANCEL,
+            REASON_CANCEL,
+            REASON_CANCEL_ALL,
+            REASON_LISTENER_CANCEL,
+            REASON_LISTENER_CANCEL_ALL,
+            REASON_PACKAGE_CHANGED,
+            REASON_USER_STOPPED -> NotificationEventType.IGNORED
+            else -> NotificationEventType.REMOVED
+        }
+        scope.launch {
+            analyticsRepository.recordNotification(
+                packageName = pkg,
+                timestampEpochMs = System.currentTimeMillis(),
+                eventType = eventType,
+            )
         }
     }
 

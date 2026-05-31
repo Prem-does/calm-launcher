@@ -2,14 +2,19 @@ package com.calmlauncher.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.calmlauncher.data.db.entity.AppUsageEntity
 import com.calmlauncher.data.db.entity.AppMetaEntity
 import com.calmlauncher.data.db.entity.AppLimitEventEntity
 import com.calmlauncher.data.db.entity.AppLimitRuleEntity
 import com.calmlauncher.data.db.entity.AppLimitUsageEntity
+import com.calmlauncher.data.db.entity.DailyUsageEntity
 import com.calmlauncher.data.db.entity.LaunchEventEntity
+import com.calmlauncher.data.db.entity.NotificationEventEntity
 import com.calmlauncher.data.db.entity.ReflectionEntity
 import com.calmlauncher.data.db.entity.RiskStateEntity
 import com.calmlauncher.data.db.entity.ScreenTimeEntity
+import com.calmlauncher.data.db.entity.SessionEntity
+import com.calmlauncher.data.db.entity.UnlockEntity
 
 /**
  * Room database for all persisted launcher state. Schema export is disabled (single
@@ -18,19 +23,25 @@ import com.calmlauncher.data.db.entity.ScreenTimeEntity
  */
 @Database(
     entities = [
+        AppUsageEntity::class,
         AppMetaEntity::class,
         AppLimitEventEntity::class,
         AppLimitRuleEntity::class,
         AppLimitUsageEntity::class,
+        DailyUsageEntity::class,
         LaunchEventEntity::class,
+        NotificationEventEntity::class,
         ReflectionEntity::class,
         ScreenTimeEntity::class,
+        SessionEntity::class,
+        UnlockEntity::class,
         RiskStateEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class CalmDatabase : RoomDatabase() {
+    abstract fun analyticsDao(): AnalyticsDao
     abstract fun appMetaDao(): AppMetaDao
     abstract fun appLimitDao(): AppLimitDao
     abstract fun launchEventDao(): LaunchEventDao

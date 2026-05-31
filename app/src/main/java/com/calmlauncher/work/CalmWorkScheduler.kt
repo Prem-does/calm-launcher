@@ -37,6 +37,12 @@ class CalmWorkScheduler @Inject constructor(
             OneTimeWorkRequestBuilder<AppLimitRollupWorker>().build(),
         )
 
+        wm.enqueueUniqueWork(
+            ANALYTICS_BOOTSTRAP,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<AnalyticsWorker>().build(),
+        )
+
         wm.enqueueUniquePeriodicWork(
             SCREEN_TIME,
             ExistingPeriodicWorkPolicy.KEEP,
@@ -47,6 +53,12 @@ class CalmWorkScheduler @Inject constructor(
             APP_LIMITS,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<AppLimitRollupWorker>(15, TimeUnit.MINUTES).build(),
+        )
+
+        wm.enqueueUniquePeriodicWork(
+            ANALYTICS,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<AnalyticsWorker>(1, TimeUnit.HOURS).build(),
         )
 
         wm.enqueueUniquePeriodicWork(
@@ -78,6 +90,8 @@ class CalmWorkScheduler @Inject constructor(
         const val SCREEN_TIME = "calm_screen_time_rollup"
         const val APP_LIMITS_BOOTSTRAP = "calm_app_limits_bootstrap"
         const val APP_LIMITS = "calm_app_limits_rollup"
+        const val ANALYTICS_BOOTSTRAP = "calm_analytics_bootstrap"
+        const val ANALYTICS = "calm_analytics_rollup"
         const val RISK_EVAL = "calm_risk_evaluation"
         const val REFLECTION = "calm_nightly_reflection"
     }

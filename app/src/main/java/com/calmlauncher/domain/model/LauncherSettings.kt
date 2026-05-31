@@ -42,6 +42,10 @@ data class LauncherSettings(
     val grayscaleEnabled: Boolean = false,
     val themePreference: ThemePreference = ThemePreference.DARK,
 
+    // Analytics
+    val collectUsageAnalyticsEnabled: Boolean = true,
+    val analyticsRetentionDays: Int = 365,
+
     // Security
     val kioskModeEnabled: Boolean = false,
     val hideStatusBar: Boolean = false,

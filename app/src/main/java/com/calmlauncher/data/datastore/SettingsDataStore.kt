@@ -77,6 +77,8 @@ class SettingsDataStore @Inject constructor(
             einkSimulationEnabled = this[Keys.EINK_SIMULATION_ENABLED] ?: defaults.einkSimulationEnabled,
             grayscaleEnabled = this[Keys.GRAYSCALE_ENABLED] ?: defaults.grayscaleEnabled,
             themePreference = this[Keys.THEME_PREFERENCE].toThemePreference(defaults.themePreference),
+            collectUsageAnalyticsEnabled = this[Keys.COLLECT_USAGE_ANALYTICS] ?: defaults.collectUsageAnalyticsEnabled,
+            analyticsRetentionDays = this[Keys.ANALYTICS_RETENTION_DAYS] ?: defaults.analyticsRetentionDays,
             kioskModeEnabled = this[Keys.KIOSK_MODE_ENABLED] ?: defaults.kioskModeEnabled,
             hideStatusBar = this[Keys.HIDE_STATUS_BAR] ?: defaults.hideStatusBar,
             focusActive = this[Keys.FOCUS_ACTIVE] ?: defaults.focusActive,
@@ -109,6 +111,8 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.EINK_SIMULATION_ENABLED] = einkSimulationEnabled
         prefs[Keys.GRAYSCALE_ENABLED] = grayscaleEnabled
         prefs[Keys.THEME_PREFERENCE] = themePreference.name
+        prefs[Keys.COLLECT_USAGE_ANALYTICS] = collectUsageAnalyticsEnabled
+        prefs[Keys.ANALYTICS_RETENTION_DAYS] = analyticsRetentionDays
         prefs[Keys.KIOSK_MODE_ENABLED] = kioskModeEnabled
         prefs[Keys.HIDE_STATUS_BAR] = hideStatusBar
         prefs[Keys.FOCUS_ACTIVE] = focusActive
@@ -160,6 +164,8 @@ class SettingsDataStore @Inject constructor(
         val EINK_SIMULATION_ENABLED = booleanPreferencesKey("eink_simulation_enabled")
         val GRAYSCALE_ENABLED = booleanPreferencesKey("grayscale_enabled")
         val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
+        val COLLECT_USAGE_ANALYTICS = booleanPreferencesKey("collect_usage_analytics")
+        val ANALYTICS_RETENTION_DAYS = intPreferencesKey("analytics_retention_days")
         val KIOSK_MODE_ENABLED = booleanPreferencesKey("kiosk_mode_enabled")
         val HIDE_STATUS_BAR = booleanPreferencesKey("hide_status_bar")
         val FOCUS_ACTIVE = booleanPreferencesKey("focus_active")

@@ -2,10 +2,18 @@ package com.calmlauncher.domain.repository
 
 import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppEntry
+import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
+import com.calmlauncher.domain.model.AppUsageRecord
+import com.calmlauncher.domain.model.DailyUsageRecord
 import com.calmlauncher.domain.model.LaunchEvent
+import com.calmlauncher.domain.model.NotificationEventType
+import com.calmlauncher.domain.model.NotificationRecord
 import com.calmlauncher.domain.model.LauncherSettings
 import com.calmlauncher.domain.model.ReflectionEntry
 import com.calmlauncher.domain.model.RiskState
+import com.calmlauncher.domain.model.UnlockRecord
+import com.calmlauncher.domain.model.UsageSessionRecord
+import com.calmlauncher.domain.model.UsageSortOrder
 import com.calmlauncher.domain.model.ScreenTimeRecord
 import kotlinx.coroutines.flow.Flow
 
@@ -43,6 +51,24 @@ interface ScreenTimeRepository {
     suspend fun today(): ScreenTimeRecord
     fun observeRange(startEpochMs: Long, endEpochMs: Long): Flow<List<ScreenTimeRecord>>
     suspend fun refresh()
+}
+
+interface AnalyticsRepository {
+    fun observeDashboard(days: Int): Flow<AnalyticsDashboardSnapshot>
+    fun observeDailyUsage(days: Int): Flow<List<DailyUsageRecord>>
+    fun observeAppUsage(days: Int, sortOrder: UsageSortOrder): Flow<List<AppUsageRecord>>
+    fun observeSessions(days: Int): Flow<List<UsageSessionRecord>>
+    fun observeUnlocks(days: Int): Flow<List<UnlockRecord>>
+    fun observeNotifications(days: Int): Flow<List<NotificationRecord>>
+    suspend fun refresh()
+    suspend fun recordUnlock(timestampEpochMs: Long)
+    suspend fun recordNotification(
+        packageName: String,
+        timestampEpochMs: Long,
+        eventType: NotificationEventType,
+    )
+    suspend fun clearHistory()
+    suspend fun pruneOlderThan(days: Int)
 }
 
 /** Append-only log of app opens with captured intent reasons. */

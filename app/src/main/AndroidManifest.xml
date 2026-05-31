@@ -92,6 +92,16 @@
             </intent-filter>
         </service>
 
+        <!-- Usage analytics collector for unlock and boot broadcasts. -->
+        <receiver
+            android:name=".accessibility.AnalyticsEventReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Device admin for stronger restrictions (kiosk-lite, lock). -->
         <receiver
             android:name=".security.CalmDeviceAdminReceiver"
