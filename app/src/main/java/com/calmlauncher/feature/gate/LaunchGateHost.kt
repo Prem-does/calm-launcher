@@ -20,12 +20,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.BreathOverlay
 import com.calmlauncher.core.designsystem.component.ConfirmDialog
 import com.calmlauncher.core.designsystem.component.CountdownOverlay
+import com.calmlauncher.core.designsystem.component.CalmButton
+import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.ReasonPrompt
+import com.calmlauncher.feature.gate.AppLimitBlockOverlay
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.FrictionStep
+import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.launcher.LaunchEffect
 import kotlinx.coroutines.delay
 
@@ -48,12 +52,14 @@ fun LaunchGateHost(
 ) {
     val state by viewModel.flow.collectAsStateWithLifecycle()
     var blockedMessage by remember { mutableStateOf<String?>(null) }
+    var appLimitBlock by remember { mutableStateOf<LaunchEffect.AppLimitBlocked?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { eff ->
             when (eff) {
                 is LaunchEffect.DeadEnd -> onNavigateToReset()
                 is LaunchEffect.Blocked -> blockedMessage = eff.reason
+                is LaunchEffect.AppLimitBlocked -> appLimitBlock = eff
                 else -> {}
             }
         }
@@ -69,6 +75,19 @@ fun LaunchGateHost(
 
     val current = state?.current
     when {
+        appLimitBlock != null -> {
+            val blocked = appLimitBlock!!
+            AppLimitBlockOverlay(
+                status = blocked.status,
+                onGrant10Min = {
+                    viewModel.coordinator.grantAppLimitOverrideAndLaunch(blocked.request, 10)
+                    appLimitBlock = null
+                },
+                onDismiss = { appLimitBlock = null },
+                modifier = modifier,
+            )
+        }
+
         // An active friction step is showing — render it full-screen over everything.
         state != null && current != null -> {
             Box(

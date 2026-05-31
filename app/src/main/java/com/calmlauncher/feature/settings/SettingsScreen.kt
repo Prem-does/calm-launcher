@@ -76,9 +76,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenManageApps: () -> Unit,
     onOpenScreenTime: () -> Unit,
+    onOpenAppLimits: () -> Unit,
     onOpenFriction: () -> Unit,
     onOpenEnvironment: () -> Unit,
-    onOpenPin: () -> Unit,
     onOpenReflection: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -108,6 +108,7 @@ fun SettingsScreen(
             // --- Navigational rows -------------------------------------------------------
             SettingRow("Manage Apps", onClick = onOpenManageApps, showChevron = true)
             SettingRow("Screen Time", value = screenTimeText, onClick = onOpenScreenTime)
+            SettingRow("App Limits", onClick = onOpenAppLimits, showChevron = true)
             SettingRow("Reflection", onClick = onOpenReflection, showChevron = true)
             SettingRow(
                 title = "Friction Level",
@@ -119,11 +120,6 @@ fun SettingsScreen(
                 title = "Environment",
                 value = settings.environmentMode.displayName(),
                 onClick = onOpenEnvironment,
-            )
-            SettingRow(
-                title = "PIN Protection",
-                value = if (settings.pinEnabled) "Enabled" else "Disabled",
-                onClick = onOpenPin,
             )
 
             // --- Display -----------------------------------------------------------------

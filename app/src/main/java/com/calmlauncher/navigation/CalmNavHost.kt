@@ -26,6 +26,7 @@ import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.feature.applist.AppListScreen
+import com.calmlauncher.feature.limits.AppLimitsScreen
 import com.calmlauncher.feature.focus.FocusScreen
 import com.calmlauncher.feature.gate.LaunchGateHost
 import com.calmlauncher.feature.home.HomeScreen
@@ -36,7 +37,6 @@ import com.calmlauncher.feature.search.SearchScreen
 import com.calmlauncher.feature.settings.EnvironmentScreen
 import com.calmlauncher.feature.settings.FrictionScreen
 import com.calmlauncher.feature.settings.ManageAppsScreen
-import com.calmlauncher.feature.settings.PinScreen
 import com.calmlauncher.feature.settings.ScreenTimeScreen
 import com.calmlauncher.feature.settings.SettingsScreen
 import com.calmlauncher.feature.settings.ThemeViewModel
@@ -170,17 +170,17 @@ fun CalmNavHost(
                 onBack = back,
                 onOpenManageApps = { navController.navigate(Routes.SETTINGS_MANAGE_APPS) },
                 onOpenScreenTime = { navController.navigate(Routes.SETTINGS_SCREEN_TIME) },
+                onOpenAppLimits = { navController.navigate(Routes.SETTINGS_APP_LIMITS) },
                 onOpenFriction = { navController.navigate(Routes.SETTINGS_FRICTION) },
                 onOpenEnvironment = { navController.navigate(Routes.SETTINGS_ENVIRONMENT) },
-                onOpenPin = { navController.navigate(Routes.SETTINGS_PIN) },
                 onOpenReflection = { navController.navigate(Routes.REFLECTION) },
             )
         }
 
         composable(Routes.SETTINGS_MANAGE_APPS) { ManageAppsScreen(onBack = back) }
         composable(Routes.SETTINGS_SCREEN_TIME) { ScreenTimeScreen(onBack = back) }
+        composable(Routes.SETTINGS_APP_LIMITS) { AppLimitsScreen(onBack = back) }
         composable(Routes.SETTINGS_FRICTION) { FrictionScreen(onBack = back) }
         composable(Routes.SETTINGS_ENVIRONMENT) { EnvironmentScreen(onBack = back) }
-        composable(Routes.SETTINGS_PIN) { PinScreen(onBack = back) }
     }
 }

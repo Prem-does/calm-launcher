@@ -4,8 +4,11 @@ import com.calmlauncher.di.ApplicationScope
 import com.calmlauncher.domain.model.AppLaunchRequest
 import com.calmlauncher.domain.model.FrictionStep
 import com.calmlauncher.domain.model.LaunchEvent
+import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.service.AppLauncher
+import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.usecase.RecordLaunchUseCase
+import com.calmlauncher.domain.usecase.EvaluateAppLimitUseCase
 import com.calmlauncher.domain.usecase.ResolveLaunchDecisionUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +35,7 @@ sealed interface LaunchEffect {
     data class Blocked(val reason: String) : LaunchEffect
     data class DeadEnd(val request: AppLaunchRequest) : LaunchEffect
     data class Launched(val packageName: String) : LaunchEffect
+    data class AppLimitBlocked(val request: AppLaunchRequest, val status: AppLimitStatus) : LaunchEffect
 }
 
 /**
@@ -42,6 +46,8 @@ sealed interface LaunchEffect {
  */
 @Singleton
 class LaunchCoordinator @Inject constructor(
+    private val evaluateAppLimit: EvaluateAppLimitUseCase,
+    private val appLimitRepository: AppLimitRepository,
     private val resolveLaunchDecision: ResolveLaunchDecisionUseCase,
     private val recordLaunch: RecordLaunchUseCase,
     private val appLauncher: AppLauncher,
@@ -56,6 +62,13 @@ class LaunchCoordinator @Inject constructor(
     /** Entry point for any UI that wants to open an app. */
     fun request(request: AppLaunchRequest) {
         scope.launch {
+            when (val limitDecision = evaluateAppLimit(request)) {
+                is com.calmlauncher.domain.model.AppLimitDecision.Blocked -> {
+                    _effects.emit(LaunchEffect.AppLimitBlocked(request, limitDecision.status))
+                    return@launch
+                }
+                com.calmlauncher.domain.model.AppLimitDecision.Allowed -> Unit
+            }
             val decision = resolveLaunchDecision(request)
             when {
                 decision.isBlocked -> _effects.emit(
@@ -65,6 +78,13 @@ class LaunchCoordinator @Inject constructor(
                 decision.steps.isEmpty() -> proceed(request)
                 else -> _flow.value = LaunchFlowState(request, decision.steps, 0)
             }
+        }
+    }
+
+    fun grantAppLimitOverrideAndLaunch(request: AppLaunchRequest, minutes: Int) {
+        scope.launch {
+            appLimitRepository.extendOverride(request.packageName, minutes)
+            request(request)
         }
     }
 

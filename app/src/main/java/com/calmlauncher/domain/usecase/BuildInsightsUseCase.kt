@@ -1,8 +1,11 @@
 package com.calmlauncher.domain.usecase
 
 import com.calmlauncher.domain.model.Insight
+import com.calmlauncher.domain.model.AppLimitEvent
+import com.calmlauncher.domain.model.AppLimitEventType
 import com.calmlauncher.domain.model.LaunchEvent
 import com.calmlauncher.domain.model.ScreenTimeRecord
+import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.LaunchEventRepository
 import com.calmlauncher.domain.repository.ScreenTimeRepository
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +25,7 @@ import kotlin.math.roundToInt
  * relative days ("yesterday"); this is a use-case boundary concern, not pure policy.
  */
 class BuildInsightsUseCase @Inject constructor(
+    private val appLimitRepository: AppLimitRepository,
     private val launchEventRepository: LaunchEventRepository,
     private val screenTimeRepository: ScreenTimeRepository,
 ) {
@@ -33,8 +37,9 @@ class BuildInsightsUseCase @Inject constructor(
         return combine(
             launchEventRepository.observeWeek(),
             screenTimeRepository.observeRange(rangeStart, nowEpochMs),
-        ) { events, screenTime ->
-            buildInsights(events, screenTime, nowEpochMs, zoneId)
+            appLimitRepository.observeTodayEvents(),
+        ) { events, screenTime, limitEvents ->
+            buildInsights(events, screenTime, limitEvents, nowEpochMs, zoneId)
         }
     }
 
@@ -42,6 +47,7 @@ class BuildInsightsUseCase @Inject constructor(
     private fun buildInsights(
         events: List<LaunchEvent>,
         screenTime: List<ScreenTimeRecord>,
+        limitEvents: List<AppLimitEvent>,
         nowEpochMs: Long,
         zoneId: ZoneId,
     ): List<Insight> {
@@ -50,6 +56,7 @@ class BuildInsightsUseCase @Inject constructor(
         mostOpenedYesterdayInsight(events, nowEpochMs, zoneId)?.let(insights::add)
         peakHourInsight(events, zoneId)?.let(insights::add)
         screenTimeTrendInsight(screenTime)?.let(insights::add)
+        appLimitInsight(limitEvents)?.let(insights::add)
 
         if (insights.isEmpty()) {
             insights += Insight("A quiet week so far. Nothing stands out.")
@@ -110,6 +117,18 @@ class BuildInsightsUseCase @Inject constructor(
             Insight("Screen time is down ${-deltaPercent}% this week.")
         } else {
             Insight("Screen time is up $deltaPercent% this week.")
+        }
+    }
+
+    /** "App Limits blocked 3 launches today." */
+    private fun appLimitInsight(limitEvents: List<AppLimitEvent>): Insight? {
+        val blocked = limitEvents.filter { it.eventType == AppLimitEventType.BLOCKED }
+        if (blocked.isEmpty()) return null
+        val top = blocked.groupingBy { it.label }.eachCount().maxByOrNull { it.value }
+        return if (top != null && top.value > 1) {
+            Insight("App Limits blocked ${blocked.size} launches today. ${top.key} hit the limit ${top.value} times.")
+        } else {
+            Insight("App Limits blocked ${blocked.size} launches today.")
         }
     }
 

@@ -17,9 +17,9 @@ object Routes {
     const val SETTINGS = "settings"
     const val SETTINGS_MANAGE_APPS = "settings/apps"
     const val SETTINGS_SCREEN_TIME = "settings/screen_time"
+    const val SETTINGS_APP_LIMITS = "settings/app_limits"
     const val SETTINGS_FRICTION = "settings/friction"
     const val SETTINGS_ENVIRONMENT = "settings/environment"
-    const val SETTINGS_PIN = "settings/pin"
 
     /** The three primary bottom-nav tabs, in order. */
     val bottomTabs = listOf(HOME, APPS, FOCUS)

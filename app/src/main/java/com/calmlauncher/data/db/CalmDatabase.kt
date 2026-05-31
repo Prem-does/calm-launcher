@@ -3,6 +3,9 @@ package com.calmlauncher.data.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.calmlauncher.data.db.entity.AppMetaEntity
+import com.calmlauncher.data.db.entity.AppLimitEventEntity
+import com.calmlauncher.data.db.entity.AppLimitRuleEntity
+import com.calmlauncher.data.db.entity.AppLimitUsageEntity
 import com.calmlauncher.data.db.entity.LaunchEventEntity
 import com.calmlauncher.data.db.entity.ReflectionEntity
 import com.calmlauncher.data.db.entity.RiskStateEntity
@@ -16,16 +19,20 @@ import com.calmlauncher.data.db.entity.ScreenTimeEntity
 @Database(
     entities = [
         AppMetaEntity::class,
+        AppLimitEventEntity::class,
+        AppLimitRuleEntity::class,
+        AppLimitUsageEntity::class,
         LaunchEventEntity::class,
         ReflectionEntity::class,
         ScreenTimeEntity::class,
         RiskStateEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class CalmDatabase : RoomDatabase() {
     abstract fun appMetaDao(): AppMetaDao
+    abstract fun appLimitDao(): AppLimitDao
     abstract fun launchEventDao(): LaunchEventDao
     abstract fun reflectionDao(): ReflectionDao
     abstract fun screenTimeDao(): ScreenTimeDao

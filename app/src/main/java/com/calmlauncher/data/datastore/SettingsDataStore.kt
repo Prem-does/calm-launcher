@@ -43,6 +43,14 @@ class SettingsDataStore @Inject constructor(
         }
     }
 
+    /** Remove stale keys from older settings schemas. Safe to call repeatedly. */
+    suspend fun purgeLegacyKeys() {
+        dataStore.edit { prefs ->
+            prefs.remove(LegacyKeys.PIN_ENABLED)
+            prefs.remove(LegacyKeys.PIN_HASH)
+        }
+    }
+
     // -- Mapping -----------------------------------------------------------------
 
     private fun Preferences.toSettings(): LauncherSettings {
@@ -69,8 +77,6 @@ class SettingsDataStore @Inject constructor(
             einkSimulationEnabled = this[Keys.EINK_SIMULATION_ENABLED] ?: defaults.einkSimulationEnabled,
             grayscaleEnabled = this[Keys.GRAYSCALE_ENABLED] ?: defaults.grayscaleEnabled,
             themePreference = this[Keys.THEME_PREFERENCE].toThemePreference(defaults.themePreference),
-            pinEnabled = this[Keys.PIN_ENABLED] ?: defaults.pinEnabled,
-            pinHash = this[Keys.PIN_HASH] ?: defaults.pinHash,
             kioskModeEnabled = this[Keys.KIOSK_MODE_ENABLED] ?: defaults.kioskModeEnabled,
             hideStatusBar = this[Keys.HIDE_STATUS_BAR] ?: defaults.hideStatusBar,
             focusActive = this[Keys.FOCUS_ACTIVE] ?: defaults.focusActive,
@@ -103,8 +109,6 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.EINK_SIMULATION_ENABLED] = einkSimulationEnabled
         prefs[Keys.GRAYSCALE_ENABLED] = grayscaleEnabled
         prefs[Keys.THEME_PREFERENCE] = themePreference.name
-        prefs[Keys.PIN_ENABLED] = pinEnabled
-        if (pinHash != null) prefs[Keys.PIN_HASH] = pinHash else prefs.remove(Keys.PIN_HASH)
         prefs[Keys.KIOSK_MODE_ENABLED] = kioskModeEnabled
         prefs[Keys.HIDE_STATUS_BAR] = hideStatusBar
         prefs[Keys.FOCUS_ACTIVE] = focusActive
@@ -156,8 +160,6 @@ class SettingsDataStore @Inject constructor(
         val EINK_SIMULATION_ENABLED = booleanPreferencesKey("eink_simulation_enabled")
         val GRAYSCALE_ENABLED = booleanPreferencesKey("grayscale_enabled")
         val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
-        val PIN_ENABLED = booleanPreferencesKey("pin_enabled")
-        val PIN_HASH = stringPreferencesKey("pin_hash")
         val KIOSK_MODE_ENABLED = booleanPreferencesKey("kiosk_mode_enabled")
         val HIDE_STATUS_BAR = booleanPreferencesKey("hide_status_bar")
         val FOCUS_ACTIVE = booleanPreferencesKey("focus_active")
@@ -165,6 +167,11 @@ class SettingsDataStore @Inject constructor(
         val FOCUS_DURATION_MINUTES = intPreferencesKey("focus_duration_minutes")
         val FAVORITES = stringPreferencesKey("favorites")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+    }
+
+    private object LegacyKeys {
+        val PIN_ENABLED = booleanPreferencesKey("pin_enabled")
+        val PIN_HASH = stringPreferencesKey("pin_hash")
     }
 
     private companion object {

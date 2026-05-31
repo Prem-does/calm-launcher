@@ -3,6 +3,7 @@ package com.calmlauncher.di
 import android.content.Context
 import androidx.room.Room
 import com.calmlauncher.data.db.AppMetaDao
+import com.calmlauncher.data.db.AppLimitDao
 import com.calmlauncher.data.db.CalmDatabase
 import com.calmlauncher.data.db.LaunchEventDao
 import com.calmlauncher.data.db.ReflectionDao
@@ -33,6 +34,9 @@ object DatabaseModule {
 
     @Provides
     fun provideAppMetaDao(db: CalmDatabase): AppMetaDao = db.appMetaDao()
+
+    @Provides
+    fun provideAppLimitDao(db: CalmDatabase): AppLimitDao = db.appLimitDao()
 
     @Provides
     fun provideLaunchEventDao(db: CalmDatabase): LaunchEventDao = db.launchEventDao()

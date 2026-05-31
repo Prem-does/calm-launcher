@@ -1,6 +1,7 @@
 package com.calmlauncher.data.system
 
 import android.app.AppOpsManager
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.os.Process
@@ -11,9 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Reads foreground usage from [UsageStatsManager]. Requires the user to have granted the
- * Usage Access special permission (PACKAGE_USAGE_STATS); without it every query returns an
- * empty record rather than throwing. Day boundaries are local midnight.
+ * Reconstructs foreground usage from [UsageStatsManager] events. Requires the user to have
+ * granted the Usage Access special permission (PACKAGE_USAGE_STATS); without it every query
+ * returns an empty record rather than throwing. Day boundaries are local midnight.
  */
 @Singleton
 class UsageStatsTracker @Inject constructor(
@@ -50,6 +51,10 @@ class UsageStatsTracker @Inject constructor(
         return aggregate(dayStart, System.currentTimeMillis(), dayStart)
     }
 
+    /** Foreground usage for a single package today, in milliseconds. */
+    suspend fun todayForegroundFor(packageName: String): Long =
+        todayForeground().perApp[packageName] ?: 0L
+
     /**
      * One [ScreenTimeRecord] per local day in [[startMs], [endMs]] (inclusive of the day
      * containing each bound). Days with no usage still appear as empty records so callers
@@ -81,19 +86,44 @@ class UsageStatsTracker @Inject constructor(
         if (!hasPermission() || manager == null || rangeEnd <= rangeStart) {
             return ScreenTimeRecord.empty(dayStartKey)
         }
-        val stats = runCatching {
-            manager.queryAndAggregateUsageStats(rangeStart, rangeEnd)
-        }.getOrNull() ?: return ScreenTimeRecord.empty(dayStartKey)
-
         val perApp = HashMap<String, Long>()
         var total = 0L
-        for ((pkg, usage) in stats) {
-            if (pkg == context.packageName) continue
-            val fg = usage.totalTimeInForeground
-            if (fg <= 0L) continue
-            perApp[pkg] = (perApp[pkg] ?: 0L) + fg
-            total += fg
+        val activeSessions = HashMap<String, ActiveSession>()
+        val events = runCatching { manager.queryEvents(rangeStart, rangeEnd) }.getOrNull()
+            ?: return ScreenTimeRecord.empty(dayStartKey)
+        val event = UsageEvents.Event()
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            val packageName = event.packageName ?: continue
+            if (packageName == context.packageName) continue
+
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND,
+                UsageEvents.Event.ACTIVITY_RESUMED,
+                -> activeSessions.getOrPut(packageName) { ActiveSession() }.onEnter(event.timeStamp)
+
+                UsageEvents.Event.MOVE_TO_BACKGROUND,
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                -> activeSessions[packageName]?.let { session ->
+                    session.onExit(event.timeStamp)?.let { duration ->
+                        perApp[packageName] = (perApp[packageName] ?: 0L) + duration
+                        total += duration
+                    }
+                    if (session.isInactive) {
+                        activeSessions.remove(packageName)
+                    }
+                }
+            }
         }
+
+        activeSessions.forEach { (packageName, session) ->
+            session.closeAt(rangeEnd)?.let { duration ->
+                perApp[packageName] = (perApp[packageName] ?: 0L) + duration
+                total += duration
+            }
+        }
+
         return ScreenTimeRecord(
             dayStartEpochMs = dayStartKey,
             totalForegroundMs = total,
@@ -121,6 +151,38 @@ class UsageStatsTracker @Inject constructor(
             set(Calendar.MILLISECOND, 0)
         }
         return cal.timeInMillis
+    }
+
+    private data class ActiveSession(
+        var activeCount: Int = 0,
+        var startedAt: Long? = null,
+    ) {
+        val isInactive: Boolean get() = activeCount <= 0
+
+        fun onEnter(timestamp: Long) {
+            if (activeCount == 0) {
+                startedAt = timestamp
+            }
+            activeCount += 1
+        }
+
+        fun onExit(timestamp: Long): Long? {
+            if (activeCount <= 0) return null
+            activeCount -= 1
+            if (activeCount == 0) {
+                val started = startedAt ?: return null
+                startedAt = null
+                return (timestamp - started).coerceAtLeast(0L)
+            }
+            return null
+        }
+
+        fun closeAt(timestamp: Long): Long? {
+            val started = startedAt ?: return null
+            startedAt = null
+            activeCount = 0
+            return (timestamp - started).coerceAtLeast(0L)
+        }
     }
 
     private companion object {

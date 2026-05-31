@@ -1,6 +1,7 @@
 package com.calmlauncher.di
 
 import com.calmlauncher.data.repository.AppRepositoryImpl
+import com.calmlauncher.data.repository.AppLimitRepositoryImpl
 import com.calmlauncher.data.repository.LaunchEventRepositoryImpl
 import com.calmlauncher.data.repository.ReflectionRepositoryImpl
 import com.calmlauncher.data.repository.RiskRepositoryImpl
@@ -9,6 +10,7 @@ import com.calmlauncher.data.repository.SettingsRepositoryImpl
 import com.calmlauncher.data.system.AppLauncherImpl
 import com.calmlauncher.data.system.SystemActionsImpl
 import com.calmlauncher.domain.repository.AppRepository
+import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.LaunchEventRepository
 import com.calmlauncher.domain.repository.ReflectionRepository
 import com.calmlauncher.domain.repository.RiskRepository
@@ -37,6 +39,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAppRepository(impl: AppRepositoryImpl): AppRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppLimitRepository(impl: AppLimitRepositoryImpl): AppLimitRepository
 
     @Binds
     @Singleton

@@ -1,11 +1,21 @@
 package com.calmlauncher.data.db
 
 import com.calmlauncher.data.db.entity.AppMetaEntity
+import com.calmlauncher.data.db.entity.AppLimitEventEntity
+import com.calmlauncher.data.db.entity.AppLimitRuleEntity
+import com.calmlauncher.data.db.entity.AppLimitUsageEntity
 import com.calmlauncher.data.db.entity.LaunchEventEntity
 import com.calmlauncher.data.db.entity.ReflectionEntity
 import com.calmlauncher.data.db.entity.RiskStateEntity
 import com.calmlauncher.data.db.entity.ScreenTimeEntity
 import com.calmlauncher.domain.model.AppCategory
+import com.calmlauncher.domain.model.AppLimitDecision
+import com.calmlauncher.domain.model.AppLimitEvent
+import com.calmlauncher.domain.model.AppLimitEventType
+import com.calmlauncher.domain.model.AppLimitRule
+import com.calmlauncher.domain.model.AppLimitStatus
+import com.calmlauncher.domain.model.AppLimitSummary
+import com.calmlauncher.domain.model.AppLimitUsage
 import com.calmlauncher.domain.model.LaunchEvent
 import com.calmlauncher.domain.model.LaunchSource
 import com.calmlauncher.domain.model.ReflectionEntry
@@ -118,6 +128,74 @@ internal fun ScreenTimeRecord.toEntity(): ScreenTimeEntity = ScreenTimeEntity(
     totalForegroundMs = totalForegroundMs,
     perAppJson = encodePerApp(perApp),
 )
+
+// ---------------------------------------------------------------------------
+// App limit rule / usage / event
+// ---------------------------------------------------------------------------
+
+internal fun AppLimitRuleEntity.toDomain(): AppLimitRule = AppLimitRule(
+    packageName = packageName,
+    enabled = enabled,
+    dailyLimitMinutes = dailyLimitMinutes,
+    overrideUntilEpochMs = overrideUntilEpochMs,
+    updatedAtEpochMs = updatedAtEpochMs,
+)
+
+internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
+    packageName = packageName,
+    enabled = enabled,
+    dailyLimitMinutes = dailyLimitMinutes,
+    overrideUntilEpochMs = overrideUntilEpochMs,
+    updatedAtEpochMs = updatedAtEpochMs,
+)
+
+internal fun AppLimitUsageEntity.toDomain(): AppLimitUsage = AppLimitUsage(
+    dayStartEpochMs = dayStartEpochMs,
+    packageName = packageName,
+    usedMs = usedMs,
+    lastSyncedAtEpochMs = lastSyncedAtEpochMs,
+)
+
+internal fun AppLimitUsage.toEntity(): AppLimitUsageEntity = AppLimitUsageEntity(
+    dayStartEpochMs = dayStartEpochMs,
+    packageName = packageName,
+    usedMs = usedMs,
+    lastSyncedAtEpochMs = lastSyncedAtEpochMs,
+)
+
+internal fun AppLimitEventEntity.toDomain(): AppLimitEvent = AppLimitEvent(
+    id = id,
+    packageName = packageName,
+    label = label,
+    eventType = AppLimitEventType.entries.firstOrNull { it.name == eventType }
+        ?: AppLimitEventType.BLOCKED,
+    timestampEpochMs = timestampEpochMs,
+    dayStartEpochMs = dayStartEpochMs,
+    limitMinutes = limitMinutes,
+    usedMinutes = usedMinutes,
+    overrideMinutes = overrideMinutes,
+)
+
+internal fun AppLimitEvent.toEntity(): AppLimitEventEntity = AppLimitEventEntity(
+    id = id,
+    packageName = packageName,
+    label = label,
+    eventType = eventType.name,
+    timestampEpochMs = timestampEpochMs,
+    dayStartEpochMs = dayStartEpochMs,
+    limitMinutes = limitMinutes,
+    usedMinutes = usedMinutes,
+    overrideMinutes = overrideMinutes,
+)
+
+internal fun AppLimitStatus.toSummary(blockedLaunchesToday: Int, topLimitedCount: Int): AppLimitSummary =
+    AppLimitSummary(
+        blockedLaunchesToday = blockedLaunchesToday,
+        limitedAppsToday = if (blockedToday) 1 else 0,
+        estimatedTimeSavedMinutes = blockedLaunchesToday * (dailyLimitMinutes ?: 0),
+        topLimitedPackage = packageName,
+        topLimitedCount = topLimitedCount,
+    )
 
 // ---------------------------------------------------------------------------
 // RiskState

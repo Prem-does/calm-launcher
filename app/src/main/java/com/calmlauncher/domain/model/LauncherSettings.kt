@@ -43,8 +43,6 @@ data class LauncherSettings(
     val themePreference: ThemePreference = ThemePreference.DARK,
 
     // Security
-    val pinEnabled: Boolean = false,
-    val pinHash: String? = null,
     val kioskModeEnabled: Boolean = false,
     val hideStatusBar: Boolean = false,
 
