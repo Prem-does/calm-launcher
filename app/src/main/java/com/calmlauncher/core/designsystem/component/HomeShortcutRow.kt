@@ -17,8 +17,8 @@ import com.calmlauncher.core.designsystem.theme.Spacing
 
 /**
  * An oversized favorite shortcut for the home screen. [label] is rendered in
- * [CalmType.headlineLgMobile] with [Spacing.base] vertical padding and a closing
- * [ThinDivider]. Tap has no ripple, matching the home list in the Stitch reference.
+ * [CalmType.headlineLgMobile] with [Spacing.base] vertical padding. Tap has no ripple,
+ * matching the home list in the Stitch reference.
  */
 @Composable
 fun HomeShortcutRow(
@@ -46,6 +46,5 @@ fun HomeShortcutRow(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        ThinDivider()
     }
 }

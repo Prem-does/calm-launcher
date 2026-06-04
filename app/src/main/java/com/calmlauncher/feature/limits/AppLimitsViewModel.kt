@@ -1,7 +1,13 @@
 package com.calmlauncher.feature.limits
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
@@ -17,6 +23,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import com.calmlauncher.work.AppLimitEnforceWorker
 import javax.inject.Inject
 
 data class AppLimitRowUiState(
@@ -38,7 +46,10 @@ data class AppLimitsUiState(
 class AppLimitsViewModel @Inject constructor(
     appRepository: AppRepository,
     private val appLimitRepository: AppLimitRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
+
+    private val workManager by lazy { WorkManager.getInstance(applicationContext) }
 
     private val apps = appRepository.observeApps()
     private val rules = appLimitRepository.observeRules()
@@ -98,6 +109,8 @@ class AppLimitsViewModel @Inject constructor(
                 ),
             )
             appLimitRepository.refreshUsageSnapshot()
+            // Schedule enforcement when the preset limit is expected to expire.
+            if (enabled) scheduleEnforceForPreset(packageName, limitMinutes)
         }
     }
 
@@ -105,6 +118,13 @@ class AppLimitsViewModel @Inject constructor(
         viewModelScope.launch {
             appLimitRepository.setEnabled(packageName, enabled)
             appLimitRepository.refreshUsageSnapshot()
+            if (enabled) {
+                // When enabling, schedule enforcement based on current usage.
+                val rule = appLimitRepository.currentRule(packageName)
+                rule?.dailyLimitMinutes?.let { scheduleEnforceForPreset(packageName, it) }
+            } else {
+                cancelEnforceWork(packageName)
+            }
         }
     }
 
@@ -112,6 +132,7 @@ class AppLimitsViewModel @Inject constructor(
         viewModelScope.launch {
             appLimitRepository.deleteRule(packageName)
             appLimitRepository.refreshUsageSnapshot()
+            cancelEnforceWork(packageName)
         }
     }
 
@@ -119,6 +140,35 @@ class AppLimitsViewModel @Inject constructor(
         viewModelScope.launch {
             appLimitRepository.extendOverride(packageName, minutes)
             appLimitRepository.refreshUsageSnapshot()
+            // After extending, schedule a worker at the override expiry to enforce closing the app.
+            val rule = appLimitRepository.currentRule(packageName)
+            val now = System.currentTimeMillis()
+            val delay = rule?.overrideUntilEpochMs?.let { (it - now).coerceAtLeast(0L) } ?: 0L
+            if (delay >= 0L) scheduleEnforceWork(packageName, delay)
         }
+    }
+
+    private fun scheduleEnforceForPreset(packageName: String, limitMinutes: Int) {
+        viewModelScope.launch {
+            appLimitRepository.refreshUsageSnapshot()
+            val usage = appLimitRepository.observeTodayUsage().first()
+            val usedMs = usage.find { it.packageName == packageName }?.usedMs ?: 0L
+            val limitMs = limitMinutes * 60_000L
+            val remaining = (limitMs - usedMs).coerceAtLeast(0L)
+            scheduleEnforceWork(packageName, remaining)
+        }
+    }
+
+    private fun scheduleEnforceWork(packageName: String, delayMs: Long) {
+        val data = Data.Builder().putString("packageName", packageName).build()
+        val request = OneTimeWorkRequestBuilder<AppLimitEnforceWorker>()
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .setInputData(data)
+            .build()
+        workManager.enqueueUniqueWork("app_limit_enforce_$packageName", ExistingWorkPolicy.REPLACE, request)
+    }
+
+    private fun cancelEnforceWork(packageName: String) {
+        workManager.cancelUniqueWork("app_limit_enforce_$packageName")
     }
 }

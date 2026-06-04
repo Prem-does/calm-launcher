@@ -32,6 +32,11 @@ class AppLimitRepositoryImpl @Inject constructor(
     @IoDispatcher private val dispatcher: CoroutineDispatcher,
 ) : AppLimitRepository {
 
+    private companion object {
+        // Maximum total override minutes allowed via repeated "add X minutes" actions.
+        private const val MAX_OVERRIDE_MINUTES = 60
+    }
+
     override fun observeRules(): Flow<List<AppLimitRule>> =
         appLimitDao.observeRules().map { rows -> rows.map { it.toDomain() } }.flowOn(dispatcher)
 
@@ -71,9 +76,18 @@ class AppLimitRepositoryImpl @Inject constructor(
     override suspend fun extendOverride(packageName: String, minutes: Int) = withContext(dispatcher) {
         val now = System.currentTimeMillis()
         val current = appLimitDao.getRule(packageName)?.toDomain() ?: AppLimitRule(packageName = packageName)
+
+        // Accumulate remaining override time (if any) and add the requested minutes,
+        // but cap the total override to a reasonable maximum to avoid infinite extensions.
+        val existingRemainingMs = (current.overrideUntilEpochMs - now).coerceAtLeast(0L)
+        val addedMs = minutes * 60_000L
+        val maxMs = MAX_OVERRIDE_MINUTES * 60_000L
+        val newRemainingMs = (existingRemainingMs + addedMs).coerceAtMost(maxMs)
+        val newOverrideUntil = now + newRemainingMs
+
         appLimitDao.upsertRule(
             current.copy(
-                overrideUntilEpochMs = now + minutes * 60_000L,
+                overrideUntilEpochMs = newOverrideUntil,
                 updatedAtEpochMs = now,
             ).toEntity(),
         )

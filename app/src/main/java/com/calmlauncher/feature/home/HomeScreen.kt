@@ -3,6 +3,7 @@ package com.calmlauncher.feature.home
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -65,6 +66,9 @@ fun HomeScreen(
             )
         },
     ) { innerPadding ->
+        val timeText = state.time.ifBlank { "--:--" }
+        val dateText = state.date.ifBlank { "Loading home..." }
+        val screenTimeText = state.screenTimeText.ifBlank { "0m today" }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -72,6 +76,12 @@ fun HomeScreen(
                 .pointerInput(Unit) {
                     detectVerticalDragGestures { _, dragAmount ->
                         if (dragAmount > 40f) onOpenSearch()
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { _, dragAmount ->
+                        // Rightward drag (positive) opens Settings.
+                        if (dragAmount > 40f) onOpenSettings()
                     }
                 }
                 .padding(horizontal = Spacing.marginMobile),
@@ -91,17 +101,17 @@ fun HomeScreen(
                     ),
             ) {
                 Text(
-                    text = state.time,
+                    text = timeText,
                     style = CalmType.heroTime,
                     color = CalmWhite,
                 )
                 Text(
-                    text = state.date,
+                    text = dateText,
                     style = CalmType.headlineMd,
                     color = CalmGray,
                 )
                 Text(
-                    text = state.screenTimeText,
+                    text = screenTimeText,
                     style = CalmType.labelMd,
                     color = CalmGray,
                     modifier = Modifier.padding(top = Spacing.stackSm),
@@ -122,11 +132,20 @@ fun HomeScreen(
             }
 
             // Favorite shortcuts (oversized Swiss list).
-            state.favorites.forEach { app ->
-                HomeShortcutRow(
-                    label = app.label,
-                    onClick = { viewModel.open(app) },
+            if (state.favorites.isEmpty()) {
+                Text(
+                    text = "No pinned apps yet. Open Settings to manage favorites.",
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                    modifier = Modifier.padding(bottom = Spacing.stackSm),
                 )
+            } else {
+                state.favorites.forEach { app ->
+                    HomeShortcutRow(
+                        label = app.label,
+                        onClick = { viewModel.open(app) },
+                    )
+                }
             }
 
             Spacer(Modifier.height(Spacing.stackLg))

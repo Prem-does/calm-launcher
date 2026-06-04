@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -136,50 +138,52 @@ fun SettingsScreen(
                     }
                 },
             )
-            SettingRow(
-                title = "Greyscale Mode",
-                trailing = {
-                    val context = LocalContext.current
-                    CalmToggle(settings.grayscaleEnabled) { checked ->
-                        viewModel.update { it.copy(grayscaleEnabled = checked) }
-                        if (!openColorCorrectionSettings(context)) {
-                            Toast.makeText(context, "Unable to open Colour Correction settings.", Toast.LENGTH_SHORT).show()
-                            return@CalmToggle
-                        }
 
-                        Toast.makeText(
-                            context,
-                            if (checked) {
-                                "Enable Colour Correction and select Greyscale."
-                            } else {
-                                "Disable Colour Correction to return to normal colours."
-                            },
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                },
-            )
+            // Appearance as an expandable section with Greyscale and E-Ink options.
+            val context = LocalContext.current
+            val appearanceExpanded = remember { mutableStateOf(false) }
             SettingRow(
-                title = "E-Ink Simulation",
-                trailing = {
-                    CalmToggle(settings.einkSimulationEnabled) { checked ->
-                        viewModel.update { it.copy(einkSimulationEnabled = checked) }
-                    }
+                title = "Appearance",
+                value = when {
+                    settings.einkSimulationEnabled -> "E-Ink"
+                    settings.grayscaleEnabled -> "Greyscale"
+                    else -> "Off"
                 },
+                onClick = { appearanceExpanded.value = !appearanceExpanded.value },
+                showChevron = true,
             )
+
+            if (appearanceExpanded.value) {
+                // Greyscale redirects to system color correction settings (accessibility)
+                SettingRow(
+                    title = "Greyscale",
+                    value = if (settings.grayscaleEnabled) "On" else "Off",
+                    onClick = {
+                        val opened = openColorCorrectionSettings(context)
+                        if (!opened) {
+                            Toast.makeText(context, "Unable to open color correction settings", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    showChevron = true,
+                )
+
+                // E-Ink remains an in-app toggle
+                SettingRow(
+                    title = "E-Ink",
+                    trailing = {
+                        CalmToggle(settings.einkSimulationEnabled) { checked ->
+                            viewModel.update { it.copy(einkSimulationEnabled = checked) }
+                        }
+                    },
+                )
+            }
+
+            // Combine Recents + Suggestions into a single, simpler toggle by default.
             SettingRow(
-                title = "Show Recents",
+                title = "Show Recents & Suggestions",
                 trailing = {
-                    CalmToggle(settings.showRecents) { checked ->
-                        viewModel.update { it.copy(showRecents = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Show Suggestions",
-                trailing = {
-                    CalmToggle(settings.showSuggestions) { checked ->
-                        viewModel.update { it.copy(showSuggestions = checked) }
+                    CalmToggle(settings.showRecents && settings.showSuggestions) { checked ->
+                        viewModel.update { it.copy(showRecents = checked, showSuggestions = checked) }
                     }
                 },
             )
@@ -187,45 +191,12 @@ fun SettingsScreen(
             // --- Friction ----------------------------------------------------------------
             SectionLabel("Friction")
             SettingRow(
-                title = "Opening Delays",
-                trailing = {
-                    CalmToggle(settings.openingDelaysEnabled) { checked ->
-                        viewModel.update { it.copy(openingDelaysEnabled = checked) }
-                    }
-                },
+                title = "Friction Level",
+                value = settings.frictionLevel.name.lowercase().replaceFirstChar { it.uppercase() },
+                onClick = onOpenFriction,
             )
-            SettingRow(
-                title = "Intent Prompt",
-                trailing = {
-                    CalmToggle(settings.intentPromptEnabled) { checked ->
-                        viewModel.update { it.copy(intentPromptEnabled = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Breath Unlock",
-                trailing = {
-                    CalmToggle(settings.breathUnlockEnabled) { checked ->
-                        viewModel.update { it.copy(breathUnlockEnabled = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Slow Mode",
-                trailing = {
-                    CalmToggle(settings.slowModeEnabled) { checked ->
-                        viewModel.update { it.copy(slowModeEnabled = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Analog Mode",
-                trailing = {
-                    CalmToggle(settings.analogModeEnabled) { checked ->
-                        viewModel.update { it.copy(analogModeEnabled = checked) }
-                    }
-                },
-            )
+
+            // Advanced friction controls moved into Advanced section below.
 
             // --- Modes -------------------------------------------------------------------
             SectionLabel("Modes")
@@ -245,38 +216,19 @@ fun SettingsScreen(
                     }
                 },
             )
+            // Experimental/advanced behavior moved to Advanced section below.
+
+            // --- Advanced (expandable) --------------------------------------------------
+            SectionLabel("Advanced")
+            val advancedExpanded = remember { mutableStateOf(false) }
             SettingRow(
-                title = "Dopamine Detection",
-                trailing = {
-                    CalmToggle(settings.dopamineDetectionEnabled) { checked ->
-                        viewModel.update { it.copy(dopamineDetectionEnabled = checked) }
-                    }
-                },
+                title = "Advanced Settings",
+                onClick = { advancedExpanded.value = !advancedExpanded.value },
+                showChevron = true,
             )
-            SettingRow(
-                title = "Dynamic Minimalism",
-                trailing = {
-                    CalmToggle(settings.dynamicMinimalismEnabled) { checked ->
-                        viewModel.update { it.copy(dynamicMinimalismEnabled = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Recovery Mode",
-                trailing = {
-                    CalmToggle(settings.recoveryModeEnabled) { checked ->
-                        viewModel.update { it.copy(recoveryModeEnabled = checked) }
-                    }
-                },
-            )
-            SettingRow(
-                title = "Dead-End Feeds",
-                trailing = {
-                    CalmToggle(settings.deadEndFeedsEnabled) { checked ->
-                        viewModel.update { it.copy(deadEndFeedsEnabled = checked) }
-                    }
-                },
-            )
+            if (advancedExpanded.value) {
+                AdvancedSettings(viewModel = viewModel, settings = settings)
+            }
 
             // --- Theme -------------------------------------------------------------------
             SectionLabel("Theme")
@@ -336,11 +288,11 @@ private fun ThemeModeSwitch(
     val background = if (darkSelected) Color(0xFF1F2530) else Color(0xFFF3F2EC)
     val thumbColor = if (darkSelected) Color(0xFF36404E) else Color(0xFFFAFAF4)
     val thumbTint = if (darkSelected) Color(0xFFF7F8FB) else Color(0xFF232323)
-    val thumbOffset = if (darkSelected) 78.dp else 6.dp
+    // thumbOffset removed — BoxWithConstraints calculates thumb position using runtime width
     val trackElevation = if (darkSelected) 8.dp else 10.dp
     val interaction = remember { MutableInteractionSource() }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .shadow(
                 elevation = trackElevation,
@@ -364,11 +316,16 @@ private fun ThemeModeSwitch(
             .heightIn(min = 48.dp)
             .fillMaxWidth(),
     ) {
+        val trackWidth = this.maxWidth
+        val thumbSize = 40.dp
+        val sidePadding = 6.dp
+        val thumbX = if (darkSelected) trackWidth - thumbSize - sidePadding else sidePadding
+
         Box(
             modifier = Modifier
-                .offset(x = thumbOffset)
+                .offset(x = thumbX)
                 .align(Alignment.CenterStart)
-                .size(40.dp)
+                .size(thumbSize)
                 .shadow(
                     elevation = if (darkSelected) 6.dp else 8.dp,
                     shape = CircleShape,
@@ -380,11 +337,11 @@ private fun ThemeModeSwitch(
                 .background(thumbColor),
             contentAlignment = Alignment.Center,
         ) {
-                Icon(
-                    imageVector = if (darkSelected) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
-                    contentDescription = null,
-                    tint = thumbTint,
-                )
+            Icon(
+                imageVector = if (darkSelected) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
+                contentDescription = null,
+                tint = thumbTint,
+            )
         }
     }
 }

@@ -353,4 +353,36 @@ The theme should emulate e-ink and Swiss design:
 
 ## License
 
+## Troubleshooting
+
+- **Symptom:** Occasionally the app shows a fully black screen instead of the Home screen.
+
+- **Quick reproduction steps:**
+  - Run the app on a device or emulator with USB debugging enabled.
+  - Trigger the launcher as the home app with:
+
+    adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.HOME
+
+- **Collect logs while reproducing:**
+  - Clear previous logs: `adb logcat -c`
+  - Start a fresh capture: `adb logcat > launcher-log.txt` and reproduce the issue, then stop capture.
+  - Inspect `launcher-log.txt` for `FATAL EXCEPTION`, `IllegalStateException`, Compose/Hilt initialization errors, or frequent process restarts.
+
+- **Common causes & checks:**
+  - Lifecycle: confirm `MainActivity`/launcher activity `onCreate()` calls `setContent` and Compose content is emitted.
+  - Theme / colors: verify background and text colors are not identical; try switching background to white to rule out color-only issues.
+  - Process crashes: check for rapid process restarts in `adb logcat` or `adb shell ps` output.
+  - Focus/kiosk mode: ensure a blank focus screen or kiosk setting isn't being enabled unexpectedly.
+  - Heavy initialization on startup: long blocking work in `onCreate` can prevent UI from drawing—move to background threads.
+
+- **Debugging tips:**
+  - Run in debug and set breakpoints in `MainActivity.kt`, `HomeScreen.kt`, and `SettingsScreen.kt` to confirm execution reaches the UI composition.
+  - If logs show Skia/renderer errors, try disabling hardware acceleration for the activity in the manifest as a test.
+  - Capture a screenshot (or photo of the device) and attach `launcher-log.txt` when reporting the issue.
+
+- **Next steps to help us investigate:**
+  - Reproduce the issue and attach `launcher-log.txt` plus a screenshot.
+
+## License
+
 To be decided.

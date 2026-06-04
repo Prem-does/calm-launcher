@@ -2,24 +2,31 @@ package com.calmlauncher.feature.applist
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.AppListRow
+import com.calmlauncher.core.designsystem.component.CalmBottomNav
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
-import com.calmlauncher.core.designsystem.component.CalmBottomNav
+import com.calmlauncher.core.designsystem.theme.CalmGray
+import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.navigation.Routes
 
@@ -44,20 +51,36 @@ fun AppListScreen(
         topBar = { CalmStatusBar(batteryText = state.batteryText, signalText = state.signalText) },
         bottomBar = { CalmBottomNav(current = Routes.APPS, onSelect = onSelectTab) },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-        ) {
-            items(state.apps, key = { it.packageName }) { app ->
-                AppListRow(
-                    label = app.label,
-                    onClick = { viewModel.open(app) },
-                    onLongClick = { onOpenSettings() },
-                    leading = if (state.displayMode == AppDisplayMode.ICONS) {
-                        { AppIcon(viewModel.iconFor(app.packageName)) }
-                    } else {
-                        null
-                    },
+        if (state.apps.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "No visible apps. Re-enable apps in Settings > Manage Apps.",
+                    style = CalmType.bodyLg,
+                    color = CalmGray,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+            ) {
+                items(state.apps, key = { it.packageName }) { app ->
+                    AppListRow(
+                        label = app.label,
+                        onClick = { viewModel.open(app) },
+                        onLongClick = { onOpenSettings() },
+                        leading = if (state.displayMode == AppDisplayMode.ICONS) {
+                            { AppIcon(viewModel.iconFor(app.packageName)) }
+                        } else {
+                            null
+                        },
+                    )
+                }
             }
         }
     }

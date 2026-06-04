@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,7 +64,7 @@ fun ScreenTimeScreen(
 
     CalmScaffold(
         modifier = modifier,
-        topBar = { CalmBackBar(title = "Usage Analytics", onBack = onBack) },
+        topBar = { CalmBackBar(title = "Screen Time", onBack = onBack) },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -78,19 +79,9 @@ fun ScreenTimeScreen(
                 onCheckedChange = viewModel::toggleCollection,
             )
             OptionRow(
-                title = "Retention Period",
-                value = "${state.retentionDays} days",
-                onClick = { viewModel.setRetentionDays(nextRetention(state.retentionDays)) },
-            )
-            OptionRow(
                 title = "Range",
                 value = state.selectedRange.label(),
                 onClick = { viewModel.selectRange(state.selectedRange.next()) },
-            )
-            OptionRow(
-                title = "Sort Apps",
-                value = state.sortOrder.label(),
-                onClick = { viewModel.selectSortOrder(state.sortOrder.next()) },
             )
             OptionRow(
                 title = "Export CSV",
@@ -98,166 +89,136 @@ fun ScreenTimeScreen(
                 onClick = { shareAnalytics(context, state.snapshot, exportJson = false) },
             )
             OptionRow(
-                title = "Export JSON",
-                value = "Share",
-                onClick = { shareAnalytics(context, state.snapshot, exportJson = true) },
-            )
-            OptionRow(
                 title = "Clear Analytics History",
                 value = "Delete all",
                 onClick = viewModel::clearHistory,
             )
 
-            SectionLabel("Today")
+            SectionLabel("Overview")
             SummaryBlock(
-                title = "Overview",
+                title = "Today",
                 lines = listOf(
                     "Screen Time: ${formatMinutes(state.snapshot.today.totalScreenTimeMinutes)}",
-                    "Unlocks: ${state.snapshot.today.unlockCount}",
-                    "Notifications: ${state.snapshot.today.notificationCount}",
                     "Most Used App: ${topApps.firstOrNull()?.appName ?: "None"}",
-                    "Longest Session: ${formatMinutes(state.snapshot.today.longestSessionMinutes)}",
-                    "App Launches: ${state.snapshot.today.appLaunchCount}",
                 ),
             )
 
-            SummaryBlock(
-                title = "Comparison",
-                lines = listOf(
-                    "Today: ${formatMinutes(state.snapshot.today.totalScreenTimeMinutes)}",
-                    "Yesterday: ${formatMinutes(state.snapshot.yesterday.totalScreenTimeMinutes)}",
-                    comparisonLine(state.snapshot.today.totalScreenTimeMinutes, state.snapshot.yesterday.totalScreenTimeMinutes, "screen time"),
-                    comparisonLine(state.snapshot.today.unlockCount, state.snapshot.yesterday.unlockCount, "unlock count"),
-                    comparisonLine(state.snapshot.today.notificationCount, state.snapshot.yesterday.notificationCount, "notifications"),
-                ),
-            )
+            SectionLabel("Weekly Trend")
+            WeeklyTrendChart(days = state.snapshot.dailyHistory.takeLast(7), appUsage = state.snapshot.appUsage)
+            WeeklyTrendLegend()
 
-            SectionLabel("Recent Days")
-            state.snapshot.dailyHistory.takeLast(7).forEach { day ->
-                HistoryRow(
-                    day = day,
-                    selected = day.dayStartEpochMs == selectedDay.dayStartEpochMs,
-                    onClick = { viewModel.selectDay(day.dayStartEpochMs) },
-                )
+            SectionLabel("Top Apps")
+            topApps.take(5).forEach { app ->
+                UsageRow(label = app.appName, duration = formatMinutes(app.usageMinutes))
             }
 
+            SectionLabel("Selected Day")
             SummaryBlock(
-                title = "Selected Day Detail",
+                title = dayName(selectedDay.dayStartEpochMs),
                 lines = listOf(
-                    dayLabel(selectedDay.dayStartEpochMs),
                     "Screen Time: ${formatMinutes(selectedDay.totalScreenTimeMinutes)}",
-                    "Unlocks: ${selectedDay.unlockCount}",
-                    "Notifications: ${selectedDay.notificationCount}",
-                    "Longest Session: ${formatMinutes(selectedDay.longestSessionMinutes)}",
-                    "App Launches: ${selectedDay.appLaunchCount}",
+                    "Unlocks: ${selectedUnlocks.size}",
+                    "Notifications: ${selectedNotifications.size}",
                     "Sessions: ${selectedSessions.size}",
                 ),
             )
 
-            SectionLabel("Weekly Analytics")
-            weeklyLabels().forEach { weekday ->
-                val match = state.snapshot.dailyHistory.lastOrNull { dayName(it.dayStartEpochMs) == weekday }
-                UsageRow(
-                    label = weekday,
-                    duration = match?.let { "${formatMinutes(it.totalScreenTimeMinutes)}  |  ${it.unlockCount} unlocks" } ?: "No data",
-                )
-            }
-
-            SectionLabel("Monthly Analytics")
-            SummaryBlock(
-                title = "This Month vs Previous Month",
-                lines = monthlySummaryLines(state.snapshot.dailyHistory),
-            )
-
-            SectionLabel("App Usage")
-            topApps.forEach { app ->
-                UsageRow(
-                    label = app.appName,
-                    duration = formatMinutes(app.usageMinutes),
-                )
-            }
-
-            AppHeatmap(
-                apps = topApps.take(5),
-                history = state.snapshot.appUsage,
-            )
-
-            SectionLabel("Screen Time Heatmap")
-            HeatmapRows(
-                title = "Last ${state.snapshot.dailyHistory.takeLast(30).size} days",
-                rows = state.snapshot.dailyHistory.takeLast(30).map { day ->
-                    HeatmapRow(
-                        label = dayLabel(day.dayStartEpochMs),
-                        intensity = intensityChar(day.totalScreenTimeMinutes, state.snapshot.dailyHistory.map { it.totalScreenTimeMinutes }),
-                    )
-                },
-            )
-
-            SectionLabel("Unlock Analytics")
-            SummaryBlock(
-                title = "Unlock Totals",
-                lines = listOf(
-                    "Today: ${selectedUnlocks.size}",
-                    "This Week: ${state.snapshot.unlocks.count { isWithinDays(it.dayStartEpochMs, 7) }}",
-                    "This Month: ${state.snapshot.unlocks.count { isWithinDays(it.dayStartEpochMs, 30) }}",
-                ),
-            )
-
-            SectionLabel("Session Analytics")
-            SummaryBlock(
-                title = "Sessions",
-                lines = sessionSummaryLines(selectedSessions, state.snapshot.sessions.filter { isWithinDays(it.dayStartEpochMs, 7) }),
-            )
-            state.snapshot.sessions.take(5).forEach { session ->
-                UsageRow(
-                    label = session.appName,
-                    duration = formatMinutes(session.durationMinutes),
-                )
-            }
-
-            SectionLabel("Notification Analytics")
-            SummaryBlock(
-                title = "Totals",
-                lines = notificationSummaryLines(selectedNotifications),
-            )
-            notificationCountsByApp(selectedNotifications).forEach { (label, value) ->
-                UsageRow(label = label, duration = value.toString())
-            }
-
-            SectionLabel("Social Media Analytics")
-            categorySummary(topApps).forEach { line ->
-                Text(
-                    text = line,
-                    style = CalmType.bodyLg,
-                    color = CalmGray,
-                    modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
-                )
-            }
-
-            SectionLabel("Trend Detection")
-            trendLines(state.snapshot.dailyHistory).forEach { line ->
-                Text(
-                    text = line,
-                    style = CalmType.bodyLg,
-                    color = CalmGray,
-                    modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
-                )
-            }
-
-            SectionLabel("Weekly Reflection")
-            reflectionLines(state.snapshot.dailyHistory).forEach { line ->
-                Text(
-                    text = line,
-                    style = CalmType.bodyLg,
-                    color = CalmGray,
-                    modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
-                )
-            }
-
             Spacer(Modifier.height(Spacing.stackLg))
         }
     }
+
 }
+
+@Composable
+private fun WeeklyTrendChart(days: List<DailyUsageRecord>, appUsage: List<AppUsageRecord>) {
+    if (days.isEmpty()) {
+        Text(text = "No weekly data", style = CalmType.bodyMd, color = CalmGray, modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical))
+        return
+    }
+    val maxMinutes = days.maxOfOrNull { it.totalScreenTimeMinutes }?.coerceAtLeast(1) ?: 1
+    val maxBarHeight = 120.dp
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+    ) {
+        days.forEach { day ->
+            val fraction = (day.totalScreenTimeMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
+            // determine dominant category for the day (highest usageMinutes)
+            val dayApps = appUsage.filter { it.dayStartEpochMs == day.dayStartEpochMs }
+            val dominantCategory = dayApps.maxByOrNull { it.usageMinutes }?.category
+            val barColor = when (dominantCategory) {
+                AnalyticsCategory.SOCIAL -> Color(0xFF4CAF50)
+                AnalyticsCategory.VIDEO -> Color(0xFF2196F3)
+                AnalyticsCategory.COMMUNICATION -> Color(0xFFFFC107)
+                AnalyticsCategory.PRODUCTIVITY -> Color(0xFF9C27B0)
+                AnalyticsCategory.OTHER -> Color(0xFF607D8B)
+                null -> CalmWhite.copy(alpha = 0.9f)
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Inverted: spacer first so bar is anchored at bottom
+                Spacer(modifier = Modifier.height(maxBarHeight * (1f - fraction)))
+                Box(
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(maxBarHeight * fraction)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(barColor),
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = dayName(day.dayStartEpochMs).take(3), style = CalmType.bodyMd, color = CalmGray)
+            }
+        }
+    }
+
+    }
+
+    // end WeeklyTrendChart
+
+    @Composable
+    private fun WeeklyTrendLegend(modifier: Modifier = Modifier) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.marginMobile, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Legend:", style = CalmType.bodyMd, color = CalmGray)
+
+            // Social
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF4CAF50)))
+                Text(text = "Social", style = CalmType.bodyMd, color = CalmGrayDim)
+            }
+
+            // Video
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF2196F3)))
+                Text(text = "Video", style = CalmType.bodyMd, color = CalmGrayDim)
+            }
+
+            // Communication
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFFFC107)))
+                Text(text = "Communication", style = CalmType.bodyMd, color = CalmGrayDim)
+            }
+
+            // Productivity
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF9C27B0)))
+                Text(text = "Productivity", style = CalmType.bodyMd, color = CalmGrayDim)
+            }
+
+            // Other
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF607D8B)))
+                Text(text = "Other", style = CalmType.bodyMd, color = CalmGrayDim)
+            }
+        }
+    }
+
 
 @Composable
 private fun AnalyticsControlRow(

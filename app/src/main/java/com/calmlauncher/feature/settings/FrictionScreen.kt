@@ -27,7 +27,7 @@ import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 
 /**
- * Friction Level picker: three selectable tiers (Light / Monk / Hardcore). The active tier is
+ * Friction Level picker: three selectable tiers (Light / Medium / Hardcore). The active tier is
  * rendered as an inverted block — solid [CalmWhite] fill with [CalmBlack] text — while the rest
  * stay on the black canvas. Tapping a tier writes it back via [SettingsViewModel.update]. A
  * short description sits under each title to explain how much it tightens delays and intent.
@@ -39,7 +39,6 @@ fun FrictionScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val restriction by viewModel.restriction.collectAsStateWithLifecycle()
     val selected = settings.frictionLevel
 
     CalmScaffold(
@@ -100,8 +99,10 @@ private fun FrictionRow(
     }
 }
 
-private fun FrictionLevel.title(): String =
-    name.lowercase().replaceFirstChar { it.uppercase() }
+private fun FrictionLevel.title(): String = when (this) {
+    FrictionLevel.MONK -> "Medium"
+    else -> name.lowercase().replaceFirstChar { it.uppercase() }
+}
 
 private fun FrictionLevel.description(): String = when (this) {
     FrictionLevel.LIGHT -> "Gentle pauses. A brief delay before distracting apps open."
