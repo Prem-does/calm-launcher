@@ -112,7 +112,14 @@ fun CalmNavHost(
             restoreState = true
         }
     }
-    val back: () -> Unit = { navController.popBackStack() }
+    val back: () -> Unit = {
+        if (!navController.popBackStack()) {
+            navController.navigate(Routes.HOME) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
     val goHome: () -> Unit = {
         navController.navigate(Routes.HOME) {
             popUpTo(Routes.HOME) { inclusive = true }

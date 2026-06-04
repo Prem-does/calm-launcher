@@ -37,7 +37,7 @@ class SystemActionsImpl @Inject constructor(
         start(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
 
     override fun openDefaultHomeSettings(): Boolean =
-        start(Intent(Settings.ACTION_HOME_SETTINGS))
+        start(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
 
     @android.annotation.SuppressLint("BatteryLife")
     override fun requestIgnoreBatteryOptimizations(): Boolean = start(

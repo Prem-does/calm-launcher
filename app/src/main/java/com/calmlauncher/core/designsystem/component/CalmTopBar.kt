@@ -112,11 +112,14 @@ fun CalmBackBar(
 ) {
     val interaction = remember { MutableInteractionSource() }
     var backLocked by remember { mutableStateOf(false) }
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .heightIn(min = BarMinHeight)
                 .clickable(
                     interactionSource = interaction,

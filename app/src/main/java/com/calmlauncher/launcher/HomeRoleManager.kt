@@ -51,6 +51,6 @@ class HomeRoleManager @Inject constructor(
                 }
             }
         }
-        return Intent(Settings.ACTION_HOME_SETTINGS)
+        return Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
     }
 }

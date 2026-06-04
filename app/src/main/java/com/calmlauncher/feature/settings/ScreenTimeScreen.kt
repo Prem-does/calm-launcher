@@ -147,14 +147,7 @@ private fun WeeklyTrendChart(days: List<DailyUsageRecord>, appUsage: List<AppUsa
             // determine dominant category for the day (highest usageMinutes)
             val dayApps = appUsage.filter { it.dayStartEpochMs == day.dayStartEpochMs }
             val dominantCategory = dayApps.maxByOrNull { it.usageMinutes }?.category
-            val barColor = when (dominantCategory) {
-                AnalyticsCategory.SOCIAL -> Color(0xFF4CAF50)
-                AnalyticsCategory.VIDEO -> Color(0xFF2196F3)
-                AnalyticsCategory.COMMUNICATION -> Color(0xFFFFC107)
-                AnalyticsCategory.PRODUCTIVITY -> Color(0xFF9C27B0)
-                AnalyticsCategory.OTHER -> Color(0xFF607D8B)
-                null -> CalmWhite.copy(alpha = 0.9f)
-            }
+            val barColor = dominantCategory?.let { analyticsCategoryColor(it) } ?: Color(0xFF607D8B)
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Inverted: spacer first so bar is anchored at bottom
@@ -171,51 +164,60 @@ private fun WeeklyTrendChart(days: List<DailyUsageRecord>, appUsage: List<AppUsa
             }
         }
     }
+}
 
+private fun analyticsCategoryColor(category: AnalyticsCategory): Color = when (category) {
+        AnalyticsCategory.SOCIAL -> Color(0xFF4CAF50)
+        AnalyticsCategory.VIDEO -> Color(0xFF2196F3)
+        AnalyticsCategory.COMMUNICATION -> Color(0xFFFFC107)
+        AnalyticsCategory.PRODUCTIVITY -> Color(0xFF9C27B0)
+        AnalyticsCategory.OTHER -> Color(0xFF607D8B)
     }
 
     // end WeeklyTrendChart
 
     @Composable
     private fun WeeklyTrendLegend(modifier: Modifier = Modifier) {
-        Row(
+        Column(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = Spacing.marginMobile, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(Spacing.gutter),
         ) {
             Text(text = "Legend:", style = CalmType.bodyMd, color = CalmGray)
 
-            // Social
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF4CAF50)))
-                Text(text = "Social", style = CalmType.bodyMd, color = CalmGrayDim)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                legendItem(Color(0xFF4CAF50), "Social")
+                legendItem(Color(0xFF2196F3), "Video")
+                legendItem(Color(0xFFFFC107), "Communication")
             }
 
-            // Video
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF2196F3)))
-                Text(text = "Video", style = CalmType.bodyMd, color = CalmGrayDim)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                legendItem(Color(0xFF9C27B0), "Productivity")
+                legendItem(Color(0xFF607D8B), "Other")
             }
+        }
+    }
 
-            // Communication
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFFFC107)))
-                Text(text = "Communication", style = CalmType.bodyMd, color = CalmGrayDim)
-            }
-
-            // Productivity
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF9C27B0)))
-                Text(text = "Productivity", style = CalmType.bodyMd, color = CalmGrayDim)
-            }
-
-            // Other
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.width(12.dp).height(12.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF607D8B)))
-                Text(text = "Other", style = CalmType.bodyMd, color = CalmGrayDim)
-            }
+    @Composable
+    private fun legendItem(color: Color, label: String) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(
+                modifier = Modifier
+                    .width(12.dp)
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(color),
+            )
+            Text(text = label, style = CalmType.bodyMd, color = CalmGrayDim)
         }
     }
 
