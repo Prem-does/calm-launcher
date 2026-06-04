@@ -6,6 +6,13 @@ import com.calmlauncher.data.db.toEntity
 import com.calmlauncher.data.system.ClockTicker
 import com.calmlauncher.data.system.UsageStatsTracker
 import com.calmlauncher.di.IoDispatcher
+import com.calmlauncher.notification.LimitNotificationManager
+import com.calmlauncher.domain.repository.AppRepository
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
@@ -29,6 +36,9 @@ class AppLimitRepositoryImpl @Inject constructor(
     private val appLimitDao: AppLimitDao,
     private val clockTicker: ClockTicker,
     private val usageStatsTracker: UsageStatsTracker,
+    private val appRepository: AppRepository,
+    private val notifications: LimitNotificationManager,
+    @ApplicationContext private val context: Context,
     @IoDispatcher private val dispatcher: CoroutineDispatcher,
 ) : AppLimitRepository {
 
@@ -107,6 +117,57 @@ class AppLimitRepositoryImpl @Inject constructor(
             )
         }
         appLimitDao.deleteUsageBefore(snapshot.dayStartEpochMs)
+
+        // Notify for approaching limits (best-effort). Thresholds in minutes.
+        try {
+            val thresholds = setOf(10, 5, 1)
+            val rules = appLimitDao.getAllRules().map { it.toDomain() }
+            rules.forEach { rule ->
+                if (!rule.enabled) return@forEach
+                val nowMs = System.currentTimeMillis()
+                if (rule.overrideUntilEpochMs > nowMs) return@forEach
+                val usedMs = snapshot.perApp[rule.packageName] ?: 0L
+                val limitMs = rule.dailyLimitMinutes * 60_000L
+                val remainingMs = limitMs - usedMs
+                val remainingMinutes = (remainingMs / 60_000L).toInt()
+                val suppressionWindowMs = 5 * 60_000L // don't re-notify within 5 minutes
+                if (remainingMinutes in thresholds && (nowMs - rule.lastNotifiedEpochMs) > suppressionWindowMs) {
+                    val label = runCatching { appRepository.getApp(rule.packageName)?.label ?: rule.packageName }.getOrNull() ?: rule.packageName
+                    notifications.notifyApproachingLimit(rule.packageName, label, remainingMinutes)
+                    // update rule lastNotified
+                    appLimitDao.upsertRule(rule.copy(lastNotifiedEpochMs = nowMs).toEntity())
+                }
+            }
+        } catch (_: Exception) {
+            // best-effort only; don't crash rollup on notification errors
+        }
+
+    }
+
+    override suspend fun scheduleApproachAlarms(packageName: String) = withContext(dispatcher) {
+        val rule = appLimitDao.getRule(packageName)?.toDomain() ?: return@withContext
+        if (!rule.enabled) return@withContext
+        val now = System.currentTimeMillis()
+        if (rule.overrideUntilEpochMs > now) return@withContext
+        val usedMs = usageStatsTracker.todayForegroundFor(packageName)
+        val limitMs = rule.dailyLimitMinutes * 60_000L
+        val remainingMs = (limitMs - usedMs).coerceAtLeast(0L)
+        val thresholds = listOf(10, 5, 1)
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        thresholds.forEach { minutes ->
+            val whenMs = now + remainingMs - minutes * 60_000L
+            if (whenMs <= now) return@forEach
+            val intent = Intent(context, com.calmlauncher.notification.LimitAlarmReceiver::class.java).apply {
+                putExtra("packageName", packageName)
+                putExtra("remainingMinutes", minutes)
+            }
+            val pi = PendingIntent.getBroadcast(context, (packageName + "_$minutes").hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            try {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, whenMs, pi)
+            } catch (_: Exception) {
+                // best-effort
+            }
+        }
     }
 
     override suspend fun recordBlockedLaunch(status: AppLimitStatus) = withContext(dispatcher) {

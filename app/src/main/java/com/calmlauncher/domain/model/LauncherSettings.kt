@@ -18,7 +18,7 @@ data class LauncherSettings(
     // Friction & environment
     val frictionLevel: FrictionLevel = FrictionLevel.LIGHT,
     val environmentMode: EnvironmentMode = EnvironmentMode.NONE,
-    val defaultOpenDelaySeconds: Int = 2,
+    val defaultOpenDelaySeconds: Int = 0,
 
     // Display
     val displayMode: AppDisplayMode = AppDisplayMode.TEXT,
@@ -26,8 +26,8 @@ data class LauncherSettings(
     val showSuggestions: Boolean = false,
 
     // Anti-distraction toggles (map 1:1 to MODE_COVERAGE_TODO)
-    val openingDelaysEnabled: Boolean = true,
-    val intentPromptEnabled: Boolean = true,
+    val openingDelaysEnabled: Boolean = false,
+    val intentPromptEnabled: Boolean = false,
     val breathUnlockEnabled: Boolean = false,
     val slowModeEnabled: Boolean = false,
     val analogModeEnabled: Boolean = false,

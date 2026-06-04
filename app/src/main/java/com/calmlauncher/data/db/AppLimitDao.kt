@@ -16,6 +16,8 @@ interface AppLimitDao {
     @Query("SELECT * FROM app_limit_rules WHERE packageName = :packageName LIMIT 1")
     suspend fun getRule(packageName: String): AppLimitRuleEntity?
 
+    @Query("SELECT * FROM app_limit_rules ORDER BY enabled DESC, updatedAtEpochMs DESC")
+    suspend fun getAllRules(): List<AppLimitRuleEntity>
     @Upsert
     suspend fun upsertRule(entity: AppLimitRuleEntity)
 

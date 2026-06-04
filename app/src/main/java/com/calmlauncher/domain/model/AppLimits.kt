@@ -7,6 +7,7 @@ data class AppLimitRule(
     val dailyLimitMinutes: Int = 30,
     val overrideUntilEpochMs: Long = 0L,
     val updatedAtEpochMs: Long = 0L,
+    val lastNotifiedEpochMs: Long = 0L,
 )
 
 /** Daily foreground usage snapshot for one app. */

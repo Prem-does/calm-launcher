@@ -92,6 +92,8 @@
             </intent-filter>
         </service>
 
+        <receiver android:name="com.calmlauncher.notification.LimitAlarmReceiver" android:exported="false" />
+
         <!-- Usage analytics collector for unlock and boot broadcasts. -->
         <receiver
             android:name=".accessibility.AnalyticsEventReceiver"

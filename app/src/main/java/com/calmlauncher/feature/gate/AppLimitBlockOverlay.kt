@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +59,13 @@ fun AppLimitBlockOverlay(
                 modifier = Modifier.padding(top = Spacing.stackSm),
                 textAlign = TextAlign.Center,
             )
+            Text(
+                text = "This returns you to the home screen but won't necessarily stop background activity or notifications.",
+                style = CalmType.bodyMd,
+                color = CalmGray,
+                modifier = Modifier.padding(top = Spacing.stackSm),
+                textAlign = TextAlign.Center,
+            )
             CalmButton(
                 text = "Add 10 minutes and open",
                 style = CalmButtonStyle.Filled,
@@ -66,6 +76,22 @@ fun AppLimitBlockOverlay(
                 text = "Close",
                 style = CalmButtonStyle.Outlined,
                 onClick = onDismiss,
+                modifier = Modifier.padding(top = Spacing.stackSm),
+            )
+            // Learn more button opens usage/access settings so users can see system limits.
+            val context = LocalContext.current
+            CalmButton(
+                text = "Learn more",
+                style = CalmButtonStyle.Outlined,
+                onClick = {
+                    val i = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    try {
+                        context.startActivity(i)
+                    } catch (_: Exception) {
+                        // fall back to accessibility settings
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    }
+                },
                 modifier = Modifier.padding(top = Spacing.stackSm),
             )
         }

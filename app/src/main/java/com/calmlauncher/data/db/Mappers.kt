@@ -139,6 +139,7 @@ internal fun AppLimitRuleEntity.toDomain(): AppLimitRule = AppLimitRule(
     dailyLimitMinutes = dailyLimitMinutes,
     overrideUntilEpochMs = overrideUntilEpochMs,
     updatedAtEpochMs = updatedAtEpochMs,
+    lastNotifiedEpochMs = lastNotifiedEpochMs,
 )
 
 internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
@@ -147,6 +148,7 @@ internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
     dailyLimitMinutes = dailyLimitMinutes,
     overrideUntilEpochMs = overrideUntilEpochMs,
     updatedAtEpochMs = updatedAtEpochMs,
+    lastNotifiedEpochMs = lastNotifiedEpochMs,
 )
 
 internal fun AppLimitUsageEntity.toDomain(): AppLimitUsage = AppLimitUsage(

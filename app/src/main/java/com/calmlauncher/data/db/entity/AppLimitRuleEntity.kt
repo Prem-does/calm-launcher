@@ -10,4 +10,5 @@ data class AppLimitRuleEntity(
     val dailyLimitMinutes: Int,
     val overrideUntilEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val lastNotifiedEpochMs: Long = 0L,
 )

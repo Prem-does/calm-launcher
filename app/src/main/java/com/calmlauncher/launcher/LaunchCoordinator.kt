@@ -123,7 +123,11 @@ class LaunchCoordinator @Inject constructor(
                 ),
             )
             val ok = appLauncher.launch(request.packageName)
-            if (ok) _effects.emit(LaunchEffect.Launched(request.packageName))
+            if (ok) {
+                _effects.emit(LaunchEffect.Launched(request.packageName))
+                // Schedule precise approaching-limit alarms for this launched app
+                appLimitRepository.scheduleApproachAlarms(request.packageName)
+            }
         }
     }
 }

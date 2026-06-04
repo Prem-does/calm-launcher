@@ -36,7 +36,7 @@ import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import java.util.Locale
 
-private val PresetLimits = listOf(15, 30, 45, 60, 120, 180)
+private val PresetLimits = listOf(0, 15, 30, 45, 60, 120, 180)
 
 @Composable
 fun AppLimitsScreen(
@@ -190,6 +190,11 @@ private fun AppLimitEditorDialog(
                     singleLine = true,
                     label = { Text("Daily limit (minutes)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                Text(
+                    text = "Enter 0 to block this app immediately (no daily allowance).",
+                    style = CalmType.bodyMd,
+                    color = CalmGray,
                 )
                 Text(text = "Presets", style = CalmType.labelMd, color = CalmGray)
                 PresetLimits.chunked(2).forEach { row ->
