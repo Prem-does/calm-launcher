@@ -18,7 +18,11 @@ import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -107,6 +111,7 @@ fun CalmBackBar(
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    var backLocked by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -116,7 +121,11 @@ fun CalmBackBar(
                 .clickable(
                     interactionSource = interaction,
                     indication = null,
-                    onClick = onBack,
+                    enabled = !backLocked,
+                    onClick = {
+                        backLocked = true
+                        onBack()
+                    },
                 )
                 .padding(horizontal = Spacing.marginMobile, vertical = Spacing.base),
             verticalAlignment = Alignment.CenterVertically,
@@ -130,5 +139,12 @@ fun CalmBackBar(
             Text(text = title, style = CalmType.headlineMd, color = CalmWhite)
         }
         ThinDivider()
+    }
+
+    LaunchedEffect(backLocked) {
+        if (backLocked) {
+            kotlinx.coroutines.delay(300)
+            backLocked = false
+        }
     }
 }
