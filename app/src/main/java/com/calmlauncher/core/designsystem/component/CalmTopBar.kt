@@ -31,7 +31,7 @@ private val BarMinHeight = 56.dp
 
 /**
  * The launcher status bar: a faux signal indicator on the left, the [centerLabel]
- * (default "CALM") centered, and [batteryText] on the right. Mirrors the Stitch
+ * (default "SHARP") centered, and [batteryText] on the right. Mirrors the Stitch
  * TopAppBar — horizontal [Spacing.marginMobile] gutters, status-bar inset padding and
  * a closing [ThinDivider]. [signalText] is shown beside the signal glyph when non-blank
  * (e.g. a carrier or "5G" tag); it is omitted otherwise.
@@ -41,7 +41,7 @@ fun CalmStatusBar(
     batteryText: String,
     signalText: String,
     modifier: Modifier = Modifier,
-    centerLabel: String = "CALM",
+    centerLabel: String = "SHARP",
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Box(

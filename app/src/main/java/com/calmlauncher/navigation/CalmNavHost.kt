@@ -86,7 +86,7 @@ private fun LoadingRootSurface(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         androidx.compose.material3.Text(
-            text = "CALM",
+            text = "SHARP",
             style = CalmType.headlineLgMobile,
             color = CalmWhite,
         )
