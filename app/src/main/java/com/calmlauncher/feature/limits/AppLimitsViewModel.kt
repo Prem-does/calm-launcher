@@ -98,7 +98,7 @@ class AppLimitsViewModel @Inject constructor(
         viewModelScope.launch { appLimitRepository.refreshUsageSnapshot() }
     }
 
-    fun saveLimit(packageName: String, label: String, enabled: Boolean, limitMinutes: Int) {
+    fun saveLimit(packageName: String, enabled: Boolean, limitMinutes: Int) {
         viewModelScope.launch {
             appLimitRepository.saveRule(
                 AppLimitRule(

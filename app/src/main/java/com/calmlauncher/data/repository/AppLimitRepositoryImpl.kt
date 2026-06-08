@@ -21,6 +21,7 @@ import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
 import com.calmlauncher.domain.model.AppLimitUsage
 import com.calmlauncher.domain.repository.AppLimitRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -43,13 +44,13 @@ class AppLimitRepositoryImpl @Inject constructor(
 ) : AppLimitRepository {
 
     private companion object {
-        // Maximum total override minutes allowed via repeated "add X minutes" actions.
-        private const val MAX_OVERRIDE_MINUTES = 60
+        private const val MAX_DAILY_OVERRIDES = 2
     }
 
     override fun observeRules(): Flow<List<AppLimitRule>> =
         appLimitDao.observeRules().map { rows -> rows.map { it.toDomain() } }.flowOn(dispatcher)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeTodayUsage(): Flow<List<AppLimitUsage>> =
         clockTicker.time
             .map { todayDayStart(it) }
@@ -58,6 +59,7 @@ class AppLimitRepositoryImpl @Inject constructor(
                 appLimitDao.observeUsage(dayStart).map { rows -> rows.map { it.toDomain() } }
             }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeTodayEvents(): Flow<List<AppLimitEvent>> =
         clockTicker.time
             .map { todayDayStart(it) }
@@ -83,16 +85,17 @@ class AppLimitRepositoryImpl @Inject constructor(
         appLimitDao.upsertRule(current.copy(enabled = enabled, updatedAtEpochMs = System.currentTimeMillis()).toEntity())
     }
 
-    override suspend fun extendOverride(packageName: String, minutes: Int) = withContext(dispatcher) {
+    override suspend fun extendOverride(packageName: String, minutes: Int): Boolean = withContext(dispatcher) {
         val now = System.currentTimeMillis()
+        val dayStart = todayDayStart(now)
         val current = appLimitDao.getRule(packageName)?.toDomain() ?: AppLimitRule(packageName = packageName)
+        val overridesUsedToday = todayOverrideCount(packageName, dayStart)
+        if (overridesUsedToday >= MAX_DAILY_OVERRIDES) return@withContext false
 
-        // Accumulate remaining override time (if any) and add the requested minutes,
-        // but cap the total override to a reasonable maximum to avoid infinite extensions.
+        // Accumulate remaining override time when the user is already inside an allowed window.
         val existingRemainingMs = (current.overrideUntilEpochMs - now).coerceAtLeast(0L)
         val addedMs = minutes * 60_000L
-        val maxMs = MAX_OVERRIDE_MINUTES * 60_000L
-        val newRemainingMs = (existingRemainingMs + addedMs).coerceAtMost(maxMs)
+        val newRemainingMs = existingRemainingMs + addedMs
         val newOverrideUntil = now + newRemainingMs
 
         appLimitDao.upsertRule(
@@ -101,6 +104,20 @@ class AppLimitRepositoryImpl @Inject constructor(
                 updatedAtEpochMs = now,
             ).toEntity(),
         )
+
+        appLimitDao.upsertEvent(
+            AppLimitEvent(
+                packageName = packageName,
+                label = runCatching { appRepository.getApp(packageName)?.label ?: packageName }.getOrNull() ?: packageName,
+                eventType = AppLimitEventType.OVERRIDE,
+                timestampEpochMs = now,
+                dayStartEpochMs = dayStart,
+                limitMinutes = current.dailyLimitMinutes,
+                usedMinutes = (usageStatsTracker.todayForegroundFor(packageName) / 60_000L).toInt(),
+                overrideMinutes = minutes,
+            ).toEntity(),
+        )
+        true
     }
 
     override suspend fun refreshUsageSnapshot() = withContext(dispatcher) {
@@ -221,11 +238,20 @@ class AppLimitRepositoryImpl @Inject constructor(
             usedMinutes = (usedMs / 60_000L).toInt(),
             overrideUntilEpochMs = rule.overrideUntilEpochMs,
             blockedToday = true,
+            overridesUsedToday = todayOverrideCount(packageName, todayDayStart(now)),
+            overrideLimitPerDay = MAX_DAILY_OVERRIDES,
         )
         recordBlockedLaunch(status)
         refreshUsageSnapshot()
         AppLimitDecision.Blocked(status)
     }
+
+    private suspend fun todayOverrideCount(packageName: String, dayStartEpochMs: Long): Int =
+        appLimitDao.observeEvents(dayStartEpochMs)
+            .first()
+            .count { row ->
+                row.packageName == packageName && row.eventType == AppLimitEventType.OVERRIDE.name
+            }
 
     private fun todayDayStart(nowEpochMs: Long = System.currentTimeMillis()): Long {
         val cal = java.util.Calendar.getInstance().apply {

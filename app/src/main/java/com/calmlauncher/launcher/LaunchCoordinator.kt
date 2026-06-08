@@ -83,8 +83,9 @@ class LaunchCoordinator @Inject constructor(
 
     fun grantAppLimitOverrideAndLaunch(request: AppLaunchRequest, minutes: Int) {
         scope.launch {
-            appLimitRepository.extendOverride(request.packageName, minutes)
-            request(request)
+            if (appLimitRepository.extendOverride(request.packageName, minutes)) {
+                request(request)
+            }
         }
     }
 

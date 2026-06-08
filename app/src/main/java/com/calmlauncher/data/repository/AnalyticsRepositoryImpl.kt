@@ -8,8 +8,8 @@ import com.calmlauncher.data.db.entity.SessionEntity
 import com.calmlauncher.data.db.entity.UnlockEntity
 import com.calmlauncher.data.system.UsageStatsTracker
 import com.calmlauncher.di.IoDispatcher
-import com.calmlauncher.domain.model.AnalyticsCategory
 import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
+import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppUsageRecord
 import com.calmlauncher.domain.model.DailyUsageRecord
 import com.calmlauncher.domain.model.NotificationEventType
@@ -17,12 +17,14 @@ import com.calmlauncher.domain.model.NotificationRecord
 import com.calmlauncher.domain.model.UnlockRecord
 import com.calmlauncher.domain.model.UsageSessionRecord
 import com.calmlauncher.domain.model.UsageSortOrder
+import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.AnalyticsRepository
 import com.calmlauncher.domain.repository.LaunchEventRepository
 import com.calmlauncher.domain.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -31,6 +33,7 @@ import javax.inject.Inject
 
 class AnalyticsRepositoryImpl @Inject constructor(
     private val analyticsDao: AnalyticsDao,
+    private val appRepository: AppRepository,
     private val launchEventRepository: LaunchEventRepository,
     private val settingsRepository: SettingsRepository,
     private val usageStatsTracker: UsageStatsTracker,
@@ -67,8 +70,16 @@ class AnalyticsRepositoryImpl @Inject constructor(
     override fun observeAppUsage(days: Int, sortOrder: UsageSortOrder): Flow<List<AppUsageRecord>> {
         val start = startOfDaysAgo(days.coerceAtLeast(1) - 1)
         val end = startOfToday()
-        return analyticsDao.observeAppUsageRange(start, end)
-            .map { rows -> rows.map { it.toDomain() }.sortedWith(sortOrder.comparator()) }
+        return combine(
+            analyticsDao.observeAppUsageRange(start, end),
+            appRepository.observeApps(),
+        ) { rows, currentApps ->
+            val currentCategories = currentApps.associate { it.packageName to it.category }
+            rows.map { row ->
+                val record = row.toDomain()
+                record.copy(category = currentCategories[record.packageName] ?: record.category)
+            }.sortedWith(sortOrder.comparator())
+        }
             .flowOn(dispatcher)
     }
 
@@ -103,6 +114,9 @@ class AnalyticsRepositoryImpl @Inject constructor(
         val record = usageStatsTracker.todayForeground()
         val sessions = usageStatsTracker.todaySessions()
         val launches = launchEventRepository.since(dayStart)
+        val appCategories = appRepository.observeApps()
+            .first()
+            .associate { it.packageName to it.category }
 
         analyticsDao.upsertDaily(
             DailyUsageEntity(
@@ -123,7 +137,7 @@ class AnalyticsRepositoryImpl @Inject constructor(
                     dayStartEpochMs = dayStart,
                     packageName = packageName,
                     appName = friendlyName(packageName),
-                    category = categorize(packageName).name,
+                    category = appCategories[packageName]?.name ?: inferCategory(packageName).name,
                     usageMinutes = (millis / 60_000L).toInt(),
                     launchCount = launchCounts[packageName] ?: 0,
                     updatedAtEpochMs = now,
@@ -198,14 +212,17 @@ class AnalyticsRepositoryImpl @Inject constructor(
         return candidate.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
     }
 
-    private fun categorize(packageName: String): AnalyticsCategory {
+    private fun inferCategory(packageName: String): AppCategory {
         val value = packageName.lowercase()
         return when {
-            value.contains("instagram") || value.contains("facebook") || value.contains("snapchat") || value.contains("tiktok") || value.contains("twitter") || value.contains("x.") -> AnalyticsCategory.SOCIAL
-            value.contains("youtube") || value.contains("netflix") || value.contains("primevideo") || value.contains("disney") || value.contains("spotify") -> AnalyticsCategory.VIDEO
-            value.contains("whatsapp") || value.contains("telegram") || value.contains("messages") || value.contains("discord") || value.contains("messenger") -> AnalyticsCategory.COMMUNICATION
-            value.contains("calendar") || value.contains("docs") || value.contains("drive") || value.contains("sheets") || value.contains("slides") || value.contains("notion") || value.contains("keep") -> AnalyticsCategory.PRODUCTIVITY
-            else -> AnalyticsCategory.OTHER
+            value.contains("instagram") || value.contains("facebook") || value.contains("snapchat") || value.contains("tiktok") || value.contains("twitter") || value.contains("x.") -> AppCategory.SOCIAL
+            value.contains("youtube") || value.contains("netflix") || value.contains("primevideo") || value.contains("disney") || value.contains("spotify") -> AppCategory.ENTERTAINMENT
+            value.contains("whatsapp") || value.contains("telegram") || value.contains("messages") || value.contains("discord") || value.contains("messenger") -> AppCategory.COMMUNICATION
+            value.contains("chrome") || value.contains("browser") || value.contains("firefox") || value.contains("edge") -> AppCategory.BROWSER
+            value.contains("play") || value.contains("store") || value.contains("market") -> AppCategory.STORE
+            value.contains("game") || value.contains("gaming") -> AppCategory.GAME
+            value.contains("calendar") || value.contains("docs") || value.contains("drive") || value.contains("sheets") || value.contains("slides") || value.contains("notion") || value.contains("keep") -> AppCategory.TOOL
+            else -> AppCategory.OTHER
         }
     }
 
@@ -247,10 +264,17 @@ class AnalyticsRepositoryImpl @Inject constructor(
         dayStartEpochMs = dayStartEpochMs,
         packageName = packageName,
         appName = appName,
-        category = runCatching { AnalyticsCategory.valueOf(category) }.getOrDefault(AnalyticsCategory.OTHER),
+        category = category.toAppCategory(),
         usageMinutes = usageMinutes,
         launchCount = launchCount,
     )
+
+    private fun String?.toAppCategory(): AppCategory =
+        AppCategory.entries.firstOrNull { it.name == this } ?: when (this) {
+            "VIDEO" -> AppCategory.ENTERTAINMENT
+            "PRODUCTIVITY" -> AppCategory.TOOL
+            else -> AppCategory.OTHER
+        }
 
     private fun SessionEntity.toDomain() = UsageSessionRecord(
         dayStartEpochMs = dayStartEpochMs,

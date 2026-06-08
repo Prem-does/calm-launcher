@@ -4,8 +4,6 @@ enum class AnalyticsRange { TODAY, SEVEN_DAYS, THIRTY_DAYS, NINETY_DAYS, YEAR }
 
 enum class UsageSortOrder { MOST_USED, LEAST_USED, ALPHABETICAL }
 
-enum class AnalyticsCategory { SOCIAL, VIDEO, COMMUNICATION, PRODUCTIVITY, OTHER }
-
 enum class NotificationEventType { POSTED, REMOVED, OPENED, IGNORED }
 
 data class UsageSessionRecord(
@@ -21,7 +19,7 @@ data class AppUsageRecord(
     val dayStartEpochMs: Long,
     val packageName: String,
     val appName: String,
-    val category: AnalyticsCategory,
+    val category: AppCategory,
     val usageMinutes: Int,
     val launchCount: Int,
 )

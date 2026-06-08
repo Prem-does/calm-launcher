@@ -40,17 +40,25 @@ class ConnectivityObserver @Inject constructor(
             return@callbackFlow
         }
 
+        var hotspotActive = isHotspotEnabled()
+
         fun emitCurrent() {
-            trySend(currentLabel(manager))
+            trySend(currentLabel(manager, hotspotActive))
         }
 
         val airplaneReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == ACTION_WIFI_AP_STATE_CHANGED) {
+                    hotspotActive = isHotspotEnabled(intent)
+                }
                 emitCurrent()
             }
         }
-        val airplaneFilter = IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED)
-        context.registerReceiver(airplaneReceiver, airplaneFilter)
+        val systemFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+            addAction(ACTION_WIFI_AP_STATE_CHANGED)
+        }
+        context.registerReceiver(airplaneReceiver, systemFilter)
 
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = emitCurrent()
@@ -82,19 +90,20 @@ class ConnectivityObserver @Inject constructor(
         }
     }.conflate().distinctUntilChanged()
 
-    private fun currentLabel(manager: ConnectivityManager): String {
+    private fun currentLabel(manager: ConnectivityManager, hotspotActive: Boolean): String {
         if (isAirplaneModeOn()) return AIRPLANE
         val network = manager.activeNetwork ?: return OFFLINE
         val caps = runCatching { manager.getNetworkCapabilities(network) }.getOrNull()
             ?: return OFFLINE
         if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return OFFLINE
-        return when {
+        val baseLabel = when {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
             caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> cellularLabel()
             caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
             else -> "Online"
         }
+        return if (hotspotActive) "$baseLabel - $HOTSPOT" else baseLabel
     }
 
     private fun isAirplaneModeOn(): Boolean {
@@ -107,6 +116,19 @@ class ConnectivityObserver @Inject constructor(
         }.getOrDefault(false)
     }
 
+    private fun isHotspotEnabled(intent: Intent? = null): Boolean {
+        val broadcastState = intent?.getIntExtra(EXTRA_WIFI_AP_STATE, WIFI_AP_STATE_FAILED)
+        if (broadcastState != null && broadcastState != WIFI_AP_STATE_FAILED) {
+            return broadcastState == WIFI_AP_STATE_ENABLED
+        }
+        return runCatching {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE)
+            val method = wifiManager?.javaClass?.getDeclaredMethod("isWifiApEnabled")
+            method?.isAccessible = true
+            method?.invoke(wifiManager) as? Boolean
+        }.getOrNull() ?: false
+    }
+
     private fun cellularLabel(): String {
         val tm = runCatching {
             context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
@@ -114,7 +136,7 @@ class ConnectivityObserver @Inject constructor(
         val type = runCatching { tm.dataNetworkType }.getOrNull() ?: return MOBILE
         return when (type) {
             TelephonyManager.NETWORK_TYPE_NR -> "5G"
-            TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
+            TelephonyManager.NETWORK_TYPE_LTE -> "4G"
             TelephonyManager.NETWORK_TYPE_HSPA,
             TelephonyManager.NETWORK_TYPE_HSPAP,
             TelephonyManager.NETWORK_TYPE_HSDPA,
@@ -133,7 +155,12 @@ class ConnectivityObserver @Inject constructor(
 
     private companion object {
         const val AIRPLANE = "Airplane"
+        const val HOTSPOT = "Hotspot"
         const val OFFLINE = "Offline"
         const val MOBILE = "Mobile"
+        const val ACTION_WIFI_AP_STATE_CHANGED = "android.net.wifi.WIFI_AP_STATE_CHANGED"
+        const val EXTRA_WIFI_AP_STATE = "wifi_state"
+        const val WIFI_AP_STATE_ENABLED = 13
+        const val WIFI_AP_STATE_FAILED = 14
     }
 }

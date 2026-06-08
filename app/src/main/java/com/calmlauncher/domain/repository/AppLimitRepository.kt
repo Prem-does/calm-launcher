@@ -16,7 +16,7 @@ interface AppLimitRepository {
     suspend fun saveRule(rule: AppLimitRule)
     suspend fun deleteRule(packageName: String)
     suspend fun setEnabled(packageName: String, enabled: Boolean)
-    suspend fun extendOverride(packageName: String, minutes: Int)
+    suspend fun extendOverride(packageName: String, minutes: Int): Boolean
     suspend fun scheduleApproachAlarms(packageName: String)
     suspend fun refreshUsageSnapshot()
     suspend fun recordBlockedLaunch(status: AppLimitStatus)

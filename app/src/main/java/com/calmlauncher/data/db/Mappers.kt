@@ -74,7 +74,7 @@ internal fun LaunchEvent.toEntity(): LaunchEventEntity = LaunchEventEntity(
 // ---------------------------------------------------------------------------
 
 internal fun ReflectionEntity.toDomain(): ReflectionEntry = ReflectionEntry(
-    id = id,
+    id = dayStartEpochMs,
     dayStartEpochMs = dayStartEpochMs,
     prompt = prompt,
     response = response,
@@ -82,7 +82,6 @@ internal fun ReflectionEntity.toDomain(): ReflectionEntry = ReflectionEntry(
 )
 
 internal fun ReflectionEntry.toEntity(): ReflectionEntity = ReflectionEntity(
-    id = id,
     dayStartEpochMs = dayStartEpochMs,
     prompt = prompt,
     response = response,

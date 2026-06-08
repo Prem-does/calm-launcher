@@ -2,7 +2,6 @@ package com.calmlauncher.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calmlauncher.domain.model.AnalyticsCategory
 import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
 import com.calmlauncher.domain.model.AnalyticsRange
 import com.calmlauncher.domain.model.AppUsageRecord
@@ -15,6 +14,7 @@ import com.calmlauncher.domain.model.UsageSortOrder
 import com.calmlauncher.domain.repository.AnalyticsRepository
 import com.calmlauncher.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +44,7 @@ class AnalyticsViewModel @Inject constructor(
     private val selectedSortOrder = MutableStateFlow(UsageSortOrder.MOST_USED)
     private val selectedDayStart = MutableStateFlow<Long?>(null)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<AnalyticsUiState> = combine(
         settingsRepository.settings,
         selectedRange,

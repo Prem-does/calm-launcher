@@ -38,9 +38,9 @@ import com.calmlauncher.core.designsystem.theme.CalmSurfaceContainer
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
-import com.calmlauncher.domain.model.AnalyticsCategory
 import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
 import com.calmlauncher.domain.model.AnalyticsRange
+import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppUsageRecord
 import com.calmlauncher.domain.model.DailyUsageRecord
 import com.calmlauncher.domain.model.NotificationEventType
@@ -144,21 +144,28 @@ private fun WeeklyTrendChart(days: List<DailyUsageRecord>, appUsage: List<AppUsa
     ) {
         days.forEach { day ->
             val fraction = (day.totalScreenTimeMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
-            // determine dominant category for the day (highest usageMinutes)
-            val dayApps = appUsage.filter { it.dayStartEpochMs == day.dayStartEpochMs }
-            val dominantCategory = dayApps.maxByOrNull { it.usageMinutes }?.category
-            val barColor = dominantCategory?.let { analyticsCategoryColor(it) } ?: Color(0xFF607D8B)
+            val barHeight = maxBarHeight * fraction
+            val segments = categorySegments(
+                appUsage = appUsage.filter { it.dayStartEpochMs == day.dayStartEpochMs },
+            )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Inverted: spacer first so bar is anchored at bottom
                 Spacer(modifier = Modifier.height(maxBarHeight * (1f - fraction)))
-                Box(
+                Column(
                     modifier = Modifier
                         .width(24.dp)
-                        .height(maxBarHeight * fraction)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(barColor),
-                )
+                        .height(barHeight)
+                        .clip(RoundedCornerShape(6.dp)),
+                ) {
+                    segments.forEach { segment ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(barHeight * segment.fraction)
+                                .background(appCategoryColor(segment.category)),
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(text = dayName(day.dayStartEpochMs).take(3), style = CalmType.bodyMd, color = CalmGray)
             }
@@ -166,60 +173,81 @@ private fun WeeklyTrendChart(days: List<DailyUsageRecord>, appUsage: List<AppUsa
     }
 }
 
-private fun analyticsCategoryColor(category: AnalyticsCategory): Color = when (category) {
-        AnalyticsCategory.SOCIAL -> Color(0xFF4CAF50)
-        AnalyticsCategory.VIDEO -> Color(0xFF2196F3)
-        AnalyticsCategory.COMMUNICATION -> Color(0xFFFFC107)
-        AnalyticsCategory.PRODUCTIVITY -> Color(0xFF9C27B0)
-        AnalyticsCategory.OTHER -> Color(0xFF607D8B)
+private data class CategoryUsageSegment(
+    val category: AppCategory,
+    val fraction: Float,
+)
+
+private fun categorySegments(appUsage: List<AppUsageRecord>): List<CategoryUsageSegment> {
+    val totals = appUsage
+        .groupingBy { it.category }
+        .fold(0) { acc, app -> acc + app.usageMinutes }
+    val totalMinutes = totals.values.sum()
+
+    if (totalMinutes <= 0) {
+        return listOf(CategoryUsageSegment(AppCategory.OTHER, 1f))
     }
 
-    // end WeeklyTrendChart
+    return AppCategory.entries.mapNotNull { category ->
+        val minutes = totals[category] ?: 0
+        if (minutes <= 0) null else CategoryUsageSegment(
+            category = category,
+            fraction = minutes.toFloat() / totalMinutes.toFloat(),
+        )
+    }
+}
 
-    @Composable
-    private fun WeeklyTrendLegend(modifier: Modifier = Modifier) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.marginMobile, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(Spacing.gutter),
-        ) {
-            Text(text = "Legend:", style = CalmType.bodyMd, color = CalmGray)
+private fun appCategoryColor(category: AppCategory): Color = when (category) {
+    AppCategory.TOOL -> Color(0xFF8BC34A)
+    AppCategory.COMMUNICATION -> Color(0xFFFFC107)
+    AppCategory.SOCIAL -> Color(0xFF4CAF50)
+    AppCategory.ENTERTAINMENT -> Color(0xFF2196F3)
+    AppCategory.BROWSER -> Color(0xFFFF7043)
+    AppCategory.STORE -> Color(0xFF26A69A)
+    AppCategory.GAME -> Color(0xFF9C27B0)
+    AppCategory.OTHER -> Color(0xFF607D8B)
+}
 
+private fun AppCategory.label(): String =
+    name.lowercase().replaceFirstChar { it.uppercase() }
+
+@Composable
+private fun WeeklyTrendLegend(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.marginMobile, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.gutter),
+    ) {
+        Text(text = "Legend:", style = CalmType.bodyMd, color = CalmGray)
+
+        AppCategory.entries.toList().chunked(3).forEach { rowCategories ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                legendItem(Color(0xFF4CAF50), "Social")
-                legendItem(Color(0xFF2196F3), "Video")
-                legendItem(Color(0xFFFFC107), "Communication")
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                legendItem(Color(0xFF9C27B0), "Productivity")
-                legendItem(Color(0xFF607D8B), "Other")
+                rowCategories.forEach { category ->
+                    legendItem(appCategoryColor(category), category.label())
+                }
             }
         }
     }
+}
 
-    @Composable
-    private fun legendItem(color: Color, label: String) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(
-                modifier = Modifier
-                    .width(12.dp)
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(color),
-            )
-            Text(text = label, style = CalmType.bodyMd, color = CalmGrayDim)
-        }
+@Composable
+private fun legendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            modifier = Modifier
+                .width(12.dp)
+                .height(12.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(color),
+        )
+        Text(text = label, style = CalmType.bodyMd, color = CalmGrayDim)
     }
+}
 
 
 @Composable
@@ -464,9 +492,9 @@ private fun sessionSummaryLines(today: List<UsageSessionRecord>, week: List<Usag
 private fun categorySummary(apps: List<AppUsageRecord>): List<String> {
     val totals = apps.groupingBy { it.category }.fold(0) { acc, app -> acc + app.usageMinutes }
     val total = totals.values.sum().coerceAtLeast(1)
-    return AnalyticsCategory.entries.map { category ->
+    return AppCategory.entries.map { category ->
         val minutes = totals[category] ?: 0
-        "${category.name.lowercase().replaceFirstChar { it.titlecase() }}: ${percent(minutes.toDouble(), total.toDouble())}%"
+        "${category.label()}: ${percent(minutes.toDouble(), total.toDouble())}%"
     }
 }
 

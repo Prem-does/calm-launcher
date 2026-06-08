@@ -141,7 +141,7 @@ fun ReflectionScreen(
  * monochrome Search field treatment.
  */
 @Composable
-private fun ReflectionField(
+fun ReflectionField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,

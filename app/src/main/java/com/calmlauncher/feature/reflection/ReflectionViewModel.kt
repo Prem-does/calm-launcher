@@ -60,15 +60,17 @@ class ReflectionViewModel @Inject constructor(
 
     /** Today's reflection entry (prompt + any saved/in-progress response). */
     private val entry = MutableStateFlow<ReflectionEntry?>(null)
+    private val draftResponse = MutableStateFlow("")
 
     val uiState: StateFlow<ReflectionUiState> = combine(
         entry,
+        draftResponse,
         buildInsights(),
         screenTimeRepository.observeToday(),
-    ) { current, insights, screenTime ->
+    ) { current, draft, insights, screenTime ->
         ReflectionUiState(
             prompt = current?.prompt.orEmpty(),
-            response = current?.response.orEmpty(),
+            response = draft,
             insights = insights.map { it.text },
             screenTimeText = screenTime.format(),
         )
@@ -80,18 +82,28 @@ class ReflectionViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            entry.value = buildReflection(dayStart)
+            val today = buildReflection(dayStart)
+            entry.value = today
+            draftResponse.value = today.response.orEmpty()
         }
     }
 
     /** Mirror the user's edits into the held entry without persisting them. */
     fun onResponseChange(s: String) {
-        entry.update { it?.copy(response = s) }
+        draftResponse.value = s
+        entry.update { it?.copy(response = s, createdAtEpochMs = System.currentTimeMillis()) }
     }
 
     /** Persist today's reflection, prompt and current response together. */
     fun save() {
-        val current = entry.value ?: return
-        viewModelScope.launch { reflectionRepository.upsert(current) }
+        viewModelScope.launch {
+            val current = entry.value ?: buildReflection(dayStart).also { entry.value = it }
+            val updated = current.copy(
+                response = draftResponse.value,
+                createdAtEpochMs = System.currentTimeMillis(),
+            )
+            entry.value = updated
+            reflectionRepository.upsert(updated)
+        }
     }
 }

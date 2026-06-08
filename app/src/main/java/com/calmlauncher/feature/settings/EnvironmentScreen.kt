@@ -39,7 +39,6 @@ fun EnvironmentScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val restriction by viewModel.restriction.collectAsStateWithLifecycle()
     val selected = settings.environmentMode
 
     CalmScaffold(

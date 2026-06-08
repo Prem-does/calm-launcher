@@ -15,6 +15,6 @@ interface ReflectionDao {
     @Query("SELECT * FROM reflection ORDER BY dayStartEpochMs DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<ReflectionEntity>>
 
-    @Query("SELECT * FROM reflection WHERE dayStartEpochMs = :dayStartEpochMs ORDER BY createdAtEpochMs DESC LIMIT 1")
+    @Query("SELECT * FROM reflection WHERE dayStartEpochMs = :dayStartEpochMs LIMIT 1")
     suspend fun latestFor(dayStartEpochMs: Long): ReflectionEntity?
 }

@@ -102,7 +102,7 @@ fun AppLimitsScreen(
             item = item,
             onDismiss = { editor = null },
             onSave = { enabled, minutes ->
-                viewModel.saveLimit(item.app.packageName, item.app.label, enabled, minutes)
+                viewModel.saveLimit(item.app.packageName, enabled, minutes)
                 editor = null
             },
             onRemove = {

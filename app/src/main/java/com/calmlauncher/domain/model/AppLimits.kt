@@ -45,9 +45,14 @@ data class AppLimitStatus(
     val usedMinutes: Int,
     val overrideUntilEpochMs: Long,
     val blockedToday: Boolean,
+    val overridesUsedToday: Int = 0,
+    val overrideLimitPerDay: Int = 2,
 ) {
     val remainingMinutes: Int?
         get() = dailyLimitMinutes?.let { limit -> (limit - usedMinutes).coerceAtLeast(0) }
+
+    val canGrantOverride: Boolean
+        get() = overridesUsedToday < overrideLimitPerDay
 }
 
 /** Dashboard summary surfaced in Settings/Reflection. */
