@@ -17,7 +17,8 @@ data class ScreenTimeRecord(
         val m = minutes % 60
         return when {
             h > 0 -> "${h}h ${m}m"
-            else -> "${m}m"
+            minutes > 0 -> "${m}m"
+            else -> "<1m"
         }
     }
 

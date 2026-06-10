@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -197,15 +198,25 @@ private fun categorySegments(appUsage: List<AppUsageRecord>): List<CategoryUsage
     }
 }
 
-private fun appCategoryColor(category: AppCategory): Color = when (category) {
-    AppCategory.TOOL -> Color(0xFF8BC34A)
-    AppCategory.COMMUNICATION -> Color(0xFFFFC107)
-    AppCategory.SOCIAL -> Color(0xFF4CAF50)
-    AppCategory.ENTERTAINMENT -> Color(0xFF2196F3)
-    AppCategory.BROWSER -> Color(0xFFFF7043)
-    AppCategory.STORE -> Color(0xFF26A69A)
-    AppCategory.GAME -> Color(0xFF9C27B0)
-    AppCategory.OTHER -> Color(0xFF607D8B)
+@Composable
+private fun appCategoryColor(category: AppCategory): Color {
+    val dark = isSystemInDarkTheme()
+    val primary = if (dark) CalmWhite else CalmBlack
+    val grey = CalmGray
+
+    // White/Black for non-distracting apps: TOOL, COMMUNICATION, STORE, OTHER
+    return when (category) {
+        AppCategory.TOOL,
+        AppCategory.COMMUNICATION,
+        AppCategory.STORE,
+        AppCategory.OTHER -> primary
+
+        // Grey for distracting categories: SOCIAL, ENTERTAINMENT, GAME, BROWSER
+        AppCategory.SOCIAL,
+        AppCategory.ENTERTAINMENT,
+        AppCategory.GAME,
+        AppCategory.BROWSER -> grey
+    }
 }
 
 private fun AppCategory.label(): String =

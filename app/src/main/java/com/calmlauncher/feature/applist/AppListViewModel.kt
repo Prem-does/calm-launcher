@@ -50,7 +50,9 @@ class AppListViewModel @Inject constructor(
         settingsRepository.settings,
     ) { apps, settings ->
         Drawer(
-            apps = filterApps.filter(apps, settings),
+            // Hide apps that are pinned as favourites on the home screen so they
+            // do not also appear in the full apps drawer.
+            apps = filterApps.filter(apps, settings).filter { app -> !app.isFavorite },
             displayMode = settings.displayMode,
         )
     }
