@@ -2,6 +2,7 @@ package com.calmlauncher.domain.repository
 
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
+import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
@@ -10,10 +11,12 @@ import kotlinx.coroutines.flow.Flow
 
 interface AppLimitRepository {
     fun observeRules(): Flow<List<AppLimitRule>>
+    fun observeGroupAssignments(): Flow<List<AppLimitGroupAssignment>>
     fun observeTodayUsage(): Flow<List<AppLimitUsage>>
     fun observeTodayEvents(): Flow<List<AppLimitEvent>>
     suspend fun currentRule(packageName: String): AppLimitRule?
     suspend fun saveRule(rule: AppLimitRule)
+    suspend fun saveGroupAssignments(groupId: String, packageNames: Set<String>)
     suspend fun deleteRule(packageName: String)
     suspend fun setEnabled(packageName: String, enabled: Boolean)
     suspend fun extendOverride(packageName: String, minutes: Int): Boolean

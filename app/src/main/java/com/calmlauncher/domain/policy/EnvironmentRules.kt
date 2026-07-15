@@ -6,25 +6,23 @@ import com.calmlauncher.domain.model.EnvironmentMode
 /**
  * Pure mapping from an [EnvironmentMode] to the set of [AppCategory] values it hard-blocks.
  *
- * Environment modes re-shape blocking independently of (and in addition to) an explicit
- * focus session. The table below is the single source of truth referenced by the spec:
+ * Environment modes reshape blocking independently of, and in addition to, an explicit
+ * focus session:
  *
- *  - SLEEP            blocks SOCIAL, ENTERTAINMENT, BROWSER, GAME (wind-down at night).
- *  - STUDY, DEEP_WORK block SOCIAL, ENTERTAINMENT, GAME (browsers/tools relaxed so you
- *                     can still research, but the obvious dopamine sinks are gone).
- *  - GYM, OUTSIDE     relax tools entirely and only block SOCIAL — and then *only when a
- *                     focus session is active* (you're out living life; the phone should
- *                     stay a tool, but we don't fully lock it down unless you opted in).
- *  - NONE             blocks nothing.
+ *  - SLEEP blocks SOCIAL, ENTERTAINMENT, BROWSER, GAME.
+ *  - WORK and STUDY block SOCIAL, ENTERTAINMENT, GAME.
+ *  - DEEP_WORK blocks SOCIAL, ENTERTAINMENT, BROWSER, STORE, GAME.
+ *  - GYM, OUTSIDE, and TRAVEL keep tools relaxed but block SOCIAL and GAME during focus.
+ *  - NONE blocks nothing.
  *
- * All functions are pure (no I/O, no time, no Android).
+ * All functions are pure: no I/O, no time, no Android.
  */
 internal object EnvironmentRules {
 
     /**
      * Categories blocked purely by the [mode] itself, independent of any focus session.
-     * GYM/OUTSIDE return an empty set here because their (social) block is conditional on
-     * an active focus session — see [blocks].
+     * GYM/OUTSIDE/TRAVEL return an empty set here because their feed block is conditional
+     * on an active focus session; see [blocks].
      */
     private fun unconditionalBlocks(mode: EnvironmentMode): Set<AppCategory> = when (mode) {
         EnvironmentMode.NONE -> emptySet()
@@ -34,33 +32,43 @@ internal object EnvironmentRules {
             AppCategory.BROWSER,
             AppCategory.GAME,
         )
-        EnvironmentMode.STUDY, EnvironmentMode.DEEP_WORK -> setOf(
+        EnvironmentMode.WORK, EnvironmentMode.STUDY -> setOf(
             AppCategory.SOCIAL,
             AppCategory.ENTERTAINMENT,
             AppCategory.GAME,
         )
-        // Tools are relaxed when out in the world; the social block is conditional.
-        EnvironmentMode.GYM, EnvironmentMode.OUTSIDE -> emptySet()
+        EnvironmentMode.DEEP_WORK -> setOf(
+            AppCategory.SOCIAL,
+            AppCategory.ENTERTAINMENT,
+            AppCategory.BROWSER,
+            AppCategory.STORE,
+            AppCategory.GAME,
+        )
+        EnvironmentMode.GYM, EnvironmentMode.OUTSIDE, EnvironmentMode.TRAVEL -> emptySet()
     }
 
     /**
-     * True if [mode] blocks [category]. [focusActive] only matters for GYM/OUTSIDE, where
-     * SOCIAL is blocked while a focus session is running but otherwise left reachable.
+     * True if [mode] blocks [category]. [focusActive] only matters for GYM, OUTSIDE,
+     * and TRAVEL, where SOCIAL and GAME are blocked while a focus session is running.
      */
     fun blocks(mode: EnvironmentMode, category: AppCategory, focusActive: Boolean): Boolean {
         if (category in unconditionalBlocks(mode)) return true
-        val relaxesToolsButBlocksSocial =
-            mode == EnvironmentMode.GYM || mode == EnvironmentMode.OUTSIDE
-        return relaxesToolsButBlocksSocial && focusActive && category == AppCategory.SOCIAL
+        val relaxesToolsButBlocksFeeds = mode == EnvironmentMode.GYM ||
+            mode == EnvironmentMode.OUTSIDE ||
+            mode == EnvironmentMode.TRAVEL
+        return relaxesToolsButBlocksFeeds && focusActive &&
+            (category == AppCategory.SOCIAL || category == AppCategory.GAME)
     }
 
     /** A short, mode-specific reason string for a [com.calmlauncher.domain.model.FrictionStep.Block]. */
     fun blockReason(mode: EnvironmentMode): String = when (mode) {
         EnvironmentMode.SLEEP -> "Blocked in Sleep mode"
+        EnvironmentMode.WORK -> "Blocked in Work mode"
         EnvironmentMode.STUDY -> "Blocked in Study mode"
         EnvironmentMode.DEEP_WORK -> "Blocked in Deep Work mode"
         EnvironmentMode.GYM -> "Blocked in Gym mode"
         EnvironmentMode.OUTSIDE -> "Blocked in Outside mode"
+        EnvironmentMode.TRAVEL -> "Blocked in Travel mode"
         EnvironmentMode.NONE -> "Blocked"
     }
 }

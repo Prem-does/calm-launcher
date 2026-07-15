@@ -8,14 +8,10 @@ import com.calmlauncher.domain.repository.ScreenTimeRepository
 import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.BuildReflectionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -54,8 +50,8 @@ data class ReflectionNoteUi(
  * On init it resolves today's day-start (local midnight) and, through [BuildReflectionUseCase],
  * ensures a [ReflectionEntry] exists for today — reusing an in-progress one if the user already
  * started writing, otherwise materialising a fresh (un-persisted) prompt. That entry is held in
- * [entry] so [onResponseChange] can edit a local copy and [save] can persist it via
- * [ReflectionRepository.upsert] without re-deriving the prompt.
+ * [entry] so [onResponseChange] can edit a local copy and [save] can insert it without
+ * re-deriving the prompt.
  *
  * The visible [uiState] combines the held entry, the week's insights and today's screen time into
  * a single immutable snapshot, deliberately phrased to observe rather than judge.
@@ -111,10 +107,6 @@ class ReflectionViewModel @Inject constructor(
         viewModelScope.launch {
             val today = buildReflection(dayStart)
             entry.value = today
-            draftResponse.value = today.response.orEmpty()
-        }
-        viewModelScope.launch {
-            observeDraftAutosave()
         }
     }
 
@@ -131,23 +123,17 @@ class ReflectionViewModel @Inject constructor(
         }
     }
 
-    @OptIn(FlowPreview::class)
-    private suspend fun observeDraftAutosave() {
-        draftResponse
-            .drop(1)
-            .debounce(AUTOSAVE_DELAY_MS)
-            .distinctUntilChanged()
-            .collect { response -> persist(response) }
-    }
-
     private suspend fun persist(response: String) {
+        if (response.isBlank()) return
         val current = entry.value ?: buildReflection(dayStart).also { entry.value = it }
         val updated = current.copy(
+            id = 0L,
             response = response,
             createdAtEpochMs = System.currentTimeMillis(),
         )
-        entry.value = updated
-        reflectionRepository.upsert(updated)
+        reflectionRepository.insert(updated)
+        draftResponse.value = ""
+        entry.update { it?.copy(response = null) }
         lastSavedAt.value = updated.createdAtEpochMs
     }
 
@@ -165,7 +151,6 @@ class ReflectionViewModel @Inject constructor(
             .format(NoteDateFormatter)
 
     private companion object {
-        const val AUTOSAVE_DELAY_MS = 1_500L
         const val NOTE_HISTORY_LIMIT = 30
 
         val NoteDateFormatter: DateTimeFormatter =

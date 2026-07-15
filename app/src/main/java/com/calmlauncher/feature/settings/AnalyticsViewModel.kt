@@ -27,6 +27,7 @@ import javax.inject.Inject
 
 data class AnalyticsUiState(
     val collectionEnabled: Boolean = true,
+    val usageAccessGranted: Boolean = false,
     val retentionDays: Int = 365,
     val selectedRange: AnalyticsRange = AnalyticsRange.YEAR,
     val sortOrder: UsageSortOrder = UsageSortOrder.MOST_USED,
@@ -43,6 +44,7 @@ class AnalyticsViewModel @Inject constructor(
     private val selectedRange = MutableStateFlow(AnalyticsRange.YEAR)
     private val selectedSortOrder = MutableStateFlow(UsageSortOrder.MOST_USED)
     private val selectedDayStart = MutableStateFlow<Long?>(null)
+    private val usageAccessGranted = MutableStateFlow(false)
 
     init {
         refresh()
@@ -54,12 +56,14 @@ class AnalyticsViewModel @Inject constructor(
         selectedRange,
         selectedSortOrder,
         selectedDayStart,
-    ) { settings, range, sortOrder, selectedDayStart ->
-        AnalyticsQuery(settings.collectUsageAnalyticsEnabled, settings.analyticsRetentionDays, range, sortOrder, selectedDayStart)
+        usageAccessGranted,
+    ) { settings, range, sortOrder, selectedDayStart, usageAccessGranted ->
+        AnalyticsQuery(settings.collectUsageAnalyticsEnabled, usageAccessGranted, settings.analyticsRetentionDays, range, sortOrder, selectedDayStart)
     }.flatMapLatest { query ->
         analyticsRepository.observeDashboard(daysForRange(query.range)).map { snapshot ->
             AnalyticsUiState(
                 collectionEnabled = query.collectionEnabled,
+                usageAccessGranted = query.usageAccessGranted,
                 retentionDays = query.retentionDays,
                 selectedRange = query.range,
                 sortOrder = query.sortOrder,
@@ -99,7 +103,11 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch { analyticsRepository.refresh() }
+        usageAccessGranted.value = analyticsRepository.hasUsageAccess()
+        viewModelScope.launch {
+            analyticsRepository.refresh()
+            usageAccessGranted.value = analyticsRepository.hasUsageAccess()
+        }
     }
 
     fun clearHistory() {
@@ -137,6 +145,7 @@ class AnalyticsViewModel @Inject constructor(
 
     private data class AnalyticsQuery(
         val collectionEnabled: Boolean,
+        val usageAccessGranted: Boolean,
         val retentionDays: Int,
         val range: AnalyticsRange,
         val sortOrder: UsageSortOrder,

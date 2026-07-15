@@ -4,7 +4,7 @@ package com.calmlauncher.domain.model
 enum class FrictionLevel { LIGHT, MONK, HARDCORE }
 
 /** Context presets that re-shape visibility and blocking. */
-enum class EnvironmentMode { NONE, STUDY, SLEEP, GYM, DEEP_WORK, OUTSIDE }
+enum class EnvironmentMode { NONE, WORK, STUDY, DEEP_WORK, SLEEP, GYM, OUTSIDE, TRAVEL }
 
 /** How the app list renders entries. */
 enum class AppDisplayMode { TEXT, ICONS }

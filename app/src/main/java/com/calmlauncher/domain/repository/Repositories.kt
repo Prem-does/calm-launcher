@@ -54,6 +54,7 @@ interface ScreenTimeRepository {
 }
 
 interface AnalyticsRepository {
+    fun hasUsageAccess(): Boolean
     fun observeDashboard(days: Int): Flow<AnalyticsDashboardSnapshot>
     fun observeDailyUsage(days: Int): Flow<List<DailyUsageRecord>>
     fun observeAppUsage(days: Int, sortOrder: UsageSortOrder): Flow<List<AppUsageRecord>>
@@ -83,7 +84,7 @@ interface LaunchEventRepository {
 interface ReflectionRepository {
     fun observeRecent(limit: Int = 14): Flow<List<ReflectionEntry>>
     suspend fun latestFor(dayStartEpochMs: Long): ReflectionEntry?
-    suspend fun upsert(entry: ReflectionEntry)
+    suspend fun insert(entry: ReflectionEntry)
 }
 
 /** Persisted output of the Dopamine Detection Engine. */

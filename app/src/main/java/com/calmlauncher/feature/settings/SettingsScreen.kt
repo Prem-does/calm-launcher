@@ -113,12 +113,6 @@ fun SettingsScreen(
             SettingRow("App Limits", onClick = onOpenAppLimits, showChevron = true)
             SettingRow("Reflection", onClick = onOpenReflection, showChevron = true)
             SettingRow(
-                title = "Friction Level",
-                value = settings.frictionLevel.name.lowercase()
-                    .replaceFirstChar { it.uppercase() },
-                onClick = onOpenFriction,
-            )
-            SettingRow(
                 title = "Environment",
                 value = settings.environmentMode.displayName(),
                 onClick = onOpenEnvironment,

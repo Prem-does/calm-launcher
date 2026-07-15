@@ -10,6 +10,13 @@ data class AppLimitRule(
     val lastNotifiedEpochMs: Long = 0L,
 )
 
+/** User-selected app membership for a visible app-limit group. */
+data class AppLimitGroupAssignment(
+    val groupId: String,
+    val packageName: String,
+    val updatedAtEpochMs: Long,
+)
+
 /** Daily foreground usage snapshot for one app. */
 data class AppLimitUsage(
     val dayStartEpochMs: Long,

@@ -16,6 +16,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
+import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
@@ -50,6 +51,9 @@ class AppLimitRepositoryImpl @Inject constructor(
     override fun observeRules(): Flow<List<AppLimitRule>> =
         appLimitDao.observeRules().map { rows -> rows.map { it.toDomain() } }.flowOn(dispatcher)
 
+    override fun observeGroupAssignments(): Flow<List<AppLimitGroupAssignment>> =
+        appLimitDao.observeGroupAssignments().map { rows -> rows.map { it.toDomain() } }.flowOn(dispatcher)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeTodayUsage(): Flow<List<AppLimitUsage>> =
         clockTicker.time
@@ -74,6 +78,24 @@ class AppLimitRepositoryImpl @Inject constructor(
 
     override suspend fun saveRule(rule: AppLimitRule) = withContext(dispatcher) {
         appLimitDao.upsertRule(rule.toEntity())
+    }
+
+    override suspend fun saveGroupAssignments(groupId: String, packageNames: Set<String>) = withContext(dispatcher) {
+        val now = System.currentTimeMillis()
+        val sortedPackages = packageNames.sorted()
+        appLimitDao.deleteGroupAssignments(groupId)
+        if (sortedPackages.isNotEmpty()) {
+            appLimitDao.deleteAssignmentsForPackages(sortedPackages)
+            appLimitDao.upsertGroupAssignments(
+                sortedPackages.map { packageName ->
+                    AppLimitGroupAssignment(
+                        groupId = groupId,
+                        packageName = packageName,
+                        updatedAtEpochMs = now,
+                    ).toEntity()
+                },
+            )
+        }
     }
 
     override suspend fun deleteRule(packageName: String) = withContext(dispatcher) {

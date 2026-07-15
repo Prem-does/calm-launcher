@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import com.calmlauncher.data.db.entity.AppUsageEntity
 import com.calmlauncher.data.db.entity.AppMetaEntity
 import com.calmlauncher.data.db.entity.AppLimitEventEntity
+import com.calmlauncher.data.db.entity.AppLimitGroupAssignmentEntity
 import com.calmlauncher.data.db.entity.AppLimitRuleEntity
 import com.calmlauncher.data.db.entity.AppLimitUsageEntity
 import com.calmlauncher.data.db.entity.DailyUsageEntity
@@ -26,6 +27,7 @@ import com.calmlauncher.data.db.entity.UnlockEntity
         AppUsageEntity::class,
         AppMetaEntity::class,
         AppLimitEventEntity::class,
+        AppLimitGroupAssignmentEntity::class,
         AppLimitRuleEntity::class,
         AppLimitUsageEntity::class,
         DailyUsageEntity::class,
@@ -37,7 +39,7 @@ import com.calmlauncher.data.db.entity.UnlockEntity
         UnlockEntity::class,
         RiskStateEntity::class,
     ],
-    version = 4,
+    version = 6,
     exportSchema = false,
 )
 abstract class CalmDatabase : RoomDatabase() {

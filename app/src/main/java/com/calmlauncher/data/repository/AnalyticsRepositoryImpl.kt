@@ -40,6 +40,8 @@ class AnalyticsRepositoryImpl @Inject constructor(
     @IoDispatcher private val dispatcher: CoroutineDispatcher,
 ) : AnalyticsRepository {
 
+    override fun hasUsageAccess(): Boolean = usageStatsTracker.hasPermission()
+
     override fun observeDashboard(days: Int): Flow<AnalyticsDashboardSnapshot> = combine(
         observeDailyUsage(days),
         observeAppUsage(days, UsageSortOrder.MOST_USED),

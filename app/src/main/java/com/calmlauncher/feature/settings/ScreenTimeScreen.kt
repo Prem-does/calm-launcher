@@ -1,6 +1,7 @@
 package com.calmlauncher.feature.settings
 
 import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,12 +24,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
+import com.calmlauncher.core.designsystem.component.CalmButton
+import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmToggle
 import com.calmlauncher.core.designsystem.component.SectionLabel
@@ -58,11 +65,22 @@ fun ScreenTimeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val selectedDay = viewModel.selectedDay(state.snapshot)
     val topApps = viewModel.topApps(state.snapshot, state.sortOrder)
     val selectedSessions = viewModel.sessionsForDay(state.snapshot, selectedDay.dayStartEpochMs)
     val selectedUnlocks = viewModel.unlocksForDay(state.snapshot, selectedDay.dayStartEpochMs)
     val selectedNotifications = viewModel.notificationsForDay(state.snapshot, selectedDay.dayStartEpochMs)
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     CalmScaffold(
         modifier = modifier,
@@ -75,6 +93,11 @@ fun ScreenTimeScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             SectionLabel("Controls")
+            if (!state.usageAccessGranted) {
+                UsageAccessBlock(
+                    onOpenSettings = { openUsageAccessSettings(context) },
+                )
+            }
             AnalyticsControlRow(
                 title = "Collect Usage Analytics",
                 checked = state.collectionEnabled,
@@ -129,6 +152,28 @@ fun ScreenTimeScreen(
         }
     }
 
+}
+
+@Composable
+private fun UsageAccessBlock(onOpenSettings: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+        verticalArrangement = Arrangement.spacedBy(Spacing.gutter),
+    ) {
+        Text(
+            text = "Usage Access is needed to read Android screen time.",
+            style = CalmType.bodyMd,
+            color = CalmGray,
+        )
+        CalmButton(
+            text = "Open Usage Access",
+            onClick = onOpenSettings,
+            style = CalmButtonStyle.Filled,
+        )
+    }
+    ThinDivider()
 }
 
 @Composable
@@ -551,6 +596,11 @@ private fun shareAnalytics(context: android.content.Context, snapshot: Analytics
         putExtra(Intent.EXTRA_SUBJECT, if (exportJson) "calm-analytics.json" else "calm-analytics.csv")
     }
     context.startActivity(Intent.createChooser(intent, "Export Analytics"))
+}
+
+private fun openUsageAccessSettings(context: android.content.Context) {
+    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }
 
 private fun buildCsv(snapshot: AnalyticsDashboardSnapshot): String = buildString {

@@ -20,7 +20,7 @@ class ReflectionRepositoryImpl @Inject constructor(
     override suspend fun latestFor(dayStartEpochMs: Long): ReflectionEntry? =
         reflectionDao.latestFor(dayStartEpochMs)?.toDomain()
 
-    override suspend fun upsert(entry: ReflectionEntry) {
-        reflectionDao.upsert(entry.toEntity())
+    override suspend fun insert(entry: ReflectionEntry) {
+        reflectionDao.insert(entry.toEntity())
     }
 }

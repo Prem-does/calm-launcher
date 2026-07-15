@@ -40,6 +40,7 @@ data class AppLimitRowUiState(
 data class AppLimitsUiState(
     val summary: AppLimitSummary = AppLimitSummary(),
     val apps: List<AppLimitRowUiState> = emptyList(),
+    val groupAssignments: Map<String, String> = emptyMap(),
 )
 
 @HiltViewModel
@@ -53,15 +54,17 @@ class AppLimitsViewModel @Inject constructor(
 
     private val apps = appRepository.observeApps()
     private val rules = appLimitRepository.observeRules()
+    private val groupAssignments = appLimitRepository.observeGroupAssignments()
     private val usage = appLimitRepository.observeTodayUsage()
     private val events = appLimitRepository.observeTodayEvents()
 
     val uiState: StateFlow<AppLimitsUiState> = combine(
         apps,
         rules,
+        groupAssignments,
         usage,
         events,
-    ) { apps, rules, usage, events ->
+    ) { apps, rules, groupAssignments, usage, events ->
         val ruleByPackage = rules.associateBy { it.packageName }
         val usageByPackage = usage.associateBy { it.packageName }
         val blockedEvents = events.filter { it.eventType == AppLimitEventType.BLOCKED }
@@ -87,6 +90,7 @@ class AppLimitsViewModel @Inject constructor(
                     overrideActive = rule?.overrideUntilEpochMs?.let { it > System.currentTimeMillis() } == true,
                 )
             },
+            groupAssignments = groupAssignments.associate { it.packageName to it.groupId },
         )
     }.stateIn(
         scope = viewModelScope,
@@ -111,6 +115,24 @@ class AppLimitsViewModel @Inject constructor(
             appLimitRepository.refreshUsageSnapshot()
             // Schedule enforcement when the preset limit is expected to expire.
             if (enabled) scheduleEnforceForPreset(packageName, limitMinutes)
+        }
+    }
+
+    fun saveGroupLimit(groupId: String, packageNames: Set<String>, enabled: Boolean, limitMinutes: Int) {
+        viewModelScope.launch {
+            appLimitRepository.saveGroupAssignments(groupId, packageNames)
+            packageNames.forEach { packageName ->
+                appLimitRepository.saveRule(
+                    AppLimitRule(
+                        packageName = packageName,
+                        enabled = enabled,
+                        dailyLimitMinutes = limitMinutes,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    ),
+                )
+                if (enabled) scheduleEnforceForPreset(packageName, limitMinutes)
+            }
+            appLimitRepository.refreshUsageSnapshot()
         }
     }
 

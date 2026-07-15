@@ -23,11 +23,13 @@ import javax.inject.Inject
  */
 fun EnvironmentMode.displayName(): String = when (this) {
     EnvironmentMode.NONE -> "None"
+    EnvironmentMode.WORK -> "Work"
     EnvironmentMode.STUDY -> "Study"
+    EnvironmentMode.DEEP_WORK -> "Deep Work"
     EnvironmentMode.SLEEP -> "Sleep"
     EnvironmentMode.GYM -> "Gym"
-    EnvironmentMode.DEEP_WORK -> "Deep Work"
     EnvironmentMode.OUTSIDE -> "Outside"
+    EnvironmentMode.TRAVEL -> "Travel"
 }
 
 /**

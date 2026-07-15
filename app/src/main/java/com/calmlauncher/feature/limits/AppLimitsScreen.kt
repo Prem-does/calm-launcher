@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -64,16 +66,22 @@ import java.util.Locale
 private val PresetLimits = listOf(0, 15, 30, 45, 60, 120, 180)
 
 private data class AppLimitGroup(
+    val id: String,
     val title: String,
     val categories: Set<AppCategory>,
     val fallbackLimitMinutes: Int?,
 )
 
 private val LimitGroups = listOf(
-    AppLimitGroup("Social Group", setOf(AppCategory.SOCIAL), 30),
-    AppLimitGroup("Entertainment Group", setOf(AppCategory.ENTERTAINMENT, AppCategory.GAME), 60),
-    AppLimitGroup("Information Group", setOf(AppCategory.COMMUNICATION, AppCategory.TOOL, AppCategory.OTHER), null),
-    AppLimitGroup("Web Browser", setOf(AppCategory.BROWSER), null),
+    AppLimitGroup("social", "Social Group", setOf(AppCategory.SOCIAL), 30),
+    AppLimitGroup("entertainment", "Entertainment Group", setOf(AppCategory.ENTERTAINMENT, AppCategory.GAME), 60),
+    AppLimitGroup("information", "Information Group", setOf(AppCategory.COMMUNICATION, AppCategory.TOOL, AppCategory.OTHER), null),
+    AppLimitGroup("browser", "Web Browser", setOf(AppCategory.BROWSER), null),
+)
+
+private data class AppLimitGroupEditorState(
+    val group: AppLimitGroup,
+    val selectedApps: List<AppLimitRowUiState>,
 )
 
 @Composable
@@ -85,10 +93,20 @@ fun AppLimitsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     var editor by remember { mutableStateOf<AppLimitRowUiState?>(null) }
+    var groupEditor by remember { mutableStateOf<AppLimitGroupEditorState?>(null) }
 
-    val groupRows = remember(state.apps) {
+    val groupRows = remember(state.apps, state.groupAssignments) {
         LimitGroups.map { group ->
-            group to state.apps.filter { it.app.category in group.categories }
+            val assignedToGroup = state.apps.filter { state.groupAssignments[it.app.packageName] == group.id }
+            val apps = if (assignedToGroup.isNotEmpty()) {
+                assignedToGroup
+            } else {
+                state.apps.filter { item ->
+                    item.app.category in group.categories &&
+                        state.groupAssignments[item.app.packageName] == null
+                }
+            }
+            group to apps
         }
     }
     val filteredApps = remember(state.apps, query) {
@@ -137,19 +155,11 @@ fun AppLimitsScreen(
                             apps = apps,
                             limitedCount = apps.count { it.rule != null },
                             onAddApps = {
-                                editor = apps.firstOrNull { it.rule == null } ?: apps.firstOrNull()
+                                groupEditor = AppLimitGroupEditorState(group, apps)
                             },
                             onEditLimit = {
-                                editor = apps.firstOrNull { it.rule != null } ?: apps.firstOrNull()
+                                groupEditor = AppLimitGroupEditorState(group, apps)
                             },
-                        )
-                    }
-                    item {
-                        AddGroupRow(
-                            onClick = {
-                                editor = state.apps.firstOrNull { it.rule == null } ?: state.apps.firstOrNull()
-                            },
-                            modifier = Modifier.padding(horizontal = Spacing.base, vertical = Spacing.stackMd),
                         )
                     }
                 } else {
@@ -188,6 +198,19 @@ fun AppLimitsScreen(
             onRemove = {
                 viewModel.removeLimit(item.app.packageName)
                 editor = null
+            },
+        )
+    }
+
+    groupEditor?.let { groupState ->
+        AppLimitGroupEditorDialog(
+            group = groupState.group,
+            allApps = state.apps,
+            selectedApps = groupState.selectedApps,
+            onDismiss = { groupEditor = null },
+            onSave = { packageNames, enabled, minutes ->
+                viewModel.saveGroupLimit(groupState.group.id, packageNames, enabled, minutes)
+                groupEditor = null
             },
         )
     }
@@ -295,45 +318,55 @@ private fun AppLimitGroupRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.base, vertical = Spacing.stackMd),
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.gutter),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = group.title,
-                    style = CalmType.labelMd.copy(
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = CalmWhite,
-                )
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.base),
-                ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackMd)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = formatGroupLimit(apps, group),
-                        style = CalmType.headlineMd.copy(
-                            fontSize = 20.sp,
-                            lineHeight = 22.sp,
+                        text = group.title,
+                        style = CalmType.labelMd.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 17.sp,
                             fontWeight = FontWeight.SemiBold,
                         ),
                         color = CalmWhite,
                     )
-                    TextLimitChip(
-                        text = if (limitedCount == 0) "SET LIMIT" else "EDIT LIMIT",
-                        onClick = onEditLimit,
+                    Text(
+                        text = groupAppSummary(apps),
+                        style = CalmType.labelMd.copy(fontSize = 10.sp, lineHeight = 14.sp),
+                        color = CalmGray,
+                        maxLines = 2,
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                 }
+                TextLimitChip(text = "ADD APPS", onClick = onAddApps)
             }
-            TextLimitChip(text = "ADD APPS", onClick = onAddApps)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatGroupLimit(apps, group),
+                    style = CalmType.headlineMd.copy(
+                        fontSize = 22.sp,
+                        lineHeight = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = CalmWhite,
+                )
+                TextLimitChip(
+                    text = if (limitedCount == 0) "SET LIMIT" else "EDIT LIMIT",
+                    onClick = onEditLimit,
+                )
+            }
         }
-        ThinDivider(modifier = Modifier.padding(top = Spacing.stackMd))
+        ThinDivider(modifier = Modifier.padding(top = Spacing.gutter))
     }
 }
 
@@ -400,6 +433,135 @@ private fun AddGroupRow(
 }
 
 @Composable
+private fun AppLimitGroupEditorDialog(
+    group: AppLimitGroup,
+    allApps: List<AppLimitRowUiState>,
+    selectedApps: List<AppLimitRowUiState>,
+    onDismiss: () -> Unit,
+    onSave: (packageNames: Set<String>, enabled: Boolean, minutes: Int) -> Unit,
+) {
+    val initialPackages = remember(group.id, selectedApps) {
+        selectedApps.map { it.app.packageName }.toSet()
+    }
+    var selectedPackages by remember(group.id, initialPackages) { mutableStateOf(initialPackages) }
+    var enabled by remember(group.id, selectedApps) {
+        mutableStateOf(selectedApps.firstOrNull { it.rule != null }?.rule?.enabled ?: true)
+    }
+    var minutesText by remember(group.id, selectedApps) {
+        mutableStateOf((groupLimitMinutes(selectedApps, group) ?: 30).toString())
+    }
+    var appQuery by remember(group.id) { mutableStateOf("") }
+    val visibleApps = remember(allApps, appQuery) {
+        val trimmed = appQuery.trim()
+        if (trimmed.isBlank()) {
+            allApps.sortedBy { it.app.label.lowercase(Locale.getDefault()) }
+        } else {
+            allApps.filter { item ->
+                item.app.label.contains(trimmed, ignoreCase = true) ||
+                    item.app.packageName.contains(trimmed, ignoreCase = true)
+            }.sortedBy { it.app.label.lowercase(Locale.getDefault()) }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = group.title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackMd)) {
+                Text(
+                    text = "${selectedPackages.size} apps selected",
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                )
+                OutlinedTextField(
+                    value = minutesText,
+                    onValueChange = { minutesText = it.filter(Char::isDigit) },
+                    singleLine = true,
+                    label = { Text("Daily group limit (minutes)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                PresetLimits.chunked(4).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
+                        row.forEach { preset ->
+                            CalmButton(
+                                text = formatCompactLimit(preset),
+                                style = CalmButtonStyle.Outlined,
+                                onClick = { minutesText = preset.toString() },
+                            )
+                        }
+                    }
+                }
+                CalmButton(
+                    text = if (enabled) "Limit enabled" else "Limit disabled",
+                    style = CalmButtonStyle.Outlined,
+                    onClick = { enabled = !enabled },
+                )
+                AppLimitSearchField(
+                    query = appQuery,
+                    onQueryChange = { appQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 280.dp),
+                    contentPadding = PaddingValues(vertical = Spacing.stackSm),
+                ) {
+                    items(visibleApps, key = { it.app.packageName }) { item ->
+                        AppPickerRow(
+                            item = item,
+                            checked = item.app.packageName in selectedPackages,
+                            onCheckedChange = { checked ->
+                                selectedPackages = if (checked) {
+                                    selectedPackages + item.app.packageName
+                                } else {
+                                    selectedPackages - item.app.packageName
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            CalmButton(
+                text = "Save group",
+                style = CalmButtonStyle.Filled,
+                enabled = selectedPackages.isNotEmpty(),
+                onClick = { onSave(selectedPackages, enabled, minutesText.toIntOrNull() ?: 30) },
+            )
+        },
+        dismissButton = {
+            CalmButton(text = "Cancel", style = CalmButtonStyle.Outlined, onClick = onDismiss)
+        },
+    )
+}
+
+@Composable
+private fun AppPickerRow(
+    item: AppLimitRowUiState,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = Spacing.stackSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = item.app.label, style = CalmType.bodyLg, color = CalmWhite, maxLines = 1)
+            Text(text = item.app.category.label(), style = CalmType.labelMd, color = CalmGray, maxLines = 1)
+        }
+        Text(
+            text = item.limitMinutes?.let { formatCompactLimit(it) } ?: "No limit",
+            style = CalmType.labelMd,
+            color = CalmGray,
+        )
+    }
+}
+
+@Composable
 private fun AppLimitSearchResultRow(
     item: AppLimitRowUiState,
     onEdit: () -> Unit,
@@ -446,8 +608,20 @@ private fun formatGroupLimit(
     apps: List<AppLimitRowUiState>,
     group: AppLimitGroup,
 ): String {
-    val limit = apps.firstOrNull { it.rule?.enabled == true }?.limitMinutes ?: group.fallbackLimitMinutes
+    val limit = groupLimitMinutes(apps, group)
     return limit?.let { formatCompactLimit(it) } ?: "No limit set"
+}
+
+private fun groupLimitMinutes(
+    apps: List<AppLimitRowUiState>,
+    group: AppLimitGroup,
+): Int? = apps.firstOrNull { it.rule?.enabled == true }?.limitMinutes ?: group.fallbackLimitMinutes
+
+private fun groupAppSummary(apps: List<AppLimitRowUiState>): String {
+    if (apps.isEmpty()) return "No apps selected"
+    val labels = apps.take(3).joinToString(", ") { it.app.label }
+    val remaining = apps.size - 3
+    return if (remaining > 0) "$labels +$remaining more" else labels
 }
 
 private fun limitStatusText(item: AppLimitRowUiState): String = when {

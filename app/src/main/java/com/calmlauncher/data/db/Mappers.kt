@@ -2,6 +2,7 @@ package com.calmlauncher.data.db
 
 import com.calmlauncher.data.db.entity.AppMetaEntity
 import com.calmlauncher.data.db.entity.AppLimitEventEntity
+import com.calmlauncher.data.db.entity.AppLimitGroupAssignmentEntity
 import com.calmlauncher.data.db.entity.AppLimitRuleEntity
 import com.calmlauncher.data.db.entity.AppLimitUsageEntity
 import com.calmlauncher.data.db.entity.LaunchEventEntity
@@ -12,6 +13,7 @@ import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
+import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
@@ -74,7 +76,7 @@ internal fun LaunchEvent.toEntity(): LaunchEventEntity = LaunchEventEntity(
 // ---------------------------------------------------------------------------
 
 internal fun ReflectionEntity.toDomain(): ReflectionEntry = ReflectionEntry(
-    id = dayStartEpochMs,
+    id = id,
     dayStartEpochMs = dayStartEpochMs,
     prompt = prompt,
     response = response,
@@ -82,6 +84,7 @@ internal fun ReflectionEntity.toDomain(): ReflectionEntry = ReflectionEntry(
 )
 
 internal fun ReflectionEntry.toEntity(): ReflectionEntity = ReflectionEntity(
+    id = id,
     dayStartEpochMs = dayStartEpochMs,
     prompt = prompt,
     response = response,
@@ -148,6 +151,18 @@ internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
     overrideUntilEpochMs = overrideUntilEpochMs,
     updatedAtEpochMs = updatedAtEpochMs,
     lastNotifiedEpochMs = lastNotifiedEpochMs,
+)
+
+internal fun AppLimitGroupAssignmentEntity.toDomain(): AppLimitGroupAssignment = AppLimitGroupAssignment(
+    groupId = groupId,
+    packageName = packageName,
+    updatedAtEpochMs = updatedAtEpochMs,
+)
+
+internal fun AppLimitGroupAssignment.toEntity(): AppLimitGroupAssignmentEntity = AppLimitGroupAssignmentEntity(
+    groupId = groupId,
+    packageName = packageName,
+    updatedAtEpochMs = updatedAtEpochMs,
 )
 
 internal fun AppLimitUsageEntity.toDomain(): AppLimitUsage = AppLimitUsage(

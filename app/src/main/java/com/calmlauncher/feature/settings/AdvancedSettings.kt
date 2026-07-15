@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.component.CalmToggle
-import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.LauncherSettings
 
 /**
@@ -17,51 +16,6 @@ import com.calmlauncher.domain.model.LauncherSettings
 @Composable
 fun AdvancedSettings(viewModel: SettingsViewModel, settings: LauncherSettings) {
     Column {
-        // Friction internals
-        SettingRow(
-            title = "Opening Delays",
-            trailing = {
-                CalmToggle(settings.openingDelaysEnabled) { checked ->
-                    viewModel.update { it.copy(openingDelaysEnabled = checked) }
-                }
-            },
-        )
-        SettingRow(
-            title = "Intent Prompt",
-            trailing = {
-                CalmToggle(settings.intentPromptEnabled) { checked ->
-                    viewModel.update { it.copy(intentPromptEnabled = checked) }
-                }
-            },
-        )
-        SettingRow(
-            title = "Breath Unlock",
-            trailing = {
-                CalmToggle(settings.breathUnlockEnabled) { checked ->
-                    viewModel.update { it.copy(breathUnlockEnabled = checked) }
-                }
-            },
-        )
-        SettingRow(
-            title = "Slow Mode",
-            trailing = {
-                CalmToggle(settings.slowModeEnabled) { checked ->
-                    viewModel.update { it.copy(slowModeEnabled = checked) }
-                }
-            },
-        )
-        SettingRow(
-            title = "Analog Mode",
-            trailing = {
-                CalmToggle(settings.analogModeEnabled) { checked ->
-                    viewModel.update { it.copy(analogModeEnabled = checked) }
-                }
-            },
-        )
-
-        Spacer(Modifier.height(Spacing.stackMd))
-
-        // Behavioral / experimental
         SettingRow(
             title = "Dopamine Detection",
             trailing = {
