@@ -5,17 +5,25 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmScaffold
@@ -50,6 +58,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val clockInteraction = remember { MutableInteractionSource() }
+    val scrollState = rememberScrollState()
 
     CalmScaffold(
         modifier = modifier,
@@ -69,7 +78,7 @@ fun HomeScreen(
         val timeText = state.time.ifBlank { "--:--" }
         val dateText = state.date.ifBlank { "Loading home..." }
         val screenTimeText = state.screenTimeText.ifBlank { "0m today" }
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -86,69 +95,86 @@ fun HomeScreen(
                 }
                 .padding(horizontal = Spacing.marginMobile),
         ) {
-            // Push the clock toward vertical center.
-            Spacer(Modifier.weight(1f))
-
-            // Clock + date. Long-press anywhere on this block opens Settings.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(
-                        interactionSource = clockInteraction,
-                        indication = null,
-                        onClick = {},
-                        onLongClick = onOpenSettings,
-                    ),
+                    .heightIn(min = maxHeight)
+                    .verticalScroll(scrollState),
             ) {
-                Text(
-                    text = timeText,
-                    style = CalmType.heroTime,
-                    color = CalmWhite,
-                )
-                Text(
-                    text = dateText,
-                    style = CalmType.headlineMd,
-                    color = CalmGray,
-                )
-                Text(
-                    text = screenTimeText,
-                    style = CalmType.labelMd,
-                    color = CalmGray,
-                    modifier = Modifier.padding(top = Spacing.stackSm),
-                )
-            }
+                // Keep the clock visually centered while still allowing overflow to scroll.
+                Spacer(Modifier.height(64.dp))
 
-            // Separate the time block from the shortcut list.
-            Spacer(Modifier.weight(1f))
-
-            // Optional neutral Calm AI insight line.
-            state.insight?.let { insight ->
-                Text(
-                    text = insight,
-                    style = CalmType.labelMd,
-                    color = CalmGray,
-                    modifier = Modifier.padding(bottom = Spacing.stackMd),
-                )
-            }
-
-            // Favorite shortcuts (oversized Swiss list).
-            if (state.favorites.isEmpty()) {
-                Text(
-                    text = "No pinned apps yet. Open Settings to manage favorites.",
-                    style = CalmType.labelMd,
-                    color = CalmGray,
-                    modifier = Modifier.padding(bottom = Spacing.stackSm),
-                )
-            } else {
-                state.favorites.forEach { app ->
-                    HomeShortcutRow(
-                        label = app.label,
-                        onClick = { viewModel.open(app) },
+                // Clock + date. Long-press anywhere on this block opens Settings.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            interactionSource = clockInteraction,
+                            indication = null,
+                            onClick = {},
+                            onLongClick = onOpenSettings,
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = timeText,
+                        style = CalmType.heroTime.copy(
+                            fontSize = 72.sp,
+                            lineHeight = 76.sp,
+                            letterSpacing = 0.sp,
+                        ),
+                        color = CalmWhite,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = dateText,
+                        style = CalmType.headlineMd,
+                        color = CalmGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = screenTimeText,
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                        modifier = Modifier.padding(top = Spacing.stackSm),
+                        textAlign = TextAlign.Center,
                     )
                 }
-            }
 
-            Spacer(Modifier.height(Spacing.stackLg))
+                // Separate the time block from the shortcut list.
+                Spacer(Modifier.height(64.dp))
+
+                // Optional neutral Calm AI insight line.
+                state.insight?.let { insight ->
+                    Text(
+                        text = insight,
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                        modifier = Modifier.padding(bottom = Spacing.stackMd),
+                    )
+                }
+
+                // Favorite shortcuts (oversized Swiss list).
+                if (state.favorites.isEmpty()) {
+                    Text(
+                        text = "No pinned apps yet. Open Settings to manage favorites.",
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                        modifier = Modifier.padding(bottom = Spacing.stackSm),
+                    )
+                } else {
+                    state.favorites.forEach { app ->
+                        HomeShortcutRow(
+                            label = app.label,
+                            onClick = { viewModel.open(app) },
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(64.dp))
+            }
         }
     }
 }

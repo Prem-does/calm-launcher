@@ -77,8 +77,8 @@ fun AppListScreen(
                     contentPadding = PaddingValues(
                         start = AppMenuHorizontalPadding,
                         top = AppMenuVerticalCanvasPadding,
-                        end = AppMenuIndexSafePadding,
-                        bottom = AppMenuVerticalCanvasPadding,
+                        end = AppMenuHorizontalPadding,
+                        bottom = AppMenuBottomCanvasPadding,
                     ),
                     verticalArrangement = Arrangement.spacedBy(AppMenuItemGap),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -103,9 +103,9 @@ fun AppListScreen(
 }
 
 private val AppMenuVerticalCanvasPadding = 128.dp
+private val AppMenuBottomCanvasPadding = 184.dp
 private val AppMenuHorizontalPadding = 48.dp
-private val AppMenuIndexSafePadding = 72.dp
-private val AppMenuItemGap = 40.dp
+private val AppMenuItemGap = 48.dp
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -118,8 +118,9 @@ private fun AppMenuLabel(
         text = app.label,
         style = CalmType.headlineMd.copy(
             fontWeight = FontWeight.Medium,
-            fontSize = 32.sp,
-            lineHeight = 40.sp,
+            fontSize = 36.sp,
+            lineHeight = 46.sp,
+            letterSpacing = 0.sp,
         ),
         color = CalmWhite,
         textAlign = TextAlign.Center,
