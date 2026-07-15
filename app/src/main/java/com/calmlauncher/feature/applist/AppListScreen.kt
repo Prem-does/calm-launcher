@@ -16,10 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.AlphabetSideIndex
@@ -27,6 +25,7 @@ import com.calmlauncher.core.designsystem.component.CalmBottomNav
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
 import com.calmlauncher.core.designsystem.component.rememberAlphabetIndex
+import com.calmlauncher.core.designsystem.theme.CalmAppNameTextStyle
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.CalmType
@@ -105,7 +104,7 @@ fun AppListScreen(
 private val AppMenuVerticalCanvasPadding = 128.dp
 private val AppMenuBottomCanvasPadding = 184.dp
 private val AppMenuHorizontalPadding = 48.dp
-private val AppMenuItemGap = 48.dp
+private val AppMenuItemGap = 36.dp
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -116,12 +115,7 @@ private fun AppMenuLabel(
 ) {
     Text(
         text = app.label,
-        style = CalmType.headlineMd.copy(
-            fontWeight = FontWeight.Medium,
-            fontSize = 36.sp,
-            lineHeight = 46.sp,
-            letterSpacing = 0.sp,
-        ),
+        style = CalmAppNameTextStyle,
         color = CalmWhite,
         textAlign = TextAlign.Center,
         modifier = Modifier

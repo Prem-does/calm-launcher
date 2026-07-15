@@ -8,15 +8,22 @@ import com.calmlauncher.domain.repository.ScreenTimeRepository
 import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.BuildReflectionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -30,6 +37,15 @@ data class ReflectionUiState(
     val response: String = "",
     val insights: List<String> = emptyList(),
     val screenTimeText: String = "",
+    val recentNotes: List<ReflectionNoteUi> = emptyList(),
+    val saveStatusText: String = "",
+)
+
+data class ReflectionNoteUi(
+    val dayStartEpochMs: Long,
+    val dayLabel: String,
+    val prompt: String,
+    val response: String,
 )
 
 /**
@@ -61,18 +77,29 @@ class ReflectionViewModel @Inject constructor(
     /** Today's reflection entry (prompt + any saved/in-progress response). */
     private val entry = MutableStateFlow<ReflectionEntry?>(null)
     private val draftResponse = MutableStateFlow("")
+    private val lastSavedAt = MutableStateFlow<Long?>(null)
+    private val recentNotesAndSave = combine(
+        reflectionRepository.observeRecent(NOTE_HISTORY_LIMIT),
+        lastSavedAt,
+    ) { recent, savedAt -> recent to savedAt }
 
     val uiState: StateFlow<ReflectionUiState> = combine(
         entry,
         draftResponse,
         buildInsights(),
         screenTimeRepository.observeToday(),
-    ) { current, draft, insights, screenTime ->
+        recentNotesAndSave,
+    ) { current, draft, insights, screenTime, notesAndSave ->
+        val (recent, savedAt) = notesAndSave
         ReflectionUiState(
             prompt = current?.prompt.orEmpty(),
             response = draft,
             insights = insights.map { it.text },
             screenTimeText = screenTime.format(),
+            recentNotes = recent
+                .filter { !it.response.isNullOrBlank() }
+                .map { it.toNoteUi() },
+            saveStatusText = if (savedAt != null) "Saved" else "",
         )
     }.stateIn(
         scope = viewModelScope,
@@ -86,6 +113,9 @@ class ReflectionViewModel @Inject constructor(
             entry.value = today
             draftResponse.value = today.response.orEmpty()
         }
+        viewModelScope.launch {
+            observeDraftAutosave()
+        }
     }
 
     /** Mirror the user's edits into the held entry without persisting them. */
@@ -97,13 +127,48 @@ class ReflectionViewModel @Inject constructor(
     /** Persist today's reflection, prompt and current response together. */
     fun save() {
         viewModelScope.launch {
-            val current = entry.value ?: buildReflection(dayStart).also { entry.value = it }
-            val updated = current.copy(
-                response = draftResponse.value,
-                createdAtEpochMs = System.currentTimeMillis(),
-            )
-            entry.value = updated
-            reflectionRepository.upsert(updated)
+            persist(draftResponse.value)
         }
+    }
+
+    @OptIn(FlowPreview::class)
+    private suspend fun observeDraftAutosave() {
+        draftResponse
+            .drop(1)
+            .debounce(AUTOSAVE_DELAY_MS)
+            .distinctUntilChanged()
+            .collect { response -> persist(response) }
+    }
+
+    private suspend fun persist(response: String) {
+        val current = entry.value ?: buildReflection(dayStart).also { entry.value = it }
+        val updated = current.copy(
+            response = response,
+            createdAtEpochMs = System.currentTimeMillis(),
+        )
+        entry.value = updated
+        reflectionRepository.upsert(updated)
+        lastSavedAt.value = updated.createdAtEpochMs
+    }
+
+    private fun ReflectionEntry.toNoteUi(): ReflectionNoteUi =
+        ReflectionNoteUi(
+            dayStartEpochMs = dayStartEpochMs,
+            dayLabel = dayStartEpochMs.toDayLabel(),
+            prompt = prompt,
+            response = response.orEmpty(),
+        )
+
+    private fun Long.toDayLabel(): String =
+        Instant.ofEpochMilli(this)
+            .atZone(ZoneId.systemDefault())
+            .format(NoteDateFormatter)
+
+    private companion object {
+        const val AUTOSAVE_DELAY_MS = 1_500L
+        const val NOTE_HISTORY_LIMIT = 30
+
+        val NoteDateFormatter: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
     }
 }

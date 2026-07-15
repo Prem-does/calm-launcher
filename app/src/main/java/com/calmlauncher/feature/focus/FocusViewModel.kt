@@ -3,6 +3,7 @@ package com.calmlauncher.feature.focus
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calmlauncher.core.util.Quotes
+import com.calmlauncher.data.system.ClockTicker
 import com.calmlauncher.domain.repository.SettingsRepository
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import com.calmlauncher.domain.usecase.ToggleFocusUseCase
@@ -28,6 +29,7 @@ data class FocusUiState(
     val quote: String = "",
     val grayscale: Boolean = false,
     val grayscaleAmount: Float = 0f,
+    val remainingText: String = "--:--",
 )
 
 /**
@@ -42,6 +44,7 @@ class FocusViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val toggleFocus: ToggleFocusUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
+    clockTicker: ClockTicker,
 ) : ViewModel() {
 
     // Deterministic per-day quote: stable within a session, rotates across days.
@@ -50,12 +53,21 @@ class FocusViewModel @Inject constructor(
     val uiState: StateFlow<FocusUiState> = combine(
         settingsRepository.settings,
         observeRestriction(),
-    ) { settings, restriction ->
+        clockTicker.time,
+    ) { settings, restriction, now ->
+        val remainingMs = if (settings.focusActive) {
+            val endAt = settings.focusStartedAtEpochMs +
+                settings.focusDurationMinutes.coerceAtLeast(1) * MINUTE_MS
+            (endAt - now).coerceAtLeast(0L)
+        } else {
+            settings.focusDurationMinutes.coerceAtLeast(1) * MINUTE_MS
+        }
         FocusUiState(
             active = settings.focusActive,
             quote = quote,
             grayscale = restriction.grayscale,
             grayscaleAmount = restriction.grayscaleAmount,
+            remainingText = formatRemaining(remainingMs),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -77,5 +89,20 @@ class FocusViewModel @Inject constructor(
     /** End the current focus session. */
     fun endFocus() {
         viewModelScope.launch { toggleFocus.stop() }
+    }
+
+    private fun formatRemaining(remainingMs: Long): String {
+        val totalMinutes = ((remainingMs + MINUTE_MS - 1) / MINUTE_MS).coerceAtLeast(0L)
+        val hours = totalMinutes / 60L
+        val minutes = totalMinutes % 60L
+        return if (hours > 0L) {
+            "${hours}h ${minutes.toString().padStart(2, '0')}m"
+        } else {
+            "${minutes}m"
+        }
+    }
+
+    private companion object {
+        const val MINUTE_MS = 60_000L
     }
 }

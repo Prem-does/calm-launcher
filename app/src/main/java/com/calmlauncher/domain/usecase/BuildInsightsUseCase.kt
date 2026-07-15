@@ -58,9 +58,6 @@ class BuildInsightsUseCase @Inject constructor(
         screenTimeTrendInsight(screenTime)?.let(insights::add)
         appLimitInsight(limitEvents)?.let(insights::add)
 
-        if (insights.isEmpty()) {
-            insights += Insight("A quiet week so far. Nothing stands out.")
-        }
         return insights
     }
 

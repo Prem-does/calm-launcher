@@ -99,28 +99,27 @@ fun ReflectionScreen(
                 style = CalmButtonStyle.Filled,
                 modifier = Modifier.padding(top = Spacing.gutter),
             )
+            if (state.saveStatusText.isNotBlank()) {
+                Text(
+                    text = state.saveStatusText,
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                    modifier = Modifier.padding(top = Spacing.stackSm),
+                )
+            }
 
             // The Calm AI Assistant's weekly observations.
             SectionLabel(text = "This week")
-            if (state.insights.isEmpty()) {
+            state.insights.forEach { insight ->
                 Text(
-                    text = "A quiet week so far.",
+                    text = insight,
                     style = CalmType.bodyMd,
                     color = CalmGray,
-                    modifier = Modifier.padding(horizontal = Spacing.marginMobile),
+                    modifier = Modifier.padding(
+                        horizontal = Spacing.marginMobile,
+                        vertical = Spacing.stackSm,
+                    ),
                 )
-            } else {
-                state.insights.forEach { insight ->
-                    Text(
-                        text = insight,
-                        style = CalmType.bodyMd,
-                        color = CalmGray,
-                        modifier = Modifier.padding(
-                            horizontal = Spacing.marginMobile,
-                            vertical = Spacing.stackSm,
-                        ),
-                    )
-                }
             }
 
             // Today's plain screen-time observation.
@@ -130,6 +129,49 @@ fun ReflectionScreen(
                 style = CalmType.bodyMd,
                 color = CalmGray,
                 modifier = Modifier.padding(horizontal = Spacing.marginMobile),
+            )
+
+            SectionLabel(text = "Notes")
+            if (state.recentNotes.isEmpty()) {
+                Text(
+                    text = "Saved reflections will appear here.",
+                    style = CalmType.bodyMd,
+                    color = CalmGray,
+                    modifier = Modifier.padding(horizontal = Spacing.marginMobile),
+                )
+            } else {
+                state.recentNotes.forEach { note ->
+                    ReflectionNote(note = note)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReflectionNote(note: ReflectionNoteUi) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
+    ) {
+        Text(
+            text = note.dayLabel,
+            style = CalmType.labelMd,
+            color = CalmGray,
+        )
+        Text(
+            text = note.response,
+            style = CalmType.bodyMd,
+            color = CalmWhite,
+            modifier = Modifier.padding(top = Spacing.stackSm),
+        )
+        if (note.prompt.isNotBlank()) {
+            Text(
+                text = note.prompt,
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier.padding(top = Spacing.stackSm),
             )
         }
     }

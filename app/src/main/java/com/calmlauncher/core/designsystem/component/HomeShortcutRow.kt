@@ -11,13 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.calmlauncher.core.designsystem.theme.CalmType
+import androidx.compose.ui.text.style.TextAlign
+import com.calmlauncher.core.designsystem.theme.CalmAppNameTextStyle
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 
 /**
  * An oversized favorite shortcut for the home screen. [label] is rendered in
- * [CalmType.headlineLgMobile] with [Spacing.base] vertical padding. Tap has no ripple,
+ * [CalmAppNameTextStyle] with [Spacing.base] vertical padding. Tap has no ripple,
  * matching the home list in the Stitch reference.
  */
 @Composable
@@ -41,8 +42,9 @@ fun HomeShortcutRow(
         ) {
             Text(
                 text = label,
-                style = CalmType.headlineLgMobile,
+                style = CalmAppNameTextStyle,
                 color = CalmWhite,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

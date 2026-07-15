@@ -2,18 +2,15 @@ package com.calmlauncher.feature.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,7 +55,6 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val clockInteraction = remember { MutableInteractionSource() }
-    val scrollState = rememberScrollState()
 
     CalmScaffold(
         modifier = modifier,
@@ -98,11 +94,11 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = maxHeight)
-                    .verticalScroll(scrollState),
+                    .height(maxHeight),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Keep the clock visually centered while still allowing overflow to scroll.
-                Spacer(Modifier.height(64.dp))
+                Spacer(Modifier.weight(0.65f))
 
                 // Clock + date. Long-press anywhere on this block opens Settings.
                 Column(
@@ -136,15 +132,18 @@ fun HomeScreen(
                     )
                     Text(
                         text = screenTimeText,
-                        style = CalmType.labelMd,
+                        style = CalmType.labelMd.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            letterSpacing = 0.sp,
+                        ),
                         color = CalmGray,
                         modifier = Modifier.padding(top = Spacing.stackSm),
                         textAlign = TextAlign.Center,
                     )
                 }
 
-                // Separate the time block from the shortcut list.
-                Spacer(Modifier.height(64.dp))
+                Spacer(Modifier.height(44.dp))
 
                 // Optional neutral Calm AI insight line.
                 state.insight?.let { insight ->
@@ -152,7 +151,10 @@ fun HomeScreen(
                         text = insight,
                         style = CalmType.labelMd,
                         color = CalmGray,
-                        modifier = Modifier.padding(bottom = Spacing.stackMd),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.stackMd),
+                        textAlign = TextAlign.Center,
                     )
                 }
 
@@ -162,7 +164,10 @@ fun HomeScreen(
                         text = "No pinned apps yet. Open Settings to manage favorites.",
                         style = CalmType.labelMd,
                         color = CalmGray,
-                        modifier = Modifier.padding(bottom = Spacing.stackSm),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.stackSm),
                     )
                 } else {
                     state.favorites.forEach { app ->
@@ -173,7 +178,7 @@ fun HomeScreen(
                     }
                 }
 
-                Spacer(Modifier.height(64.dp))
+                Spacer(Modifier.weight(1f))
             }
         }
     }

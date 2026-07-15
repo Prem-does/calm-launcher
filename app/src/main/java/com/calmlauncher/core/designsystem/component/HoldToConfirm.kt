@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,7 +85,18 @@ fun HoldToConfirm(
     }
 
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 88.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        pressed = true
+                        tryAwaitRelease()
+                        pressed = false
+                    },
+                )
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -92,18 +104,7 @@ fun HoldToConfirm(
                 .width(BarWidth)
                 .height(BarHeight)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(CalmWhite.copy(alpha = MutedAlpha))
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            pressed = true
-                            // Suspends until the pointer lifts (true) or is cancelled
-                            // (false); either way we stop holding.
-                            tryAwaitRelease()
-                            pressed = false
-                        },
-                    )
-                },
+                .background(CalmWhite.copy(alpha = MutedAlpha)),
             contentAlignment = Alignment.CenterStart,
         ) {
             Box(

@@ -10,6 +10,7 @@ import com.calmlauncher.domain.repository.ScreenTimeRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -27,12 +28,13 @@ class ScreenTimeRepositoryImpl @Inject constructor(
 
     override fun observeToday(): Flow<ScreenTimeRecord> {
         val dayStart = startOfToday()
-        return screenTimeDao.observe(dayStart).map { it?.toDomain() ?: ScreenTimeRecord.empty(dayStart) }
+        return screenTimeDao.observe(dayStart)
+            .onStart { refresh() }
+            .map { it?.toDomain() ?: ScreenTimeRecord.empty(dayStart) }
     }
 
     override suspend fun today(): ScreenTimeRecord = withContext(dispatcher) {
-        val dayStart = startOfToday()
-        screenTimeDao.get(dayStart)?.toDomain() ?: ScreenTimeRecord.empty(dayStart)
+        refreshTodayRecord()
     }
 
     override fun observeRange(startEpochMs: Long, endEpochMs: Long): Flow<List<ScreenTimeRecord>> =
@@ -40,8 +42,14 @@ class ScreenTimeRepositoryImpl @Inject constructor(
             .map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun refresh() = withContext(dispatcher) {
+        refreshTodayRecord()
+        Unit
+    }
+
+    private suspend fun refreshTodayRecord(): ScreenTimeRecord {
         val record = usageStatsTracker.todayForeground()
         screenTimeDao.upsert(record.toEntity())
+        return record
     }
 
     private fun startOfToday(): Long {

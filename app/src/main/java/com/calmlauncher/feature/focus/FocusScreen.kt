@@ -18,8 +18,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,9 +34,6 @@ import com.calmlauncher.feature.reflection.ReflectionViewModel
 
 /** Opacity of the deliberately de-emphasised time strip at the very top of the canvas. */
 private const val DimTimeAlpha = 0.2f
-
-/** Placeholder for the top time strip — intentionally featureless to discourage glances. */
-private const val TimePlaceholder = "--:--"
 
 /**
  * Focus Mode: a pure-black, single-purpose canvas built to hold attention. On enter it
@@ -66,14 +61,6 @@ fun FocusScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Final)
-                        event.changes.forEach { it.consume() }
-                    }
-                }
-            }
             .background(CalmBlack)
     ) {
         // Bottom layer: barely-perceptible e-ink speckle, never intercepts input.
@@ -89,7 +76,7 @@ fun FocusScreen(
         ) {
             // Dimmed time strip at the very top (~20% opacity).
             Text(
-                text = TimePlaceholder,
+                text = state.remainingText,
                 style = CalmType.labelMd,
                 color = CalmWhite.copy(alpha = DimTimeAlpha),
                 textAlign = TextAlign.Center,
@@ -114,33 +101,45 @@ fun FocusScreen(
                 Text(
                     text = reflectionState.prompt,
                     style = CalmType.bodyMd,
-                color = CalmWhite.copy(alpha = 0.85f),
-                textAlign = TextAlign.Center,
+                    color = CalmWhite.copy(alpha = 0.85f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.marginMobile)
+                        .padding(top = Spacing.stackLg),
+                )
+            }
+
+            ReflectionField(
+                value = reflectionState.response,
+                onValueChange = reflectionViewModel::onResponseChange,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.marginMobile)
-                    .padding(top = Spacing.stackLg),
+                    .padding(top = Spacing.gutter),
             )
-        }
 
-        ReflectionField(
-            value = reflectionState.response,
-            onValueChange = reflectionViewModel::onResponseChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.marginMobile)
-                .padding(top = Spacing.gutter),
-        )
-
-        CalmButton(
-            text = "Save reflection",
-            onClick = reflectionViewModel::save,
-            style = CalmButtonStyle.Filled,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.marginMobile)
-                .padding(top = Spacing.gutter),
-        )
+            CalmButton(
+                text = "Save reflection",
+                onClick = reflectionViewModel::save,
+                style = CalmButtonStyle.Filled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile)
+                    .padding(top = Spacing.gutter),
+            )
+            if (reflectionState.saveStatusText.isNotBlank()) {
+                Text(
+                    text = reflectionState.saveStatusText,
+                    style = CalmType.labelMd,
+                    color = CalmWhite.copy(alpha = 0.65f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.marginMobile)
+                        .padding(top = Spacing.stackSm),
+                )
+            }
 
             Spacer(modifier = Modifier.height(Spacing.stackLg))
 

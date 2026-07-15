@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
@@ -135,7 +136,7 @@ private fun ManageAppRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(47.5.dp)
             .padding(horizontal = Spacing.base),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -147,7 +148,11 @@ private fun ManageAppRow(
         ) {
             Text(
                 text = app.label,
-                style = CalmType.labelLg,
+                style = CalmType.bodyLg.copy(
+                    fontSize = 19.sp,
+                    lineHeight = 23.sp,
+                    letterSpacing = 0.sp,
+                ),
                 color = CalmWhite,
                 maxLines = 1,
             )
@@ -194,6 +199,7 @@ private fun ManageAppsSearchField(
 ) {
     val focusManager = LocalFocusManager.current
     val textStyle = CalmType.labelMd.copy(color = CalmWhite)
+    val shape = RoundedCornerShape(percent = 50)
 
     BasicTextField(
         value = query,
@@ -207,9 +213,9 @@ private fun ManageAppsSearchField(
         decorationBox = { innerTextField ->
             Row(
                 modifier = Modifier
-                    .height(28.dp)
-                    .background(CalmSurfaceContainer, RoundedCornerShape(6.dp))
-                    .border(1.dp, CalmGrayDim, RoundedCornerShape(6.dp))
+                    .height(40.dp)
+                    .background(CalmSurfaceContainer, shape)
+                    .border(1.dp, CalmGrayDim, shape)
                     .padding(horizontal = Spacing.base),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.base),

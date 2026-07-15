@@ -44,6 +44,10 @@ class AnalyticsViewModel @Inject constructor(
     private val selectedSortOrder = MutableStateFlow(UsageSortOrder.MOST_USED)
     private val selectedDayStart = MutableStateFlow<Long?>(null)
 
+    init {
+        refresh()
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<AnalyticsUiState> = combine(
         settingsRepository.settings,
