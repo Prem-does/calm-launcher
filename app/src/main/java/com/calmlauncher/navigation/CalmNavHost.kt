@@ -120,6 +120,14 @@ fun CalmNavHost(
             }
         }
     }
+    val closeSearch: () -> Unit = {
+        if (!navController.popBackStack()) {
+            navController.navigate(Routes.HOME) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
     val goHome: () -> Unit = {
         navController.navigate(Routes.HOME) {
             popUpTo(Routes.HOME) { inclusive = true }
@@ -145,7 +153,11 @@ fun CalmNavHost(
             HomeScreen(
                 onSelectTab = selectTab,
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                onOpenSearch = {
+                    navController.navigate(Routes.SEARCH) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 
@@ -161,7 +173,7 @@ fun CalmNavHost(
         }
 
         composable(Routes.SEARCH) {
-            SearchScreen(onClose = back)
+            SearchScreen(onClose = closeSearch)
         }
 
         composable(Routes.REFLECTION) {

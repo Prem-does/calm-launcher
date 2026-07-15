@@ -18,9 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calmlauncher.core.designsystem.component.CalmBottomNav
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
+import com.calmlauncher.core.designsystem.component.HomeDockNav
 import com.calmlauncher.core.designsystem.component.HomeShortcutRow
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
@@ -60,7 +60,7 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            CalmBottomNav(
+            HomeDockNav(
                 current = Routes.HOME,
                 onSelect = onSelectTab,
             )

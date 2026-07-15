@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -23,7 +23,6 @@ import javax.inject.Inject
  * includes hidden apps so the Minimal Social Layer stays reachable by explicit intent. Opens go
  * through the [LaunchCoordinator], tagged [LaunchSource.SEARCH].
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val appRepository: AppRepository,
@@ -34,8 +33,12 @@ class SearchViewModel @Inject constructor(
     val query: StateFlow<String> = _query.asStateFlow()
 
     /** Live search results for the current [query]; includes hidden apps by design. */
-    val results: StateFlow<List<AppEntry>> = _query
-        .mapLatest { q -> appRepository.search(q) }
+    val results: StateFlow<List<AppEntry>> = combine(
+        _query,
+        appRepository.observeApps(),
+    ) { q, apps ->
+        apps.search(q)
+    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
@@ -56,4 +59,17 @@ class SearchViewModel @Inject constructor(
             source = LaunchSource.SEARCH,
         ),
     )
+
+    private fun List<AppEntry>.search(query: String): List<AppEntry> {
+        val needle = query.trim().lowercase()
+        if (needle.isEmpty()) return this
+
+        return filter { app ->
+            app.label.lowercase().contains(needle) ||
+                app.packageName.lowercase().contains(needle)
+        }.sortedWith(
+            compareByDescending<AppEntry> { it.label.lowercase().startsWith(needle) }
+                .thenBy { it.label.lowercase() },
+        )
+    }
 }

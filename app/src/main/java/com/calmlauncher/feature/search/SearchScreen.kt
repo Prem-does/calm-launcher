@@ -1,5 +1,6 @@
 package com.calmlauncher.feature.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,17 +8,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,9 +51,21 @@ fun SearchScreen(
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
+    var isClosing by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    val requestClose: () -> Unit = {
+        if (!isClosing) {
+            isClosing = true
+            focusManager.clearFocus()
+            onClose()
+        }
+    }
+
+    BackHandler(enabled = true) { requestClose() }
 
     CalmScaffold(
         modifier = modifier,
@@ -62,6 +79,7 @@ fun SearchScreen(
                     value = query,
                     onValueChange = viewModel::onQuery,
                     focusRequester = focusRequester,
+                    focusManager = focusManager,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
@@ -74,8 +92,10 @@ fun SearchScreen(
                 AppListRow(
                     label = app.label,
                     onClick = {
-                        viewModel.open(app)
-                        onClose()
+                        if (!isClosing) {
+                            viewModel.open(app)
+                            requestClose()
+                        }
                     },
                 )
             }
@@ -96,6 +116,7 @@ private fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
     focusRequester: FocusRequester,
+    focusManager: androidx.compose.ui.focus.FocusManager,
     modifier: Modifier = Modifier,
 ) {
     val textStyle: TextStyle = CalmType.bodyLg.copy(color = CalmWhite)
@@ -118,6 +139,7 @@ private fun SearchField(
         textStyle = textStyle,
         cursorBrush = androidx.compose.ui.graphics.SolidColor(CalmWhite),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
         decorationBox = { innerTextField ->
             Box(contentAlignment = Alignment.CenterStart) {
                 if (value.isEmpty()) {
