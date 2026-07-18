@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -54,6 +55,7 @@ import com.calmlauncher.core.designsystem.component.CalmButton
 import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.ThinDivider
+import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmSurfaceContainer
@@ -128,11 +130,15 @@ fun AppLimitsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(CalmBlack)
                 .padding(padding),
         ) {
-            AppLimitMetrics(
+            AppLimitHeaderCard(
                 totalMinutesUsed = state.apps.sumOf { it.usedMinutes },
                 groupsLimited = groupRows.count { (_, apps) -> apps.any { it.rule?.enabled == true } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.base, vertical = Spacing.stackSm),
             )
             ThinDivider()
             AppLimitSearchField(
@@ -146,7 +152,7 @@ fun AppLimitsScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = Spacing.stackMd),
+                contentPadding = PaddingValues(bottom = Spacing.stackMd, top = Spacing.stackSm),
             ) {
                 if (query.isBlank()) {
                     items(groupRows, key = { it.first.title }) { (group, apps) ->
@@ -217,25 +223,59 @@ fun AppLimitsScreen(
 }
 
 @Composable
-private fun AppLimitMetrics(
+private fun AppLimitHeaderCard(
     totalMinutesUsed: Int,
     groupsLimited: Int,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.base, vertical = Spacing.gutter),
-        horizontalArrangement = Arrangement.spacedBy(56.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .then(modifier)
+            .background(CalmSurfaceContainer.copy(alpha = 0.24f), RoundedCornerShape(10.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.42f), RoundedCornerShape(10.dp))
+            .padding(Spacing.base),
+        verticalArrangement = Arrangement.spacedBy(Spacing.stackSm),
     ) {
-        MetricBlock(value = formatTotalTime(totalMinutesUsed), label = "TOTAL TIME USED")
-        MetricBlock(value = groupsLimited.toString(), label = "GROUPS LIMITED")
+        Text(
+            text = "Build groups, then set one shared timer.",
+            style = CalmType.bodyLg.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+            ),
+            color = CalmWhite,
+        )
+        Text(
+            text = "Add apps like YouTube, X, and Instagram to a group such as Social, then control them with one limit.",
+            style = CalmType.labelMd.copy(fontSize = 11.sp, lineHeight = 14.sp),
+            color = CalmGray,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
+            MetricBlock(
+                value = formatTotalTime(totalMinutesUsed),
+                label = "TOTAL TIME USED",
+                modifier = Modifier.weight(1f),
+            )
+            MetricBlock(
+                value = groupsLimited.toString(),
+                label = "GROUPS LIMITED",
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
 @Composable
-private fun MetricBlock(value: String, label: String) {
-    Column {
+private fun MetricBlock(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = Modifier
+            .then(modifier)
+            .heightIn(min = 72.dp)
+            .background(CalmSurfaceContainer.copy(alpha = 0.34f), RoundedCornerShape(8.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+            .padding(horizontal = Spacing.base, vertical = Spacing.stackSm),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
         Text(
             text = value,
             style = CalmType.headlineMd.copy(
@@ -252,6 +292,32 @@ private fun MetricBlock(value: String, label: String) {
                 lineHeight = 12.sp,
                 fontWeight = FontWeight.SemiBold,
             ),
+            color = CalmGray,
+        )
+    }
+}
+
+@Composable
+private fun AppLimitIntroCard(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(CalmSurfaceContainer.copy(alpha = 0.26f), RoundedCornerShape(8.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+            .padding(horizontal = Spacing.base, vertical = Spacing.stackSm),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = "Build a shared limit group",
+            style = CalmType.bodyLg.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+            ),
+            color = CalmWhite,
+        )
+        Text(
+            text = "Pick apps like YouTube, X, and Instagram, then give the whole group one daily timer.",
+            style = CalmType.labelMd.copy(fontSize = 11.sp, lineHeight = 14.sp),
             color = CalmGray,
         )
     }
@@ -318,9 +384,16 @@ private fun AppLimitGroupRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.gutter, vertical = Spacing.gutter),
+            .padding(horizontal = Spacing.base, vertical = Spacing.stackSm),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackMd)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(Spacing.stackSm),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(CalmSurfaceContainer.copy(alpha = 0.26f), RoundedCornerShape(10.dp))
+                .border(1.dp, CalmGrayDim.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                .padding(Spacing.base),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -329,62 +402,113 @@ private fun AppLimitGroupRow(
                     Text(
                         text = group.title,
                         style = CalmType.labelMd.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 17.sp,
+                            fontSize = 14.sp,
+                            lineHeight = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                         ),
                         color = CalmWhite,
                     )
                     Text(
-                        text = groupAppSummary(apps),
+                        text = if (apps.isEmpty()) "Choose apps for this group." else groupAppSummary(apps),
                         style = CalmType.labelMd.copy(fontSize = 10.sp, lineHeight = 14.sp),
                         color = CalmGray,
-                        maxLines = 2,
+                        maxLines = 1,
                         modifier = Modifier.padding(top = 3.dp),
                     )
                 }
-                TextLimitChip(text = "ADD APPS", onClick = onAddApps)
+                AppGroupStatusChip(text = if (apps.isEmpty()) "NO APPS" else "${apps.size} APPS")
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = formatGroupLimit(apps, group),
-                    style = CalmType.headlineMd.copy(
-                        fontSize = 22.sp,
-                        lineHeight = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = CalmWhite,
-                )
-                TextLimitChip(
-                    text = if (limitedCount == 0) "SET LIMIT" else "EDIT LIMIT",
-                    onClick = onEditLimit,
-                )
+            if (apps.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.stackSm),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                ) {
+                    items(apps.take(4), key = { it.app.packageName }) { item ->
+                        AppLabelChip(text = item.app.label)
+                    }
+                    if (apps.size > 4) {
+                        item { AppLabelChip(text = "+${apps.size - 4} more") }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackSm)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column {
+                        Text(
+                            text = formatGroupLimit(apps, group),
+                            style = CalmType.headlineMd.copy(
+                                fontSize = 24.sp,
+                                lineHeight = 26.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                            color = CalmWhite,
+                        )
+                        Text(
+                            text = if (limitedCount == 0) "Timer not set" else "Shared timer active",
+                            style = CalmType.labelMd.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                            color = CalmGray,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    AppGroupStatusChip(text = if (limitedCount == 0) "LIMIT OFF" else "LIMIT ON")
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackSm)) {
+                    CalmButton(
+                        text = if (apps.isEmpty()) "ADD APPS" else "EDIT APPS",
+                        style = CalmButtonStyle.Filled,
+                        onClick = onAddApps,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    CalmButton(
+                        text = if (limitedCount == 0) "SET LIMIT" else "EDIT LIMIT",
+                        style = CalmButtonStyle.Outlined,
+                        onClick = onEditLimit,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
-        ThinDivider(modifier = Modifier.padding(top = Spacing.gutter))
     }
 }
 
 @Composable
-private fun TextLimitChip(
+private fun AppLabelChip(text: String) {
+    Box(
+        modifier = Modifier
+            .background(CalmGrayDim.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+            .padding(horizontal = Spacing.stackSm, vertical = 5.dp),
+    ) {
+        Text(
+            text = text,
+            style = CalmType.labelMd.copy(
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = CalmWhite,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun AppGroupStatusChip(
     text: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-
     Box(
         modifier = modifier
-            .widthIn(min = 68.dp)
             .height(28.dp)
-            .clip(RoundedCornerShape(0.dp))
-            .border(1.dp, CalmWhite.copy(alpha = 0.8f), RoundedCornerShape(0.dp))
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .background(CalmGrayDim.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
             .padding(horizontal = Spacing.base),
         contentAlignment = Alignment.Center,
     ) {
@@ -465,14 +589,25 @@ private fun AppLimitGroupEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = group.title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackMd)) {
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = "${selectedPackages.size} apps selected",
+                    text = group.title,
+                    style = CalmType.bodyLg.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = groupAppSummary(selectedApps),
                     style = CalmType.labelMd,
                     color = CalmGray,
                 )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackMd)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.stackSm)) {
+                    AppGroupStatusChip(text = "${selectedPackages.size} SELECTED")
+                    AppGroupStatusChip(text = formatGroupLimit(selectedApps, group))
+                }
                 OutlinedTextField(
                     value = minutesText,
                     onValueChange = { minutesText = it.filter(Char::isDigit) },
@@ -496,6 +631,24 @@ private fun AppLimitGroupEditorDialog(
                     style = CalmButtonStyle.Outlined,
                     onClick = { enabled = !enabled },
                 )
+                Text(
+                    text = "Selected apps",
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                )
+                if (selectedPackages.isEmpty()) {
+                    Text(
+                        text = "No apps chosen yet.",
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                    )
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.stackSm)) {
+                        items(selectedApps.filter { it.app.packageName in selectedPackages }, key = { it.app.packageName }) { item ->
+                            AppLabelChip(text = item.app.label)
+                        }
+                    }
+                }
                 AppLimitSearchField(
                     query = appQuery,
                     onQueryChange = { appQuery = it },
@@ -544,8 +697,10 @@ private fun AppPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(CalmSurfaceContainer.copy(alpha = 0.18f), RoundedCornerShape(8.dp))
+            .border(1.dp, CalmGrayDim.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
             .clickable { onCheckedChange(!checked) }
-            .padding(vertical = Spacing.stackSm),
+            .padding(horizontal = Spacing.stackSm, vertical = Spacing.stackSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
@@ -583,21 +738,32 @@ private fun AppLimitSearchResultRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            TextLimitChip(
+            CalmButton(
                 text = if (item.rule == null) "ADD LIMIT" else if (item.rule.enabled) "ON" else "OFF",
+                style = CalmButtonStyle.Outlined,
                 onClick = { onToggle(item.rule?.enabled?.not() ?: true) },
             )
         }
 
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Spacing.stackSm),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.base),
+            verticalArrangement = Arrangement.spacedBy(Spacing.base),
         ) {
-            TextLimitChip(text = if (item.rule == null) "SET LIMIT" else "EDIT LIMIT", onClick = onEdit)
+            CalmButton(
+                text = if (item.rule == null) "SET LIMIT" else "EDIT LIMIT",
+                style = CalmButtonStyle.Outlined,
+                onClick = onEdit,
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (item.rule != null) {
-                TextLimitChip(text = "REMOVE", onClick = onRemove)
+                CalmButton(
+                    text = "REMOVE",
+                    style = CalmButtonStyle.Outlined,
+                    onClick = onRemove,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         ThinDivider(modifier = Modifier.padding(top = Spacing.stackMd))
@@ -644,10 +810,18 @@ private fun AppLimitEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = item.app.label) },
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = item.app.label)
+                Text(
+                    text = item.app.packageName,
+                    style = CalmType.labelMd,
+                    color = CalmGray,
+                )
+            }
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.stackSm)) {
-                Text(text = item.app.packageName, style = CalmType.labelMd, color = CalmGray)
                 OutlinedTextField(
                     value = minutesText,
                     onValueChange = { minutesText = it.filter(Char::isDigit) },
