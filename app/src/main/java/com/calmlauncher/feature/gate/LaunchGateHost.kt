@@ -3,46 +3,30 @@ package com.calmlauncher.feature.gate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calmlauncher.core.designsystem.component.BreathOverlay
 import com.calmlauncher.core.designsystem.component.ConfirmDialog
 import com.calmlauncher.core.designsystem.component.CountdownOverlay
-import com.calmlauncher.core.designsystem.component.CalmButton
-import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.ReasonPrompt
-import com.calmlauncher.feature.gate.AppLimitBlockOverlay
 import com.calmlauncher.core.designsystem.theme.CalmBlack
-import com.calmlauncher.core.designsystem.theme.CalmType
-import com.calmlauncher.core.designsystem.theme.CalmWhite
-import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.FrictionStep
-import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.launcher.LaunchEffect
-import kotlinx.coroutines.delay
-
-/** How long a transient "blocked" message lingers before it gently clears. */
-private const val BlockedMessageMs = 2500L
 
 /**
  * The full-screen launch gate. Renders nothing while idle, and overlays the current
  * [FrictionStep] in a pure-black surface above the rest of the app whenever the
- * [LaunchCoordinator] has a flow in progress. It reacts to one-shot effects: a
- * dead-end routes to the reset screen, and a block surfaces a brief calming message
- * that auto-dismisses. Drop this at the top of the navigation host's content so it can
- * cover any screen.
+ * [com.calmlauncher.launcher.LaunchCoordinator] has a flow in progress. It reacts to
+ * one-shot effects: a dead-end routes to the reset screen, and either kind of block —
+ * a mode-engine refusal or an exhausted app limit — lands on a [BlockCountdownOverlay]
+ * the user has to sit through. Drop this at the top of the navigation host's content so
+ * it can cover any screen.
  */
 @Composable
 fun LaunchGateHost(
@@ -51,39 +35,55 @@ fun LaunchGateHost(
     viewModel: GateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.flow.collectAsStateWithLifecycle()
-    var blockedMessage by remember { mutableStateOf<String?>(null) }
+    var blocked by remember { mutableStateOf<LaunchEffect.Blocked?>(null) }
     var appLimitBlock by remember { mutableStateOf<LaunchEffect.AppLimitBlocked?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { eff ->
             when (eff) {
                 is LaunchEffect.DeadEnd -> onNavigateToReset()
-                is LaunchEffect.Blocked -> blockedMessage = eff.reason
+                is LaunchEffect.Blocked -> blocked = eff
                 is LaunchEffect.AppLimitBlocked -> appLimitBlock = eff
                 else -> {}
             }
         }
     }
 
-    // Clear the transient blocked message after a calm beat.
-    LaunchedEffect(blockedMessage) {
-        if (blockedMessage != null) {
-            delay(BlockedMessageMs)
-            blockedMessage = null
-        }
-    }
-
     val current = state?.current
     when {
         appLimitBlock != null -> {
-            val blocked = appLimitBlock!!
-            AppLimitBlockOverlay(
-                status = blocked.status,
-                onGrant10Min = {
-                    viewModel.coordinator.grantAppLimitOverrideAndLaunch(blocked.request, 10)
+            val limit = appLimitBlock!!
+            val status = limit.status
+            BlockCountdownOverlay(
+                seconds = LimitCountdownSeconds,
+                title = "Limit reached",
+                appLabel = status.label,
+                detail = "${status.usedMinutes}m used today of ${status.dailyLimitMinutes ?: 0}m.",
+                overrideLabel = if (status.canGrantOverride) "Add 10 minutes" else null,
+                onOverride = {
+                    viewModel.coordinator.grantAppLimitOverrideAndLaunch(limit.request, 10)
                     appLimitBlock = null
                 },
                 onDismiss = { appLimitBlock = null },
+                footnote = if (status.canGrantOverride) {
+                    null
+                } else {
+                    "Both 10-minute extensions are used up for today."
+                },
+                modifier = modifier,
+            )
+        }
+
+        // A mode-engine block (focus session / environment preset). There is no override to
+        // offer, so the countdown is simply the pause before returning to the launcher.
+        blocked != null -> {
+            val block = blocked!!
+            BlockCountdownOverlay(
+                seconds = BlockCountdownSeconds,
+                title = "Blocked",
+                appLabel = block.request.label,
+                detail = block.reason,
+                onDismiss = { blocked = null },
                 modifier = modifier,
             )
         }
@@ -99,12 +99,6 @@ fun LaunchGateHost(
                     is FrictionStep.Reason -> ReasonPrompt(
                         appLabel = state!!.request.label,
                         onSubmit = viewModel::submitReason,
-                        onCancel = viewModel::cancel,
-                    )
-
-                    is FrictionStep.Breath -> BreathOverlay(
-                        cycles = step.cycles,
-                        onComplete = viewModel::stepComplete,
                         onCancel = viewModel::cancel,
                     )
 
@@ -125,26 +119,6 @@ fun LaunchGateHost(
                     // surfaced here as in-flow steps.
                     else -> {}
                 }
-            }
-        }
-
-        // No active gate — optionally show a brief, self-dismissing blocked message.
-        blockedMessage != null -> {
-            Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .background(CalmBlack),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = blockedMessage!!,
-                    style = CalmType.bodyLg,
-                    color = CalmWhite,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .systemBarsPadding()
-                        .padding(horizontal = Spacing.marginMobile),
-                )
             }
         }
     }

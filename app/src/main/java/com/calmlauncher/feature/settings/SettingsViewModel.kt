@@ -42,7 +42,7 @@ fun EnvironmentMode.displayName(): String = when (this) {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    screenTimeRepository: ScreenTimeRepository,
+    private val screenTimeRepository: ScreenTimeRepository,
     observeRestriction: ObserveRestrictionStateUseCase,
 ) : ViewModel() {
 
@@ -52,9 +52,14 @@ class SettingsViewModel @Inject constructor(
         initialValue = LauncherSettings(),
     )
 
-    /** Today's foreground total, pre-formatted as e.g. "1h 12m today" for the row value. */
+    /**
+     * Today's foreground total, pre-formatted as e.g. "1h 12m today" for the row value —
+     * or a prompt when Usage Access hasn't been granted and the number would be a fiction.
+     */
     val screenTimeText: StateFlow<String> = screenTimeRepository.observeToday()
-        .map { "${it.format()} today" }
+        .map { record ->
+            if (screenTimeRepository.hasUsageAccess()) "${record.format()} today" else "Needs access"
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,

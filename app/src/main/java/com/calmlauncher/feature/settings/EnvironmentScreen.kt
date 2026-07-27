@@ -22,8 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmBackBar
-import com.calmlauncher.core.designsystem.component.CalmButton
-import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.SectionLabel
 import com.calmlauncher.core.designsystem.component.ThinDivider
@@ -62,7 +60,9 @@ fun EnvironmentScreen(
                     title = mode.displayName(),
                     effect = mode.effect(),
                     selected = mode == selected,
-                    onClick = { viewModel.update { it.copy(environmentMode = mode) } },
+                    // Selecting a preset applies it straight away. Picking None resets every
+                    // setting a preset can touch, so no environment character survives it.
+                    onClick = { viewModel.update { current -> current.applyEnvironmentSetup(mode) } },
                 )
             }
 
@@ -71,11 +71,6 @@ fun EnvironmentScreen(
                 mode = selected,
                 effect = selectedEffect,
                 settings = settings,
-                onApply = {
-                    viewModel.update { current ->
-                        current.applyEnvironmentSetup(selected)
-                    }
-                },
                 onCycleFocusLength = {
                     viewModel.update { current ->
                         current.copy(focusDurationMinutes = current.focusDurationMinutes.nextFocusDuration())
@@ -156,7 +151,6 @@ private fun SelectedSetupBlock(
     mode: EnvironmentMode,
     effect: EnvironmentEffect,
     settings: LauncherSettings,
-    onApply: () -> Unit,
     onCycleFocusLength: () -> Unit,
 ) {
     Column(
@@ -180,10 +174,14 @@ private fun SelectedSetupBlock(
             Text(text = "Focus Length", style = CalmType.bodyLg, color = CalmWhite, modifier = Modifier.weight(1f))
             Text(text = "${settings.focusDurationMinutes}m", style = CalmType.bodyMd, color = CalmGray)
         }
-        CalmButton(
-            text = "Apply ${mode.displayName()} Setup",
-            onClick = onApply,
-            style = CalmButtonStyle.Filled,
+        Text(
+            text = if (mode == EnvironmentMode.NONE) {
+                "No preset is active. Blocking, greyscale and friction helpers are back to your baseline."
+            } else {
+                "${mode.displayName()} is active now. Choose None to clear it."
+            },
+            style = CalmType.labelMd,
+            color = CalmGrayDim,
         )
     }
     ThinDivider()
@@ -202,7 +200,7 @@ private fun EnvironmentMode.effect(): EnvironmentEffect = when (this) {
         description = "Default launcher behavior without a context preset.",
         easy = "Your normal favorites and app list",
         blocks = "Nothing extra",
-        setup = "Clears context posture and keeps the launcher neutral.",
+        setup = "Clears every preset change — blocking, greyscale, e-ink and friction helpers all return to your baseline.",
     )
     EnvironmentMode.WORK -> EnvironmentEffect(
         description = "Keeps work tools available while obvious drift stays out of the way.",
@@ -226,7 +224,7 @@ private fun EnvironmentMode.effect(): EnvironmentEffect = when (this) {
         description = "A quiet wind-down mode for late hours.",
         easy = "Phone, messages, alarms, essentials",
         blocks = "Social, entertainment, browser, games",
-        setup = "Enables grayscale and e-ink posture, hides noisy surfaces, and uses a short 15m focus length.",
+        setup = "Enables grayscale and e-ink posture, adds opening delays, hides noisy surfaces, and uses a short 15m focus length.",
     )
     EnvironmentMode.GYM -> EnvironmentEffect(
         description = "Keeps workout utilities close without over-locking the phone.",
@@ -251,15 +249,28 @@ private fun EnvironmentMode.effect(): EnvironmentEffect = when (this) {
     )
 }
 
+/**
+ * Apply a preset's posture to the settings snapshot.
+ *
+ * [EnvironmentMode.NONE] is the inverse operation: it must clear **every** field any other
+ * preset can write, otherwise leftovers (hidden social apps, grayscale, opening delays)
+ * survive after the user goes back to no environment at all.
+ */
 private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): LauncherSettings = when (mode) {
     EnvironmentMode.NONE -> copy(
         environmentMode = mode,
+        hideSocialApps = false,
+        openingDelaysEnabled = false,
+        intentPromptEnabled = false,
+        slowModeEnabled = false,
         grayscaleEnabled = false,
         einkSimulationEnabled = false,
         showRecents = false,
         showSuggestions = false,
         focusDurationMinutes = 25,
     )
+    // Every preset below writes the same full field set, so switching between presets never
+    // leaves a previous one's helpers (slow mode, greyscale, delays) silently switched on.
     EnvironmentMode.WORK -> copy(
         environmentMode = mode,
         hideSocialApps = true,
@@ -267,6 +278,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         showSuggestions = false,
         openingDelaysEnabled = true,
         intentPromptEnabled = true,
+        slowModeEnabled = false,
+        grayscaleEnabled = false,
+        einkSimulationEnabled = false,
         focusDurationMinutes = 45,
     )
     EnvironmentMode.STUDY -> copy(
@@ -276,6 +290,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         showSuggestions = false,
         openingDelaysEnabled = true,
         intentPromptEnabled = true,
+        slowModeEnabled = false,
+        grayscaleEnabled = false,
+        einkSimulationEnabled = false,
         focusDurationMinutes = 50,
     )
     EnvironmentMode.DEEP_WORK -> copy(
@@ -285,8 +302,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         showSuggestions = false,
         openingDelaysEnabled = true,
         intentPromptEnabled = true,
-        breathUnlockEnabled = true,
         slowModeEnabled = true,
+        grayscaleEnabled = false,
+        einkSimulationEnabled = false,
         focusDurationMinutes = 90,
     )
     EnvironmentMode.SLEEP -> copy(
@@ -294,10 +312,11 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         hideSocialApps = true,
         showRecents = false,
         showSuggestions = false,
+        openingDelaysEnabled = true,
+        intentPromptEnabled = false,
+        slowModeEnabled = false,
         grayscaleEnabled = true,
         einkSimulationEnabled = true,
-        openingDelaysEnabled = true,
-        breathUnlockEnabled = true,
         focusDurationMinutes = 15,
     )
     EnvironmentMode.GYM -> copy(
@@ -305,6 +324,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         hideSocialApps = true,
         showRecents = false,
         showSuggestions = false,
+        openingDelaysEnabled = false,
+        intentPromptEnabled = false,
+        slowModeEnabled = false,
         grayscaleEnabled = false,
         einkSimulationEnabled = false,
         focusDurationMinutes = 45,
@@ -314,6 +336,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         hideSocialApps = true,
         showRecents = false,
         showSuggestions = false,
+        openingDelaysEnabled = false,
+        intentPromptEnabled = false,
+        slowModeEnabled = false,
         grayscaleEnabled = false,
         einkSimulationEnabled = false,
         focusDurationMinutes = 30,
@@ -323,6 +348,9 @@ private fun LauncherSettings.applyEnvironmentSetup(mode: EnvironmentMode): Launc
         hideSocialApps = true,
         showRecents = false,
         showSuggestions = false,
+        openingDelaysEnabled = false,
+        intentPromptEnabled = false,
+        slowModeEnabled = false,
         grayscaleEnabled = false,
         einkSimulationEnabled = false,
         focusDurationMinutes = 30,

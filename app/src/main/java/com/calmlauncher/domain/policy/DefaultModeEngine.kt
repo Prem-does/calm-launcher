@@ -58,17 +58,12 @@ class DefaultModeEngine @Inject constructor() : ModeEngine {
 
         // ---- 3. Intent prompt (Intent-Based App Opening) --------------------------------
         if (settings.intentPromptEnabled &&
-            (distracting || settings.frictionLevel >= FrictionLevel.MONK || analog)
+            (distracting || settings.frictionLevel >= FrictionLevel.MEDIUM || analog)
         ) {
             steps += FrictionStep.Reason
         }
 
-        // ---- 4. Breath Unlock -----------------------------------------------------------
-        if (settings.breathUnlockEnabled) {
-            steps += FrictionStep.Breath(FrictionRules.breathCycles(settings.frictionLevel))
-        }
-
-        // ---- 5. Opening Delay / Slow Mode / friction tier -------------------------------
+        // ---- 4. Opening Delay / Slow Mode / friction tier -------------------------------
         if (settings.openingDelaysEnabled) {
             val seconds = FrictionRules.delaySeconds(
                 baseDelaySeconds = settings.defaultOpenDelaySeconds,
@@ -80,12 +75,12 @@ class DefaultModeEngine @Inject constructor() : ModeEngine {
             if (seconds > 0) steps += FrictionStep.Delay(seconds)
         }
 
-        // ---- 6. Confirmation (HARDCORE only, distracting apps) --------------------------
+        // ---- 5. Confirmation (HARDCORE only, distracting apps) --------------------------
         if (settings.frictionLevel == FrictionLevel.HARDCORE && distracting) {
             steps += FrictionStep.Confirm("Open ${request.label} anyway?")
         }
 
-        // ---- 7. Fast path: nothing to do → open immediately -----------------------------
+        // ---- 6. Fast path: nothing to do → open immediately -----------------------------
         // (An empty step list already equals LaunchDecision.Allow; returned for clarity.)
         return if (steps.isEmpty()) LaunchDecision.Allow else LaunchDecision(steps)
     }
@@ -95,19 +90,27 @@ class DefaultModeEngine @Inject constructor() : ModeEngine {
         risk: RiskState,
     ): UiRestrictionState {
         val tier = risk.tier
-        val atElevatedOrAbove = tier >= RiskTier.ELEVATED
 
-        // Grayscale: user toggle, or forced when usage looks high/needs recovery.
-        val grayscale = settings.grayscaleEnabled || tier == RiskTier.HIGH || tier == RiskTier.RECOVERY
+        // Every risk-driven escalation below is gated on the toggle that owns it. Turning a
+        // feature off in Settings must genuinely stop it — a rising risk tier is never allowed
+        // to re-enable behaviour the user has switched off.
+        val recoveryActive = settings.recoveryModeEnabled && tier == RiskTier.RECOVERY
+        val dynamicMinimalismActive = settings.dynamicMinimalismEnabled
+        val escalating = dynamicMinimalismActive && tier >= RiskTier.ELEVATED
+
+        // Grayscale: the user toggle always wins. Dopamine Detection is what may additionally
+        // drain colour as usage climbs, so it only happens while that feature is enabled.
+        val autoGrayscale = settings.dopamineDetectionEnabled &&
+            (tier == RiskTier.HIGH || recoveryActive)
+        val grayscale = settings.grayscaleEnabled || autoGrayscale
         val grayscaleAmount = when {
-            tier == RiskTier.RECOVERY -> 1f          // fully drained in Recovery Mode
-            tier == RiskTier.HIGH -> 0.6f            // mostly desaturated when risk is HIGH
-            settings.grayscaleEnabled -> 1f          // user explicitly asked for grayscale
+            settings.grayscaleEnabled -> 1f                  // user explicitly asked for grayscale
+            autoGrayscale && recoveryActive -> 1f            // fully drained in Recovery Mode
+            autoGrayscale -> 0.6f                            // mostly desaturated when risk is HIGH
             else -> 0f
         }
 
         // Dynamic Minimalism only escalates when the user has opted into it.
-        val dynamicMinimalismActive = settings.dynamicMinimalismEnabled
         val minimalismLevel = if (dynamicMinimalismActive) {
             when (tier) {
                 RiskTier.CALM -> 0
@@ -119,14 +122,16 @@ class DefaultModeEngine @Inject constructor() : ModeEngine {
             0
         }
 
-        // Hide suggestions/recents per settings, and additionally as risk climbs.
-        val hideSuggestions = !settings.showSuggestions || (dynamicMinimalismActive && atElevatedOrAbove)
-        val hideRecents = !settings.showRecents || atElevatedOrAbove
+        // Hide suggestions/recents per settings, and additionally as risk climbs — but only
+        // while Dynamic Minimalism is on. With it off, the plain Show Recents/Suggestions
+        // preference is the only thing that decides.
+        val hideSuggestions = !settings.showSuggestions || escalating
+        val hideRecents = !settings.showRecents || escalating
 
-        // E-ink simulation kills motion; Recovery also stills the interface.
-        val motionEnabled = !settings.einkSimulationEnabled && tier != RiskTier.RECOVERY
+        // E-ink simulation kills motion; Recovery also stills the interface when enabled.
+        val motionEnabled = !settings.einkSimulationEnabled && !recoveryActive
 
-        val forceFocusSuggested = settings.recoveryModeEnabled && tier == RiskTier.RECOVERY
+        val forceFocusSuggested = recoveryActive
 
         return UiRestrictionState(
             grayscale = grayscale,

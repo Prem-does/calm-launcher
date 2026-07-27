@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -21,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.AlphabetSideIndex
+import com.calmlauncher.core.designsystem.component.AppAction
+import com.calmlauncher.core.designsystem.component.AppActionSheet
 import com.calmlauncher.core.designsystem.component.CalmBottomNav
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
@@ -35,7 +40,8 @@ import com.calmlauncher.navigation.Routes
 /**
  * The App List: a sparse, centered, text-only drawer of launchable apps. It intentionally
  * avoids icons, badges and secondary metadata so each app name reads like one deliberate choice.
- * Taps open through the friction pipeline; long-press opens settings.
+ * Taps open through the friction pipeline; long-press opens the shared app menu, which is
+ * where an app is pinned to or unpinned from Home.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,6 +54,9 @@ fun AppListScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val alphabetIndex = rememberAlphabetIndex(state.apps) { it.label }
+    // Long-press opens the shared app menu rather than jumping straight to Settings, so
+    // pinning is reachable from the drawer without a detour through Manage Apps.
+    var actionTarget by remember { mutableStateOf<AppEntry?>(null) }
 
     CalmScaffold(
         modifier = modifier,
@@ -86,7 +95,7 @@ fun AppListScreen(
                         AppMenuLabel(
                             app = app,
                             onClick = { viewModel.open(app) },
-                            onLongClick = { onOpenSettings() },
+                            onLongClick = { actionTarget = app },
                         )
                     }
                 }
@@ -98,6 +107,29 @@ fun AppListScreen(
                 )
             }
         }
+    }
+
+    actionTarget?.let { app ->
+        AppActionSheet(
+            appLabel = app.label,
+            actions = listOf(
+                AppAction(
+                    label = if (app.isFavorite) "Remove from Home" else "Add to Home",
+                    onClick = {
+                        viewModel.setFavorite(app, !app.isFavorite)
+                        actionTarget = null
+                    },
+                ),
+                AppAction(
+                    label = "Settings",
+                    onClick = {
+                        actionTarget = null
+                        onOpenSettings()
+                    },
+                ),
+            ),
+            onDismiss = { actionTarget = null },
+        )
     }
 }
 

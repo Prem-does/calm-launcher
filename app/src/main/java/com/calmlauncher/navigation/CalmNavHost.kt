@@ -32,6 +32,7 @@ import com.calmlauncher.feature.gate.LaunchGateHost
 import com.calmlauncher.feature.home.HomeScreen
 import com.calmlauncher.feature.onboarding.OnboardingScreen
 import com.calmlauncher.feature.reflection.ReflectionScreen
+import com.calmlauncher.feature.reminders.RemindersScreen
 import com.calmlauncher.feature.reset.DeadEndResetScreen
 import com.calmlauncher.feature.search.SearchScreen
 import com.calmlauncher.feature.settings.EnvironmentScreen
@@ -158,6 +159,7 @@ fun CalmNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenEnvironment = { navController.navigate(Routes.SETTINGS_ENVIRONMENT) },
             )
         }
 
@@ -193,6 +195,7 @@ fun CalmNavHost(
                 onOpenFriction = { navController.navigate(Routes.SETTINGS_FRICTION) },
                 onOpenEnvironment = { navController.navigate(Routes.SETTINGS_ENVIRONMENT) },
                 onOpenReflection = { navController.navigate(Routes.REFLECTION) },
+                onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
             )
         }
 
@@ -201,5 +204,6 @@ fun CalmNavHost(
         composable(Routes.SETTINGS_APP_LIMITS) { AppLimitsScreen(onBack = back) }
         composable(Routes.SETTINGS_FRICTION) { FrictionScreen(onBack = back) }
         composable(Routes.SETTINGS_ENVIRONMENT) { EnvironmentScreen(onBack = back) }
+        composable(Routes.SETTINGS_REMINDERS) { RemindersScreen(onBack = back) }
     }
 }

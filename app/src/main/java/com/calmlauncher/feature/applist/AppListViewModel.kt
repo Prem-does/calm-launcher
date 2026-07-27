@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -32,7 +33,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class AppListViewModel @Inject constructor(
-    appRepository: AppRepository,
+    private val appRepository: AppRepository,
     settingsRepository: SettingsRepository,
     filterApps: FilterAppsUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
@@ -85,6 +86,11 @@ class AppListViewModel @Inject constructor(
             source = LaunchSource.APP_LIST,
         ),
     )
+
+    /** Pin or unpin an app from the home screen, straight from the drawer's long-press menu. */
+    fun setFavorite(app: AppEntry, favorite: Boolean) {
+        viewModelScope.launch { appRepository.setFavorite(app.packageName, favorite) }
+    }
 
     /** Resolve the app icon for [packageName] (ICONS display mode), or null if unavailable. */
     fun iconFor(packageName: String): Drawable? = catalog.loadIcon(packageName)

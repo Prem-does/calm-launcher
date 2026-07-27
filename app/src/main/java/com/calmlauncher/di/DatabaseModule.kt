@@ -5,9 +5,11 @@ import androidx.room.Room
 import com.calmlauncher.data.db.AnalyticsDao
 import com.calmlauncher.data.db.AppMetaDao
 import com.calmlauncher.data.db.AppLimitDao
+import com.calmlauncher.data.db.CALM_MIGRATIONS
 import com.calmlauncher.data.db.CalmDatabase
 import com.calmlauncher.data.db.LaunchEventDao
 import com.calmlauncher.data.db.ReflectionDao
+import com.calmlauncher.data.db.ReminderDao
 import com.calmlauncher.data.db.RiskStateDao
 import com.calmlauncher.data.db.ScreenTimeDao
 import dagger.Module
@@ -30,6 +32,9 @@ object DatabaseModule {
         CalmDatabase::class.java,
         CalmDatabase.NAME,
     )
+        // Real migrations first, so an additive schema change keeps the user's history.
+        // The destructive fallback stays as a last resort for versions with no path.
+        .addMigrations(*CALM_MIGRATIONS)
         .fallbackToDestructiveMigration()
         .build()
 
@@ -47,6 +52,9 @@ object DatabaseModule {
 
     @Provides
     fun provideReflectionDao(db: CalmDatabase): ReflectionDao = db.reflectionDao()
+
+    @Provides
+    fun provideReminderDao(db: CalmDatabase): ReminderDao = db.reminderDao()
 
     @Provides
     fun provideScreenTimeDao(db: CalmDatabase): ScreenTimeDao = db.screenTimeDao()

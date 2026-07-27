@@ -82,6 +82,7 @@ fun SettingsScreen(
     onOpenFriction: () -> Unit,
     onOpenEnvironment: () -> Unit,
     onOpenReflection: () -> Unit,
+    onOpenReminders: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -111,11 +112,19 @@ fun SettingsScreen(
             SettingRow("Manage Apps", onClick = onOpenManageApps, showChevron = true)
             SettingRow("Screen Time", value = screenTimeText, onClick = onOpenScreenTime)
             SettingRow("App Limits", onClick = onOpenAppLimits, showChevron = true)
+            SettingRow("Reminders", onClick = onOpenReminders, showChevron = true)
             SettingRow("Reflection", onClick = onOpenReflection, showChevron = true)
             SettingRow(
                 title = "Environment",
                 value = settings.environmentMode.displayName(),
                 onClick = onOpenEnvironment,
+            )
+            // Every delay/intent control now lives behind this one row, so the value it
+            // shows is the whole story rather than one setting out of five.
+            SettingRow(
+                title = "Friction",
+                value = settings.frictionLevel.name.lowercase().replaceFirstChar { it.uppercase() },
+                onClick = onOpenFriction,
             )
 
             // --- Display -----------------------------------------------------------------
@@ -148,10 +157,19 @@ fun SettingsScreen(
             )
 
             if (appearanceExpanded.value) {
-                // Greyscale redirects to system color correction settings (accessibility)
+                // Greyscale is an in-app toggle so the state shown here is the state that
+                // applies. Device-wide greyscale is a separate, explicit trip to Accessibility.
                 SettingRow(
                     title = "Greyscale",
-                    value = if (settings.grayscaleEnabled) "On" else "Off",
+                    trailing = {
+                        CalmToggle(settings.grayscaleEnabled) { checked ->
+                            viewModel.update { it.copy(grayscaleEnabled = checked) }
+                        }
+                    },
+                )
+
+                SettingRow(
+                    title = "System-wide Greyscale",
                     onClick = {
                         val opened = openColorCorrectionSettings(context)
                         if (!opened) {
@@ -182,16 +200,6 @@ fun SettingsScreen(
                 },
             )
 
-            // --- Friction ----------------------------------------------------------------
-            SectionLabel("Friction")
-            SettingRow(
-                title = "Friction Level",
-                value = settings.frictionLevel.name.lowercase().replaceFirstChar { it.uppercase() },
-                onClick = onOpenFriction,
-            )
-
-            // Advanced friction controls moved into Advanced section below.
-
             // --- Modes -------------------------------------------------------------------
             SectionLabel("Modes")
             SettingRow(
@@ -210,7 +218,6 @@ fun SettingsScreen(
                     }
                 },
             )
-            // Experimental/advanced behavior moved to Advanced section below.
 
             // --- Advanced (expandable) --------------------------------------------------
             SectionLabel("Advanced")

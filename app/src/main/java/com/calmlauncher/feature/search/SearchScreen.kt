@@ -32,6 +32,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
+import com.calmlauncher.core.designsystem.component.AppAction
+import com.calmlauncher.core.designsystem.component.AppActionSheet
 import com.calmlauncher.core.designsystem.component.AppListRow
 import com.calmlauncher.core.designsystem.component.CalmBackBar
 import com.calmlauncher.core.designsystem.component.CalmScaffold
@@ -39,6 +41,7 @@ import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
+import com.calmlauncher.domain.model.AppEntry
 
 /**
  * The Search screen: a single, autofocused query field styled with a bottom border only,
@@ -55,6 +58,7 @@ fun SearchScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     var isClosing by remember { mutableStateOf(false) }
+    var actionTarget by remember { mutableStateOf<AppEntry?>(null) }
     val focusManager = LocalFocusManager.current
 
     val focusRequester = remember { FocusRequester() }
@@ -112,9 +116,38 @@ fun SearchScreen(
                             requestClose()
                         }
                     },
+                    onLongClick = { actionTarget = app },
                 )
             }
         }
+    }
+
+    // Search lists every app, favourited or not, so this is the surface where a pin can
+    // always be undone.
+    actionTarget?.let { app ->
+        AppActionSheet(
+            appLabel = app.label,
+            actions = listOf(
+                AppAction(
+                    label = if (app.isFavorite) "Remove from Home" else "Add to Home",
+                    onClick = {
+                        viewModel.setFavorite(app, !app.isFavorite)
+                        actionTarget = null
+                    },
+                ),
+                AppAction(
+                    label = "Open",
+                    onClick = {
+                        actionTarget = null
+                        if (!isClosing) {
+                            viewModel.open(app)
+                            requestClose()
+                        }
+                    },
+                ),
+            ),
+            onDismiss = { actionTarget = null },
+        )
     }
 }
 

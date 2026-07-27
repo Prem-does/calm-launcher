@@ -10,7 +10,7 @@ import com.calmlauncher.domain.model.UiRestrictionState
 
 /**
  * The heart of the launcher. Every app open flows through [resolve], which composes
- * all enabled modes (friction tiers, slow/analog, breath, intent prompt, focus rules,
+ * all enabled modes (friction tiers, slow/analog, intent prompt, focus rules,
  * dead-end feeds, one-app-at-a-time, environment & recovery) into an ordered
  * [LaunchDecision]. [restrictionState] derives the observable UI posture (grayscale,
  * minimalism, motion, hidden surfaces) for every screen.

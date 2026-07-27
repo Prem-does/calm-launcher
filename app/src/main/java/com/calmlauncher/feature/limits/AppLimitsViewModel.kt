@@ -8,16 +8,15 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppEntry
-import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
 import com.calmlauncher.domain.model.AppLimitRule
-import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
-import com.calmlauncher.domain.model.AppLimitUsage
 import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.AppRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -27,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import com.calmlauncher.work.AppLimitEnforceWorker
 import javax.inject.Inject
 
+/** A single app row: its rule (if any), today's usage, and whether it's currently blocked. */
 data class AppLimitRowUiState(
     val app: AppEntry,
     val rule: AppLimitRule?,
@@ -35,12 +35,67 @@ data class AppLimitRowUiState(
     val overrideActive: Boolean,
 ) {
     val limitMinutes: Int? get() = rule?.dailyLimitMinutes
+
+    /** Minutes left today, or null when this app has no active limit. */
+    val remainingMinutes: Int?
+        get() = rule?.takeIf { it.enabled }?.let { (it.dailyLimitMinutes - usedMinutes).coerceAtLeast(0) }
+}
+
+/**
+ * One limit group as the screen renders it. Everything here is derived from real rules and
+ * real usage — a group with no rule reports `limitMinutes = null` rather than borrowing a
+ * suggested default, so the UI can never claim a limit that isn't actually in force.
+ */
+data class AppLimitGroupUiState(
+    val id: String,
+    val title: String,
+    val apps: List<AppLimitRowUiState>,
+    val limitMinutes: Int?,
+    val limitEnabled: Boolean,
+    val usedMinutes: Int,
+    val suggestedLimitMinutes: Int,
+) {
+    val hasLimit: Boolean get() = limitMinutes != null
+    val remainingMinutes: Int?
+        get() = limitMinutes?.takeIf { limitEnabled }?.let { (it - usedMinutes).coerceAtLeast(0) }
 }
 
 data class AppLimitsUiState(
     val summary: AppLimitSummary = AppLimitSummary(),
+    val usageAccessGranted: Boolean = true,
     val apps: List<AppLimitRowUiState> = emptyList(),
-    val groupAssignments: Map<String, String> = emptyMap(),
+    val groups: List<AppLimitGroupUiState> = emptyList(),
+) {
+    /** Time spent today in apps that actually sit under an enabled limit. */
+    val limitedMinutesUsed: Int
+        get() = groups.filter { it.limitEnabled }.sumOf { it.usedMinutes }
+
+    val groupsLimited: Int get() = groups.count { it.limitEnabled }
+}
+
+/** Static group definitions: title, the categories that seed it, and a sensible starting limit. */
+private data class GroupDefinition(
+    val id: String,
+    val title: String,
+    val categories: Set<AppCategory>,
+    val suggestedLimitMinutes: Int,
+)
+
+private val GroupDefinitions = listOf(
+    GroupDefinition("social", "Social Group", setOf(AppCategory.SOCIAL), 30),
+    GroupDefinition(
+        "entertainment",
+        "Entertainment Group",
+        setOf(AppCategory.ENTERTAINMENT, AppCategory.GAME),
+        60,
+    ),
+    GroupDefinition("browser", "Web Browser", setOf(AppCategory.BROWSER), 45),
+    GroupDefinition(
+        "information",
+        "Information Group",
+        setOf(AppCategory.COMMUNICATION, AppCategory.TOOL, AppCategory.OTHER),
+        60,
+    ),
 )
 
 @HiltViewModel
@@ -52,13 +107,15 @@ class AppLimitsViewModel @Inject constructor(
 
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
 
+    private val usageAccessGranted = MutableStateFlow(appLimitRepository.hasUsageAccess())
+
     private val apps = appRepository.observeApps()
     private val rules = appLimitRepository.observeRules()
     private val groupAssignments = appLimitRepository.observeGroupAssignments()
     private val usage = appLimitRepository.observeTodayUsage()
     private val events = appLimitRepository.observeTodayEvents()
 
-    val uiState: StateFlow<AppLimitsUiState> = combine(
+    private val limitData = combine(
         apps,
         rules,
         groupAssignments,
@@ -68,8 +125,22 @@ class AppLimitsViewModel @Inject constructor(
         val ruleByPackage = rules.associateBy { it.packageName }
         val usageByPackage = usage.associateBy { it.packageName }
         val blockedEvents = events.filter { it.eventType == AppLimitEventType.BLOCKED }
+        val blockedPackages = blockedEvents.map { it.packageName }.toSet()
         val blockedCounts = blockedEvents.groupingBy { it.packageName }.eachCount()
         val top = blockedCounts.maxByOrNull { it.value }
+        val assignmentByPackage = groupAssignments.associate { it.packageName to it.groupId }
+        val now = System.currentTimeMillis()
+
+        val rows = apps.map { app ->
+            val rule = ruleByPackage[app.packageName]
+            AppLimitRowUiState(
+                app = app,
+                rule = rule,
+                usedMinutes = ((usageByPackage[app.packageName]?.usedMs ?: 0L) / 60_000L).toInt(),
+                blockedToday = app.packageName in blockedPackages,
+                overrideActive = (rule?.overrideUntilEpochMs ?: 0L) > now,
+            )
+        }
 
         AppLimitsUiState(
             summary = AppLimitSummary(
@@ -79,19 +150,16 @@ class AppLimitsViewModel @Inject constructor(
                 topLimitedPackage = top?.key,
                 topLimitedCount = top?.value ?: 0,
             ),
-            apps = apps.map { app ->
-                val rule = ruleByPackage[app.packageName]
-                val usedMinutes = ((usageByPackage[app.packageName]?.usedMs ?: 0L) / 60_000L).toInt()
-                AppLimitRowUiState(
-                    app = app,
-                    rule = rule,
-                    usedMinutes = usedMinutes,
-                    blockedToday = blockedEvents.any { it.packageName == app.packageName },
-                    overrideActive = rule?.overrideUntilEpochMs?.let { it > System.currentTimeMillis() } == true,
-                )
-            },
-            groupAssignments = groupAssignments.associate { it.packageName to it.groupId },
+            apps = rows,
+            groups = buildGroups(rows, assignmentByPackage),
         )
+    }
+
+    val uiState: StateFlow<AppLimitsUiState> = combine(
+        limitData,
+        usageAccessGranted,
+    ) { data, granted ->
+        data.copy(usageAccessGranted = granted)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -99,7 +167,53 @@ class AppLimitsViewModel @Inject constructor(
     )
 
     init {
-        viewModelScope.launch { appLimitRepository.refreshUsageSnapshot() }
+        refresh()
+    }
+
+    /**
+     * Re-read usage from the system. Called on every screen resume, because usage accrues
+     * while the user is inside the app they limited — a snapshot taken once at construction
+     * is stale by the time they come back to look at it.
+     */
+    fun refresh() {
+        usageAccessGranted.value = appLimitRepository.hasUsageAccess()
+        viewModelScope.launch {
+            appLimitRepository.refreshUsageSnapshot()
+            usageAccessGranted.value = appLimitRepository.hasUsageAccess()
+        }
+    }
+
+    /**
+     * Assemble each group from its explicitly-assigned apps, falling back to category
+     * matching for groups the user has never edited. Apps assigned to another group are
+     * excluded from the fallback so they never appear in two groups at once.
+     */
+    private fun buildGroups(
+        rows: List<AppLimitRowUiState>,
+        assignmentByPackage: Map<String, String>,
+    ): List<AppLimitGroupUiState> = GroupDefinitions.map { definition ->
+        val assigned = rows.filter { assignmentByPackage[it.app.packageName] == definition.id }
+        val members = assigned.ifEmpty {
+            rows.filter { row ->
+                row.app.category in definition.categories &&
+                    assignmentByPackage[row.app.packageName] == null
+            }
+        }
+
+        // The shared timer is whatever the group's enabled rules agree on; if none are
+        // enabled, fall back to a configured-but-off rule so editing shows the saved value.
+        val activeRule = members.firstOrNull { it.rule?.enabled == true }?.rule
+        val anyRule = activeRule ?: members.firstOrNull { it.rule != null }?.rule
+
+        AppLimitGroupUiState(
+            id = definition.id,
+            title = definition.title,
+            apps = members,
+            limitMinutes = anyRule?.dailyLimitMinutes,
+            limitEnabled = activeRule != null,
+            usedMinutes = members.sumOf { it.usedMinutes },
+            suggestedLimitMinutes = definition.suggestedLimitMinutes,
+        )
     }
 
     fun saveLimit(packageName: String, enabled: Boolean, limitMinutes: Int) {
@@ -118,9 +232,21 @@ class AppLimitsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Save a group's membership and its single shared timer. Apps removed from the group
+     * lose their rule outright — otherwise unchecking an app would leave it silently limited
+     * by a group it no longer belongs to.
+     */
     fun saveGroupLimit(groupId: String, packageNames: Set<String>, enabled: Boolean, limitMinutes: Int) {
         viewModelScope.launch {
+            val previous = appLimitRepository.packagesInGroup(groupId)
             appLimitRepository.saveGroupAssignments(groupId, packageNames)
+
+            (previous - packageNames).forEach { removed ->
+                appLimitRepository.deleteRule(removed)
+                cancelEnforceWork(removed)
+            }
+
             packageNames.forEach { packageName ->
                 appLimitRepository.saveRule(
                     AppLimitRule(
@@ -130,7 +256,24 @@ class AppLimitsViewModel @Inject constructor(
                         updatedAtEpochMs = System.currentTimeMillis(),
                     ),
                 )
-                if (enabled) scheduleEnforceForPreset(packageName, limitMinutes)
+                if (enabled) scheduleEnforceForPreset(packageName, limitMinutes) else cancelEnforceWork(packageName)
+            }
+            appLimitRepository.refreshUsageSnapshot()
+        }
+    }
+
+    /** Turn a whole group's shared timer on or off without touching its membership. */
+    fun setGroupEnabled(group: AppLimitGroupUiState, enabled: Boolean) {
+        val limit = group.limitMinutes ?: group.suggestedLimitMinutes
+        saveGroupLimit(group.id, group.apps.map { it.app.packageName }.toSet(), enabled, limit)
+    }
+
+    /** Remove a group's shared timer entirely, leaving the apps unlimited. */
+    fun clearGroupLimit(group: AppLimitGroupUiState) {
+        viewModelScope.launch {
+            group.apps.forEach { row ->
+                appLimitRepository.deleteRule(row.app.packageName)
+                cancelEnforceWork(row.app.packageName)
             }
             appLimitRepository.refreshUsageSnapshot()
         }
@@ -178,6 +321,7 @@ class AppLimitsViewModel @Inject constructor(
             val limitMs = limitMinutes * 60_000L
             val remaining = (limitMs - usedMs).coerceAtLeast(0L)
             scheduleEnforceWork(packageName, remaining)
+            appLimitRepository.scheduleApproachAlarms(packageName)
         }
     }
 

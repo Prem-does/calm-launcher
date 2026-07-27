@@ -8,9 +8,11 @@ import com.calmlauncher.data.system.ClockTicker
 import com.calmlauncher.data.system.ConnectivityObserver
 import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLaunchRequest
+import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.domain.model.LaunchSource
 import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.ScreenTimeRepository
+import com.calmlauncher.domain.repository.SettingsRepository
 import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import com.calmlauncher.launcher.LaunchCoordinator
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -33,10 +36,11 @@ class HomeViewModel @Inject constructor(
     clockTicker: ClockTicker,
     batteryObserver: BatteryObserver,
     connectivityObserver: ConnectivityObserver,
-    appRepository: AppRepository,
-    screenTimeRepository: ScreenTimeRepository,
+    settingsRepository: SettingsRepository,
+    private val screenTimeRepository: ScreenTimeRepository,
     buildInsights: BuildInsightsUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
+    private val appRepository: AppRepository,
     private val launchCoordinator: LaunchCoordinator,
 ) : ViewModel() {
 
@@ -50,20 +54,27 @@ class HomeViewModel @Inject constructor(
 
     private val battery = batteryObserver.status.map { "${it.percent}%" }
 
+    // Without Usage Access the reading is always "0m today", which reads as a real number
+    // rather than a missing permission. Say what's actually wrong instead.
     private val screenTime = screenTimeRepository.observeToday().map { record ->
-        "${record.format()} today"
+        if (screenTimeRepository.hasUsageAccess()) {
+            "${record.format()} today"
+        } else {
+            "Screen time needs Usage Access"
+        }
     }
 
     private val topInsight = buildInsights().map { it.firstOrNull()?.text }
 
-    // combine() takes at most 5 flows directly; group the system streams into one combine,
-    // then fold that together with the remaining flows in an outer combine.
+    // combine() takes at most 5 flows directly; group the system/status streams into one
+    // combine, then fold that together with the remaining flows in an outer combine.
     private val system = combine(
         clock,
         battery,
         connectivityObserver.signal,
-    ) { clockText, batteryText, signalText ->
-        Triple(clockText, batteryText, signalText)
+        settingsRepository.settings.map { it.environmentMode },
+    ) { clockText, batteryText, signalText, environment ->
+        SystemShell(clockText, batteryText, signalText, environment)
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -72,13 +83,14 @@ class HomeViewModel @Inject constructor(
         appRepository.observeFavorites(),
         topInsight,
         observeRestriction(),
-    ) { (clockText, batteryText, signalText), screenTimeText, favorites, insight, restriction ->
+    ) { shell, screenTimeText, favorites, insight, restriction ->
         HomeUiState(
-            time = clockText.time,
-            date = clockText.date,
+            time = shell.clock.time,
+            date = shell.clock.date,
             screenTimeText = screenTimeText,
-            batteryText = batteryText,
-            signalText = signalText,
+            batteryText = shell.battery,
+            signalText = shell.signal,
+            environmentMode = shell.environment,
             favorites = favorites,
             insight = insight,
             restriction = restriction,
@@ -99,5 +111,17 @@ class HomeViewModel @Inject constructor(
         ),
     )
 
+    /** Unpin a shortcut straight from Home (long-press). Reversible in Manage Apps. */
+    fun unpin(app: AppEntry) {
+        viewModelScope.launch { appRepository.setFavorite(app.packageName, false) }
+    }
+
     private data class ClockText(val time: String, val date: String)
+
+    private data class SystemShell(
+        val clock: ClockText,
+        val battery: String,
+        val signal: String,
+        val environment: EnvironmentMode,
+    )
 }

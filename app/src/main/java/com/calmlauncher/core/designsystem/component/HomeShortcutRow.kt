@@ -1,6 +1,7 @@
 package com.calmlauncher.core.designsystem.component
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,23 +20,27 @@ import com.calmlauncher.core.designsystem.theme.Spacing
 /**
  * An oversized favorite shortcut for the home screen. [label] is rendered in
  * [CalmAppNameTextStyle] with [Spacing.base] vertical padding. Tap has no ripple,
- * matching the home list in the Stitch reference.
+ * matching the home list in the Stitch reference. A long-press invokes [onLongClick],
+ * which the home screen uses to unpin the shortcut without a trip through Manage Apps.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeShortcutRow(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
+                .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
                     onClick = onClick,
+                    onLongClick = onLongClick,
                 )
                 .padding(vertical = Spacing.base),
             verticalAlignment = Alignment.CenterVertically,

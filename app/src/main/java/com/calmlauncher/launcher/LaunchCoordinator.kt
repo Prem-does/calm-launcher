@@ -7,6 +7,7 @@ import com.calmlauncher.domain.model.LaunchEvent
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.service.AppLauncher
 import com.calmlauncher.domain.repository.AppLimitRepository
+import com.calmlauncher.domain.repository.SettingsRepository
 import com.calmlauncher.domain.usecase.RecordLaunchUseCase
 import com.calmlauncher.domain.usecase.EvaluateAppLimitUseCase
 import com.calmlauncher.domain.usecase.ResolveLaunchDecisionUseCase
@@ -32,7 +33,8 @@ data class LaunchFlowState(
 
 /** One-shot effects the root reacts to (navigate to reset, show a blocked message). */
 sealed interface LaunchEffect {
-    data class Blocked(val reason: String) : LaunchEffect
+    /** Carries the request so the gate can name the app it just refused, not just the reason. */
+    data class Blocked(val request: AppLaunchRequest, val reason: String) : LaunchEffect
     data class DeadEnd(val request: AppLaunchRequest) : LaunchEffect
     data class Launched(val packageName: String) : LaunchEffect
     data class AppLimitBlocked(val request: AppLaunchRequest, val status: AppLimitStatus) : LaunchEffect
@@ -51,6 +53,7 @@ class LaunchCoordinator @Inject constructor(
     private val resolveLaunchDecision: ResolveLaunchDecisionUseCase,
     private val recordLaunch: RecordLaunchUseCase,
     private val appLauncher: AppLauncher,
+    private val settingsRepository: SettingsRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     private val _flow = MutableStateFlow<LaunchFlowState?>(null)
@@ -58,6 +61,9 @@ class LaunchCoordinator @Inject constructor(
 
     private val _effects = MutableSharedFlow<LaunchEffect>(extraBufferCapacity = 4)
     val effects: SharedFlow<LaunchEffect> = _effects.asSharedFlow()
+
+    /** The last app opened through the gate, so One App At A Time can put it away. */
+    private var lastLaunchedPackage: String? = null
 
     /** Entry point for any UI that wants to open an app. */
     fun request(request: AppLaunchRequest) {
@@ -72,7 +78,7 @@ class LaunchCoordinator @Inject constructor(
             val decision = resolveLaunchDecision(request)
             when {
                 decision.isBlocked -> _effects.emit(
-                    LaunchEffect.Blocked(decision.blockReason ?: "Blocked"),
+                    LaunchEffect.Blocked(request, decision.blockReason ?: "Blocked"),
                 )
                 decision.isDeadEnd -> _effects.emit(LaunchEffect.DeadEnd(request))
                 decision.steps.isEmpty() -> proceed(request)
@@ -123,8 +129,18 @@ class LaunchCoordinator @Inject constructor(
                     source = request.source,
                 ),
             )
+            // One App At A Time: put the previously opened app away before the next one
+            // takes the foreground, so the user never leaves a stack of apps running.
+            val previous = lastLaunchedPackage
+            if (previous != null && previous != request.packageName &&
+                settingsRepository.current().oneAppAtATime
+            ) {
+                appLauncher.closeApp(previous)
+            }
+
             val ok = appLauncher.launch(request.packageName)
             if (ok) {
+                lastLaunchedPackage = request.packageName
                 _effects.emit(LaunchEffect.Launched(request.packageName))
                 // Schedule precise approaching-limit alarms for this launched app
                 appLimitRepository.scheduleApproachAlarms(request.packageName)

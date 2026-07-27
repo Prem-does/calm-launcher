@@ -1,7 +1,7 @@
 package com.calmlauncher.domain.model
 
 /** The three friction tiers. Each escalates delay and intent requirements. */
-enum class FrictionLevel { LIGHT, MONK, HARDCORE }
+enum class FrictionLevel { LIGHT, MEDIUM, HARDCORE }
 
 /** Context presets that re-shape visibility and blocking. */
 enum class EnvironmentMode { NONE, WORK, STUDY, DEEP_WORK, SLEEP, GYM, OUTSIDE, TRAVEL }
@@ -28,7 +28,6 @@ data class LauncherSettings(
     // Anti-distraction toggles (map 1:1 to MODE_COVERAGE_TODO)
     val openingDelaysEnabled: Boolean = false,
     val intentPromptEnabled: Boolean = false,
-    val breathUnlockEnabled: Boolean = false,
     val slowModeEnabled: Boolean = false,
     val analogModeEnabled: Boolean = false,
     val hideSocialApps: Boolean = true,
@@ -57,6 +56,13 @@ data class LauncherSettings(
 
     // Favourites shown on the home screen, ordered (package names)
     val favorites: List<String> = DEFAULT_FAVORITES,
+
+    /**
+     * True once the Phone/Messages/Camera starter shortcuts have been seeded. Without this
+     * flag a device refresh re-seeds them every time the user empties the list, making the
+     * default favourites impossible to remove.
+     */
+    val favoritesSeeded: Boolean = false,
 
     // Onboarding
     val onboardingComplete: Boolean = false,

@@ -6,10 +6,6 @@ import com.calmlauncher.domain.model.AnalyticsDashboardSnapshot
 import com.calmlauncher.domain.model.AnalyticsRange
 import com.calmlauncher.domain.model.AppUsageRecord
 import com.calmlauncher.domain.model.DailyUsageRecord
-import com.calmlauncher.domain.model.NotificationEventType
-import com.calmlauncher.domain.model.NotificationRecord
-import com.calmlauncher.domain.model.UnlockRecord
-import com.calmlauncher.domain.model.UsageSessionRecord
 import com.calmlauncher.domain.model.UsageSortOrder
 import com.calmlauncher.domain.repository.AnalyticsRepository
 import com.calmlauncher.domain.repository.SettingsRepository
@@ -29,7 +25,7 @@ data class AnalyticsUiState(
     val collectionEnabled: Boolean = true,
     val usageAccessGranted: Boolean = false,
     val retentionDays: Int = 365,
-    val selectedRange: AnalyticsRange = AnalyticsRange.YEAR,
+    val selectedRange: AnalyticsRange = AnalyticsRange.SEVEN_DAYS,
     val sortOrder: UsageSortOrder = UsageSortOrder.MOST_USED,
     val snapshot: AnalyticsDashboardSnapshot = emptyAnalyticsSnapshot(),
     val selectedDayStartEpochMs: Long? = null,
@@ -41,7 +37,8 @@ class AnalyticsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
-    private val selectedRange = MutableStateFlow(AnalyticsRange.YEAR)
+    // A week is what the trend chart shows; loading a year of rows by default was wasted work.
+    private val selectedRange = MutableStateFlow(AnalyticsRange.SEVEN_DAYS)
     private val selectedSortOrder = MutableStateFlow(UsageSortOrder.MOST_USED)
     private val selectedDayStart = MutableStateFlow<Long?>(null)
     private val usageAccessGranted = MutableStateFlow(false)
@@ -118,30 +115,14 @@ class AnalyticsViewModel @Inject constructor(
         snapshot.dailyHistory.firstOrNull { it.dayStartEpochMs == selectedDayStart.value }
             ?: snapshot.today
 
-    fun topApps(snapshot: AnalyticsDashboardSnapshot, sortOrder: UsageSortOrder): List<AppUsageRecord> =
-        snapshot.appUsage
-            .groupBy { it.packageName }
-            .map { (packageName, rows) ->
-                val first = rows.first()
-                AppUsageRecord(
-                    dayStartEpochMs = first.dayStartEpochMs,
-                    packageName = packageName,
-                    appName = first.appName,
-                    category = first.category,
-                    usageMinutes = rows.sumOf { it.usageMinutes },
-                    launchCount = rows.sumOf { it.launchCount },
-                )
-            }
-            .sortedWith(sortOrder.comparator())
-
-    fun sessionsForDay(snapshot: AnalyticsDashboardSnapshot, dayStartEpochMs: Long): List<UsageSessionRecord> =
-        snapshot.sessions.filter { it.dayStartEpochMs == dayStartEpochMs }
-
-    fun unlocksForDay(snapshot: AnalyticsDashboardSnapshot, dayStartEpochMs: Long): List<UnlockRecord> =
-        snapshot.unlocks.filter { it.dayStartEpochMs == dayStartEpochMs }
-
-    fun notificationsForDay(snapshot: AnalyticsDashboardSnapshot, dayStartEpochMs: Long): List<NotificationRecord> =
-        snapshot.notifications.filter { it.dayStartEpochMs == dayStartEpochMs }
+    /** Per-app usage for a single day — the breakdown behind the selected bar in the chart. */
+    fun appsForDay(
+        snapshot: AnalyticsDashboardSnapshot,
+        dayStartEpochMs: Long,
+        sortOrder: UsageSortOrder,
+    ): List<AppUsageRecord> = snapshot.appUsage
+        .filter { it.dayStartEpochMs == dayStartEpochMs && it.usageMinutes > 0 }
+        .sortedWith(sortOrder.comparator())
 
     private data class AnalyticsQuery(
         val collectionEnabled: Boolean,

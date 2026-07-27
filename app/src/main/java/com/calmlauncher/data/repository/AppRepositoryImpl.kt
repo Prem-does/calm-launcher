@@ -204,21 +204,34 @@ class AppRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Seed Phone/Messages/Camera as starter shortcuts **exactly once**, tracked by
+     * [LauncherSettings.favoritesSeeded]. Anything else would re-add the defaults on the next
+     * device refresh every time the user unpins them, making them impossible to remove.
+     */
     private suspend fun seedDefaultFavoritesIfNeeded() {
         val settings = settingsRepository.current()
-        // "No favourites set" means the value is still the placeholder default or empty.
-        val isUnset = settings.favorites.isEmpty() ||
-            settings.favorites == LauncherSettings.DEFAULT_FAVORITES
-        if (!isUnset) return
+        if (settings.favoritesSeeded) return
+
+        // Only the untouched placeholder ("phone"/"messages"/"camera") counts as "never
+        // chosen". An empty list is a deliberate choice — the user cleared their shortcuts —
+        // and must not be mistaken for a fresh install on upgrade.
+        val hasUserChoice = settings.favorites != LauncherSettings.DEFAULT_FAVORITES
+        if (hasUserChoice) {
+            // Respect an existing list from an older install; just close the seeding window.
+            settingsRepository.update { it.copy(favoritesSeeded = true) }
+            return
+        }
 
         val seeded = listOfNotNull(
             catalog.resolveTool(LauncherTool.PHONE),
             catalog.resolveTool(LauncherTool.MESSAGES),
             catalog.resolveTool(LauncherTool.CAMERA),
         ).distinct()
+        // Nothing resolvable yet (catalog still warming up) — try again on the next refresh.
         if (seeded.isEmpty()) return
 
-        settingsRepository.update { it.copy(favorites = seeded) }
+        settingsRepository.update { it.copy(favorites = seeded, favoritesSeeded = true) }
         seeded.forEachIndexed { index, pkg ->
             ensureMetaRow(pkg)
             appMetaDao.setFavorite(pkg, true)

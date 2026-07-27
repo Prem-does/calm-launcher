@@ -1,9 +1,5 @@
 package com.calmlauncher.core.designsystem.component
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -32,12 +27,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -112,87 +104,6 @@ fun CountdownOverlay(
                 style = CalmType.bodyMd,
                 color = CalmGray,
                 textAlign = TextAlign.Center,
-            )
-            CalmButton(
-                text = "Cancel",
-                onClick = onCancel,
-                style = CalmButtonStyle.Text,
-                modifier = Modifier.padding(top = Spacing.stackLg),
-            )
-        }
-    }
-}
-
-private val RingSize = 160.dp
-
-/**
- * A guided breathing overlay. A single white ring gently scales and fades over ~4s per
- * breath while the caption alternates "Breathe in" / "Breathe out". After [cycles]
- * complete breaths [onComplete] is invoked once. A [CalmButtonStyle.Text] Cancel calls
- * [onCancel]. The gentle scale here is the one sanctioned exception to the no-motion
- * rule — it is purposeful, low-frequency and calming.
- */
-@Composable
-fun BreathOverlay(
-    cycles: Int,
-    onComplete: () -> Unit,
-    onCancel: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val halfCycleMs = 4000
-    var breath by remember(cycles) { mutableIntStateOf(0) }
-    var inhaling by remember(cycles) { mutableStateOf(true) }
-    val currentOnComplete by rememberUpdatedState(onComplete)
-
-    // One breath = an inhale half then an exhale half. Drive scale/alpha off [inhaling].
-    val transition = updateTransition(targetState = inhaling, label = "breath")
-    val ringScale by transition.animateFloat(
-        transitionSpec = { tween(durationMillis = halfCycleMs, easing = LinearEasing) },
-        label = "ringScale",
-    ) { inhale -> if (inhale) 1f else 0.6f }
-    val ringAlpha by transition.animateFloat(
-        transitionSpec = { tween(durationMillis = halfCycleMs, easing = LinearEasing) },
-        label = "ringAlpha",
-    ) { inhale -> if (inhale) 0.9f else 0.35f }
-
-    LaunchedEffect(cycles) {
-        while (breath < cycles) {
-            inhaling = true
-            delay(halfCycleMs.toLong())
-            inhaling = false
-            delay(halfCycleMs.toLong())
-            breath += 1
-        }
-        currentOnComplete()
-    }
-
-    OverlayScrim(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .systemBarsPadding()
-                .padding(horizontal = Spacing.marginMobile),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(RingSize)
-                    .scale(ringScale)
-                    .alpha(ringAlpha)
-                    .drawBehind {
-                        drawCircle(
-                            color = CalmWhite,
-                            radius = size.minDimension / 2f,
-                            center = Offset(size.width / 2f, size.height / 2f),
-                            style = Stroke(width = 2.dp.toPx()),
-                        )
-                    },
-            )
-            Text(
-                text = if (inhaling) "Breathe in" else "Breathe out",
-                style = CalmType.headlineMd,
-                color = CalmWhite,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = Spacing.stackLg),
             )
             CalmButton(
                 text = "Cancel",

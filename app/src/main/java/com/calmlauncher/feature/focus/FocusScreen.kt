@@ -63,8 +63,11 @@ fun FocusScreen(
             .fillMaxSize()
             .background(CalmBlack)
     ) {
-        // Bottom layer: barely-perceptible e-ink speckle, never intercepts input.
-        EInkBackdrop(Modifier.matchParentSize())
+        // Bottom layer: barely-perceptible e-ink speckle, never intercepts input. Only drawn
+        // while the E-Ink setting is on — turning it off leaves a plain black canvas.
+        if (state.einkTexture) {
+            EInkBackdrop(Modifier.matchParentSize())
+        }
 
         Column(
             modifier = Modifier

@@ -8,6 +8,7 @@ import com.calmlauncher.domain.model.ScreenTimeRecord
 import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.LaunchEventRepository
 import com.calmlauncher.domain.repository.ScreenTimeRepository
+import com.calmlauncher.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.Instant
@@ -28,6 +29,7 @@ class BuildInsightsUseCase @Inject constructor(
     private val appLimitRepository: AppLimitRepository,
     private val launchEventRepository: LaunchEventRepository,
     private val screenTimeRepository: ScreenTimeRepository,
+    private val settingsRepository: SettingsRepository,
 ) {
     operator fun invoke(
         nowEpochMs: Long = System.currentTimeMillis(),
@@ -38,8 +40,9 @@ class BuildInsightsUseCase @Inject constructor(
             launchEventRepository.observeWeek(),
             screenTimeRepository.observeRange(rangeStart, nowEpochMs),
             appLimitRepository.observeTodayEvents(),
-        ) { events, screenTime, limitEvents ->
-            buildInsights(events, screenTime, limitEvents, nowEpochMs, zoneId)
+            settingsRepository.settings,
+        ) { events, screenTime, limitEvents, settings ->
+            buildInsights(events, screenTime, limitEvents, settings.rewardRealLifeEnabled, nowEpochMs, zoneId)
         }
     }
 
@@ -48,17 +51,52 @@ class BuildInsightsUseCase @Inject constructor(
         events: List<LaunchEvent>,
         screenTime: List<ScreenTimeRecord>,
         limitEvents: List<AppLimitEvent>,
+        rewardRealLife: Boolean,
         nowEpochMs: Long,
         zoneId: ZoneId,
     ): List<Insight> {
         val insights = mutableListOf<Insight>()
 
+        // Reward Real Life leads with time won back, so the first thing Home shows is the
+        // payoff rather than an observation. Off means no encouragement is surfaced at all.
+        if (rewardRealLife) {
+            timeReclaimedInsight(screenTime)?.let(insights::add)
+        }
         mostOpenedYesterdayInsight(events, nowEpochMs, zoneId)?.let(insights::add)
         peakHourInsight(events, zoneId)?.let(insights::add)
         screenTimeTrendInsight(screenTime)?.let(insights::add)
         appLimitInsight(limitEvents)?.let(insights::add)
 
         return insights
+    }
+
+    /**
+     * "You won 47m back this week." Compares the recent half of the range against the earlier
+     * half and only speaks up when the user actually spent less time on the phone.
+     */
+    private fun timeReclaimedInsight(screenTime: List<ScreenTimeRecord>): Insight? {
+        if (screenTime.size < 4) return null
+        val sorted = screenTime.sortedBy { it.dayStartEpochMs }
+        val mid = sorted.size / 2
+        val earlierAvg = sorted.subList(0, mid).map { it.totalForegroundMs }.average()
+        val recentAvg = sorted.subList(mid, sorted.size).map { it.totalForegroundMs }.average()
+        val savedPerDayMs = earlierAvg - recentAvg
+        if (savedPerDayMs <= 0.0) return null
+
+        val savedMinutes = (savedPerDayMs * sorted.size / 2 / 60_000.0).roundToInt()
+        if (savedMinutes < MIN_REWARD_MINUTES) return null
+        return Insight("You won ${formatMinutes(savedMinutes)} back this week.")
+    }
+
+    /** "47m" / "2h 5m" — used by the reward line. */
+    private fun formatMinutes(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}h ${m}m"
+            h > 0 -> "${h}h"
+            else -> "${m}m"
+        }
     }
 
     /** "You opened Instagram 12 times yesterday." */
@@ -154,5 +192,8 @@ class BuildInsightsUseCase @Inject constructor(
         const val MIN_OPENS_TO_MENTION = 3
         const val MIN_EVENTS_FOR_PATTERN = 5
         const val MIN_TREND_PERCENT = 10
+
+        /** Don't celebrate noise — only mention reclaimed time above this many minutes. */
+        const val MIN_REWARD_MINUTES = 15
     }
 }

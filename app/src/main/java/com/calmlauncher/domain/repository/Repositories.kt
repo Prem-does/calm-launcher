@@ -47,6 +47,9 @@ interface SettingsRepository {
 
 /** Daily foreground usage, sourced from UsageStatsManager when access is granted. */
 interface ScreenTimeRepository {
+    /** False when Usage Access is missing — every reading below will be zero. */
+    fun hasUsageAccess(): Boolean
+
     fun observeToday(): Flow<ScreenTimeRecord>
     suspend fun today(): ScreenTimeRecord
     fun observeRange(startEpochMs: Long, endEpochMs: Long): Flow<List<ScreenTimeRecord>>

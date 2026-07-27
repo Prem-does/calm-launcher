@@ -1,5 +1,6 @@
 package com.calmlauncher.data.system
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import com.calmlauncher.domain.model.LauncherTool
@@ -41,6 +42,17 @@ class AppLauncherImpl @Inject constructor(
     }
 
     override fun resolveToolPackage(tool: LauncherTool): String? = catalog.resolveTool(tool)
+
+    override fun closeApp(packageName: String): Boolean {
+        // Never let the launcher shut itself down.
+        if (packageName == context.packageName) return false
+        return runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                ?: return false
+            am.killBackgroundProcesses(packageName)
+            true
+        }.getOrDefault(false)
+    }
 
     private fun startActivity(intent: Intent): Boolean = runCatching {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

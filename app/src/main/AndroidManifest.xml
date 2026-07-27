@@ -18,6 +18,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Reminders and limit warnings must fire at the minute they are due. USE_EXACT_ALARM
+         covers Android 13+ (reminder/alarm apps qualify); SCHEDULE_EXACT_ALARM covers 12. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
@@ -94,6 +100,17 @@
         </service>
 
         <receiver android:name="com.calmlauncher.notification.LimitAlarmReceiver" android:exported="false" />
+
+        <!-- Reminder alarms, notification actions, and re-arming after a reboot (Android
+             drops every scheduled alarm across a restart). -->
+        <receiver
+            android:name="com.calmlauncher.notification.ReminderAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Usage analytics collector for unlock and boot broadcasts. -->
         <receiver

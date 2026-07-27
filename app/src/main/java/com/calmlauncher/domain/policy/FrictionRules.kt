@@ -18,10 +18,10 @@ internal object FrictionRules {
     fun isDistracting(category: AppCategory, analogMode: Boolean): Boolean =
         analogMode || category.isDistractingByDefault
 
-    /** Per-tier multiplier applied to the base opening delay: LIGHT×1, MONK×2, HARDCORE×3. */
+    /** Per-tier multiplier applied to the base opening delay: LIGHT×1, MEDIUM×2, HARDCORE×3. */
     fun delayMultiplier(level: FrictionLevel): Int = when (level) {
         FrictionLevel.LIGHT -> 1
-        FrictionLevel.MONK -> 2
+        FrictionLevel.MEDIUM -> 2
         FrictionLevel.HARDCORE -> 3
     }
 
@@ -32,9 +32,6 @@ internal object FrictionRules {
         RiskTier.HIGH -> 2
         RiskTier.RECOVERY -> 3
     }
-
-    /** Breath cycles for the Breath Unlock step: HARDCORE asks for 3, everything else 1. */
-    fun breathCycles(level: FrictionLevel): Int = if (level == FrictionLevel.HARDCORE) 3 else 1
 
     /**
      * Compute the opening-delay seconds for a launch.

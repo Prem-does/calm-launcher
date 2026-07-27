@@ -11,7 +11,9 @@ import com.calmlauncher.core.designsystem.component.CalmToggle
 import com.calmlauncher.domain.model.LauncherSettings
 
 /**
- * A compact list of advanced toggles moved out of the primary Settings surface.
+ * A compact list of advanced toggles moved out of the primary Settings surface. The
+ * delay-shaped controls (opening delays, slow mode, intent prompt, analog mode) are *not*
+ * here — they live on the Friction screen next to the tier that multiplies them.
  */
 @Composable
 fun AdvancedSettings(viewModel: SettingsViewModel, settings: LauncherSettings) {

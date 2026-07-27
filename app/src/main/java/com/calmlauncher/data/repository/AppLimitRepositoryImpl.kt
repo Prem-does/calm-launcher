@@ -12,6 +12,8 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import com.calmlauncher.notification.LimitAlarmReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
@@ -46,7 +48,15 @@ class AppLimitRepositoryImpl @Inject constructor(
 
     private companion object {
         private const val MAX_DAILY_OVERRIDES = 2
+
+        /** Start warning once this little of the daily allowance is left. */
+        private const val WARNING_WINDOW_MINUTES = 10
+
+        /** Never re-notify about the same app more often than this. */
+        private const val NOTIFY_SUPPRESSION_MS = 5L * 60_000L
     }
+
+    override fun hasUsageAccess(): Boolean = usageStatsTracker.hasPermission()
 
     override fun observeRules(): Flow<List<AppLimitRule>> =
         appLimitDao.observeRules().map { rows -> rows.map { it.toDomain() } }.flowOn(dispatcher)
@@ -98,13 +108,20 @@ class AppLimitRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun packagesInGroup(groupId: String): Set<String> = withContext(dispatcher) {
+        appLimitDao.getPackagesInGroup(groupId).toSet()
+    }
+
     override suspend fun deleteRule(packageName: String) = withContext(dispatcher) {
         appLimitDao.deleteRule(packageName)
+        // The rule is gone; any warning still in the shade is now a lie.
+        notifications.clear(packageName)
     }
 
     override suspend fun setEnabled(packageName: String, enabled: Boolean) = withContext(dispatcher) {
         val current = appLimitDao.getRule(packageName)?.toDomain() ?: AppLimitRule(packageName = packageName)
         appLimitDao.upsertRule(current.copy(enabled = enabled, updatedAtEpochMs = System.currentTimeMillis()).toEntity())
+        if (!enabled) notifications.clear(packageName)
     }
 
     override suspend fun extendOverride(packageName: String, minutes: Int): Boolean = withContext(dispatcher) {
@@ -126,6 +143,8 @@ class AppLimitRepositoryImpl @Inject constructor(
                 updatedAtEpochMs = now,
             ).toEntity(),
         )
+        // The user bought themselves time — clear the "you're done" notification.
+        notifications.clear(packageName)
 
         appLimitDao.upsertEvent(
             AppLimitEvent(
@@ -156,31 +175,48 @@ class AppLimitRepositoryImpl @Inject constructor(
             )
         }
         appLimitDao.deleteUsageBefore(snapshot.dayStartEpochMs)
+        syncLimitNotifications(snapshot.perApp)
+    }
 
-        // Notify for approaching limits (best-effort). Thresholds in minutes.
-        try {
-            val thresholds = setOf(10, 5, 1)
-            val rules = appLimitDao.getAllRules().map { it.toDomain() }
-            rules.forEach { rule ->
-                if (!rule.enabled) return@forEach
-                val nowMs = System.currentTimeMillis()
-                if (rule.overrideUntilEpochMs > nowMs) return@forEach
-                val usedMs = snapshot.perApp[rule.packageName] ?: 0L
+    /**
+     * Bring the notification shade in line with current usage.
+     *
+     * The old implementation only fired on an *exact* remaining value of 10/5/1 minutes, which
+     * a 15-minute rollup almost always steps straight over. Instead we notify whenever the app
+     * is inside the warning window and re-state the real remaining time, rate-limited by
+     * [NOTIFY_SUPPRESSION_MS]. Notifications are also actively cleared once a rule stops
+     * applying, so a stale "5 minutes left" can't linger after the user disables the limit.
+     */
+    private suspend fun syncLimitNotifications(usageByPackage: Map<String, Long>) {
+        runCatching {
+            val nowMs = System.currentTimeMillis()
+            appLimitDao.getAllRules().map { it.toDomain() }.forEach { rule ->
+                val usedMs = usageByPackage[rule.packageName] ?: 0L
                 val limitMs = rule.dailyLimitMinutes * 60_000L
-                val remainingMs = limitMs - usedMs
-                val remainingMinutes = (remainingMs / 60_000L).toInt()
-                val suppressionWindowMs = 5 * 60_000L // don't re-notify within 5 minutes
-                if (remainingMinutes in thresholds && (nowMs - rule.lastNotifiedEpochMs) > suppressionWindowMs) {
-                    val label = runCatching { appRepository.getApp(rule.packageName)?.label ?: rule.packageName }.getOrNull() ?: rule.packageName
-                    notifications.notifyApproachingLimit(rule.packageName, label, remainingMinutes)
-                    // update rule lastNotified
-                    appLimitDao.upsertRule(rule.copy(lastNotifiedEpochMs = nowMs).toEntity())
-                }
-            }
-        } catch (_: Exception) {
-            // best-effort only; don't crash rollup on notification errors
-        }
+                val remainingMinutes = ((limitMs - usedMs) / 60_000L).toInt()
 
+                // Rule off, overridden, or comfortably under the limit — nothing to say.
+                if (!rule.enabled ||
+                    rule.overrideUntilEpochMs > nowMs ||
+                    remainingMinutes > WARNING_WINDOW_MINUTES
+                ) {
+                    notifications.clear(rule.packageName)
+                    return@forEach
+                }
+
+                if (nowMs - rule.lastNotifiedEpochMs < NOTIFY_SUPPRESSION_MS) return@forEach
+
+                val label = runCatching { appRepository.getApp(rule.packageName)?.label }
+                    .getOrNull() ?: rule.packageName
+                if (remainingMinutes <= 0) {
+                    notifications.notifyLimitReached(rule.packageName, label)
+                } else {
+                    notifications.notifyApproachingLimit(rule.packageName, label, remainingMinutes)
+                }
+                appLimitDao.upsertRule(rule.copy(lastNotifiedEpochMs = nowMs).toEntity())
+            }
+        }
+        // Best-effort only; a notification failure must never break the usage rollup.
     }
 
     override suspend fun scheduleApproachAlarms(packageName: String) = withContext(dispatcher) {
@@ -191,23 +227,36 @@ class AppLimitRepositoryImpl @Inject constructor(
         val usedMs = usageStatsTracker.todayForegroundFor(packageName)
         val limitMs = rule.dailyLimitMinutes * 60_000L
         val remainingMs = (limitMs - usedMs).coerceAtLeast(0L)
-        val thresholds = listOf(10, 5, 1)
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        thresholds.forEach { minutes ->
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return@withContext
+
+        // 0 is the "limit reached" alarm; the rest are the countdown warnings.
+        listOf(10, 5, 1, 0).forEach { minutes ->
             val whenMs = now + remainingMs - minutes * 60_000L
             if (whenMs <= now) return@forEach
-            val intent = Intent(context, com.calmlauncher.notification.LimitAlarmReceiver::class.java).apply {
-                putExtra("packageName", packageName)
-                putExtra("remainingMinutes", minutes)
+            val intent = Intent(context, LimitAlarmReceiver::class.java).apply {
+                putExtra(LimitAlarmReceiver.EXTRA_PACKAGE, packageName)
+                putExtra(LimitAlarmReceiver.EXTRA_REMAINING_MINUTES, minutes)
             }
-            val pi = PendingIntent.getBroadcast(context, (packageName + "_$minutes").hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            try {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, whenMs, pi)
-            } catch (_: Exception) {
-                // best-effort
+            val pi = PendingIntent.getBroadcast(
+                context,
+                "${packageName}_$minutes".hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            runCatching {
+                // Exact alarms need a user grant on Android 12+; degrade to an inexact one
+                // rather than throwing, since a slightly late warning still beats none.
+                if (canScheduleExact(am)) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, whenMs, pi)
+                } else {
+                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, whenMs, pi)
+                }
             }
         }
     }
+
+    private fun canScheduleExact(am: AlarmManager): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
 
     override suspend fun recordBlockedLaunch(status: AppLimitStatus) = withContext(dispatcher) {
         val now = System.currentTimeMillis()

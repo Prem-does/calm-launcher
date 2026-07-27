@@ -25,9 +25,12 @@ import com.calmlauncher.core.designsystem.theme.Spacing
  * A single configuration row. [title] is shown in [CalmType.bodyLg] (switched to
  * [CalmError] when [destructive], e.g. "Delete Account"). The trailing edge resolves,
  * in priority order, to: a custom [trailing] slot (typically a [CalmToggle]); a
- * [showChevron] arrow; or a [value] string in [CalmType.bodyMd] / [CalmGray]. Vertical
- * padding is [Spacing.rowVertical] with a closing [ThinDivider]. Supplying [onClick]
- * makes the whole row tappable (no ripple).
+ * [showChevron] arrow; or a [value] string in [CalmType.bodyMd] / [CalmGray].
+ * Vertical padding is [Spacing.rowVertical] with a closing [ThinDivider]. Supplying
+ * [onClick] makes the whole row tappable (no ripple).
+ *
+ * There is deliberately no subtitle slot. A settings list that explains each switch in
+ * grey 12sp reads as a manual; a row that needs a sentence needs a better name.
  */
 @Composable
 fun SettingRow(

@@ -28,6 +28,9 @@ interface AppLimitDao {
     @Query("SELECT * FROM app_limit_group_assignments ORDER BY updatedAtEpochMs DESC")
     fun observeGroupAssignments(): Flow<List<AppLimitGroupAssignmentEntity>>
 
+    @Query("SELECT packageName FROM app_limit_group_assignments WHERE groupId = :groupId")
+    suspend fun getPackagesInGroup(groupId: String): List<String>
+
     @Query("DELETE FROM app_limit_group_assignments WHERE groupId = :groupId")
     suspend fun deleteGroupAssignments(groupId: String)
 

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -48,6 +49,14 @@ class SearchViewModel @Inject constructor(
     /** Update the search query; results recompute off the latest value. */
     fun onQuery(q: String) {
         _query.value = q
+    }
+
+    /**
+     * Pin or unpin a result. Search is the one surface that lists *every* app, hidden and
+     * favourited alike, so it is where an app can always be un-favourited from.
+     */
+    fun setFavorite(app: AppEntry, favorite: Boolean) {
+        viewModelScope.launch { appRepository.setFavorite(app.packageName, favorite) }
     }
 
     /** Open a result through the friction pipeline, tagged as launched from search. */

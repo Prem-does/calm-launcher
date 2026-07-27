@@ -48,6 +48,7 @@ class SettingsDataStore @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(LegacyKeys.PIN_ENABLED)
             prefs.remove(LegacyKeys.PIN_HASH)
+            prefs.remove(LegacyKeys.BREATH_UNLOCK_ENABLED)
         }
     }
 
@@ -64,7 +65,6 @@ class SettingsDataStore @Inject constructor(
             showSuggestions = this[Keys.SHOW_SUGGESTIONS] ?: defaults.showSuggestions,
             openingDelaysEnabled = this[Keys.OPENING_DELAYS_ENABLED] ?: defaults.openingDelaysEnabled,
             intentPromptEnabled = this[Keys.INTENT_PROMPT_ENABLED] ?: defaults.intentPromptEnabled,
-            breathUnlockEnabled = this[Keys.BREATH_UNLOCK_ENABLED] ?: defaults.breathUnlockEnabled,
             slowModeEnabled = this[Keys.SLOW_MODE_ENABLED] ?: defaults.slowModeEnabled,
             analogModeEnabled = this[Keys.ANALOG_MODE_ENABLED] ?: defaults.analogModeEnabled,
             hideSocialApps = this[Keys.HIDE_SOCIAL_APPS] ?: defaults.hideSocialApps,
@@ -85,6 +85,7 @@ class SettingsDataStore @Inject constructor(
             focusStartedAtEpochMs = this[Keys.FOCUS_STARTED_AT] ?: defaults.focusStartedAtEpochMs,
             focusDurationMinutes = this[Keys.FOCUS_DURATION_MINUTES] ?: defaults.focusDurationMinutes,
             favorites = this[Keys.FAVORITES].toFavorites(defaults.favorites),
+            favoritesSeeded = this[Keys.FAVORITES_SEEDED] ?: defaults.favoritesSeeded,
             onboardingComplete = this[Keys.ONBOARDING_COMPLETE] ?: defaults.onboardingComplete,
         )
     }
@@ -98,7 +99,6 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.SHOW_SUGGESTIONS] = showSuggestions
         prefs[Keys.OPENING_DELAYS_ENABLED] = openingDelaysEnabled
         prefs[Keys.INTENT_PROMPT_ENABLED] = intentPromptEnabled
-        prefs[Keys.BREATH_UNLOCK_ENABLED] = breathUnlockEnabled
         prefs[Keys.SLOW_MODE_ENABLED] = slowModeEnabled
         prefs[Keys.ANALOG_MODE_ENABLED] = analogModeEnabled
         prefs[Keys.HIDE_SOCIAL_APPS] = hideSocialApps
@@ -119,13 +119,22 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.FOCUS_STARTED_AT] = focusStartedAtEpochMs
         prefs[Keys.FOCUS_DURATION_MINUTES] = focusDurationMinutes
         prefs[Keys.FAVORITES] = favorites.joinToString(FAVORITES_DELIMITER)
+        prefs[Keys.FAVORITES_SEEDED] = favoritesSeeded
         prefs[Keys.ONBOARDING_COMPLETE] = onboardingComplete
     }
 
     // -- Enum / list parsing helpers ---------------------------------------------
 
-    private fun String?.toFrictionLevel(default: FrictionLevel): FrictionLevel =
-        this?.let { name -> FrictionLevel.entries.firstOrNull { it.name == name } } ?: default
+    /**
+     * "MONK" is the old name for [FrictionLevel.MEDIUM]. Anyone who picked that tier before
+     * the rename has it written to disk, so map it forward rather than silently dropping
+     * them back to the LIGHT default.
+     */
+    private fun String?.toFrictionLevel(default: FrictionLevel): FrictionLevel = when (this) {
+        null -> default
+        LEGACY_MONK -> FrictionLevel.MEDIUM
+        else -> FrictionLevel.entries.firstOrNull { it.name == this } ?: default
+    }
 
     private fun String?.toEnvironmentMode(default: EnvironmentMode): EnvironmentMode =
         this?.let { name -> EnvironmentMode.entries.firstOrNull { it.name == name } } ?: default
@@ -151,7 +160,6 @@ class SettingsDataStore @Inject constructor(
         val SHOW_SUGGESTIONS = booleanPreferencesKey("show_suggestions")
         val OPENING_DELAYS_ENABLED = booleanPreferencesKey("opening_delays_enabled")
         val INTENT_PROMPT_ENABLED = booleanPreferencesKey("intent_prompt_enabled")
-        val BREATH_UNLOCK_ENABLED = booleanPreferencesKey("breath_unlock_enabled")
         val SLOW_MODE_ENABLED = booleanPreferencesKey("slow_mode_enabled")
         val ANALOG_MODE_ENABLED = booleanPreferencesKey("analog_mode_enabled")
         val HIDE_SOCIAL_APPS = booleanPreferencesKey("hide_social_apps")
@@ -172,15 +180,22 @@ class SettingsDataStore @Inject constructor(
         val FOCUS_STARTED_AT = longPreferencesKey("focus_started_at")
         val FOCUS_DURATION_MINUTES = intPreferencesKey("focus_duration_minutes")
         val FAVORITES = stringPreferencesKey("favorites")
+        val FAVORITES_SEEDED = booleanPreferencesKey("favorites_seeded")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     }
 
     private object LegacyKeys {
         val PIN_ENABLED = booleanPreferencesKey("pin_enabled")
         val PIN_HASH = stringPreferencesKey("pin_hash")
+
+        /** Breath Unlock was removed; drop the orphaned key. */
+        val BREATH_UNLOCK_ENABLED = booleanPreferencesKey("breath_unlock_enabled")
     }
 
     private companion object {
         const val FAVORITES_DELIMITER = "\n"
+
+        /** Pre-rename name of [FrictionLevel.MEDIUM]. */
+        const val LEGACY_MONK = "MONK"
     }
 }

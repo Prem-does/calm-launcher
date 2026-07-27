@@ -20,9 +20,6 @@ sealed interface FrictionStep {
     /** Ask "Why are you opening this?" and record the answer. */
     data object Reason : FrictionStep
 
-    /** A guided breathing pause of [cycles] breaths. */
-    data class Breath(val cycles: Int) : FrictionStep
-
     /** A countdown the user must wait out. */
     data class Delay(val seconds: Int) : FrictionStep
 

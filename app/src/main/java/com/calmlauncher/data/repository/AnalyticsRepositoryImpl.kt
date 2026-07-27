@@ -49,8 +49,14 @@ class AnalyticsRepositoryImpl @Inject constructor(
         observeUnlocks(days),
         observeNotifications(days),
     ) { daily, apps, sessions, unlocks, notifications ->
-        val today = daily.lastOrNull() ?: emptyDaily(startOfToday())
-        val yesterday = daily.dropLast(1).lastOrNull() ?: emptyDaily(startOfToday() - DAY_MS)
+        // Match on the actual day key rather than taking the last row. Before the first
+        // refresh of a new day there is no row for today yet, and "last row" would quietly
+        // present yesterday's total as today's.
+        val todayStart = startOfToday()
+        val yesterdayStart = startOfDaysAgo(1)
+        val today = daily.firstOrNull { it.dayStartEpochMs == todayStart } ?: emptyDaily(todayStart)
+        val yesterday = daily.firstOrNull { it.dayStartEpochMs == yesterdayStart }
+            ?: emptyDaily(yesterdayStart)
         AnalyticsDashboardSnapshot(
             today = today,
             yesterday = yesterday,
@@ -62,10 +68,23 @@ class AnalyticsRepositoryImpl @Inject constructor(
         )
     }.flowOn(dispatcher)
 
+    /**
+     * A contiguous day-by-day series, oldest first. Days with no stored row are emitted as
+     * zeroes rather than omitted: a chart that silently drops a day renders five bars for a
+     * week and misaligns every label, which reads as a data error rather than a quiet day.
+     */
     override fun observeDailyUsage(days: Int): Flow<List<DailyUsageRecord>> {
-        val start = startOfDaysAgo(days.coerceAtLeast(1) - 1)
+        val span = days.coerceAtLeast(1)
+        val start = startOfDaysAgo(span - 1)
         val end = startOfToday()
-        return analyticsDao.observeDailyRange(start, end).map { rows -> rows.map { it.toDomain() } }
+        return analyticsDao.observeDailyRange(start, end)
+            .map { rows ->
+                val byDay = rows.associate { it.dayStartEpochMs to it.toDomain() }
+                (span - 1 downTo 0).map { daysAgo ->
+                    val dayStart = startOfDaysAgo(daysAgo)
+                    byDay[dayStart] ?: emptyDaily(dayStart)
+                }
+            }
             .flowOn(dispatcher)
     }
 
@@ -77,9 +96,15 @@ class AnalyticsRepositoryImpl @Inject constructor(
             appRepository.observeApps(),
         ) { rows, currentApps ->
             val currentCategories = currentApps.associate { it.packageName to it.category }
+            val currentLabels = currentApps.associate { it.packageName to it.label }
             rows.map { row ->
                 val record = row.toDomain()
-                record.copy(category = currentCategories[record.packageName] ?: record.category)
+                // Re-resolve name and category from the live catalog so rows written before
+                // labels were available (or before a re-categorisation) still read correctly.
+                record.copy(
+                    appName = currentLabels[record.packageName] ?: record.appName,
+                    category = currentCategories[record.packageName] ?: record.category,
+                )
             }.sortedWith(sortOrder.comparator())
         }
             .flowOn(dispatcher)
@@ -107,58 +132,89 @@ class AnalyticsRepositoryImpl @Inject constructor(
             .flowOn(dispatcher)
     }
 
+    /**
+     * Rebuild the stored history from the system's event log.
+     *
+     * This deliberately rewrites a whole window of days rather than only today. Android keeps
+     * its raw usage events for days, but this app only runs occasionally — writing just
+     * "today" meant any day the launcher wasn't opened was permanently recorded as zero, and
+     * the weekly chart was mostly holes. Re-deriving [BACKFILL_DAYS] of history from the
+     * source of truth on every refresh makes the chart correct after a gap, and makes it
+     * self-healing if a day was ever written wrong.
+     *
+     * Every write is an upsert keyed by day, and sessions for a rewritten day are cleared
+     * first, so repeated refreshes converge instead of accumulating duplicates.
+     */
     override suspend fun refresh() = withContext(dispatcher) {
         val settings = settingsRepository.current()
         if (!settings.collectUsageAnalyticsEnabled) return@withContext
+        if (!usageStatsTracker.hasPermission()) return@withContext
 
         val now = System.currentTimeMillis()
-        val dayStart = startOfToday(now)
-        val record = usageStatsTracker.todayForeground()
-        val sessions = usageStatsTracker.todaySessions()
-        val launches = launchEventRepository.since(dayStart)
-        val appCategories = appRepository.observeApps()
-            .first()
-            .associate { it.packageName to it.category }
+        // Never re-derive further back than the user's own retention setting allows.
+        val windowDays = BACKFILL_DAYS.coerceAtMost(settings.analyticsRetentionDays.coerceAtLeast(1))
+        val windowStart = startOfDaysAgo(windowDays - 1)
 
-        analyticsDao.upsertDaily(
-            DailyUsageEntity(
-                dayStartEpochMs = dayStart,
-                totalScreenTimeMinutes = record.totalMinutes.toInt(),
-                unlockCount = analyticsDao.unlockCountForDay(dayStart),
-                notificationCount = analyticsDao.notificationCountForDay(dayStart),
-                longestSessionMinutes = sessions.maxOfOrNull { it.durationMinutes } ?: 0,
-                appLaunchCount = launches.size,
-                updatedAtEpochMs = now,
-            ),
-        )
+        val installedApps = appRepository.observeApps().first()
+        val appCategories = installedApps.associate { it.packageName to it.category }
+        // Real PackageManager labels. Deriving a name from the package id turns
+        // "com.google.android.youtube" into "Youtube" and "com.samsung.android.app.notes"
+        // into "Notes" — close enough to look right and wrong often enough to confuse.
+        val appLabels = installedApps.associate { it.packageName to it.label }
 
-        val launchCounts = launches.groupingBy { it.packageName }.eachCount()
-        analyticsDao.upsertApps(
-            record.perApp.entries.map { (packageName, millis) ->
-                AppUsageEntity(
+        val launchesByDay = launchEventRepository.since(windowStart)
+            .groupBy { startOfToday(it.timestampEpochMs) }
+
+        usageStatsTracker.rangeUsage(windowStart, now).forEach { day ->
+            val record = day.record
+            val sessions = day.sessions
+            val dayStart = record.dayStartEpochMs
+            val launches = launchesByDay[dayStart].orEmpty()
+
+            analyticsDao.upsertDaily(
+                DailyUsageEntity(
                     dayStartEpochMs = dayStart,
-                    packageName = packageName,
-                    appName = friendlyName(packageName),
-                    category = appCategories[packageName]?.name ?: inferCategory(packageName).name,
-                    usageMinutes = (millis / 60_000L).toInt(),
-                    launchCount = launchCounts[packageName] ?: 0,
+                    totalScreenTimeMinutes = record.totalMinutes.toInt(),
+                    unlockCount = analyticsDao.unlockCountForDay(dayStart),
+                    notificationCount = analyticsDao.notificationCountForDay(dayStart),
+                    longestSessionMinutes = sessions.maxOfOrNull { it.durationMinutes } ?: 0,
+                    appLaunchCount = launches.size,
                     updatedAtEpochMs = now,
-                )
-            },
-        )
+                ),
+            )
 
-        analyticsDao.insertSessions(
-            sessions.map {
-                SessionEntity(
-                    dayStartEpochMs = dayStart,
-                    packageName = it.packageName,
-                    appName = it.appName,
-                    startTimeEpochMs = it.startTimeEpochMs,
-                    endTimeEpochMs = it.endTimeEpochMs,
-                    durationMinutes = it.durationMinutes,
-                )
-            },
-        )
+            val launchCounts = launches.groupingBy { it.packageName }.eachCount()
+            // Apps that used to have a row for this day but no longer register any usage
+            // would otherwise keep their stale minutes forever.
+            analyticsDao.deleteAppsForDay(dayStart)
+            analyticsDao.upsertApps(
+                record.perApp.entries.map { (packageName, millis) ->
+                    AppUsageEntity(
+                        dayStartEpochMs = dayStart,
+                        packageName = packageName,
+                        appName = appLabels[packageName] ?: friendlyName(packageName),
+                        category = appCategories[packageName]?.name ?: inferCategory(packageName).name,
+                        usageMinutes = (millis / 60_000L).toInt(),
+                        launchCount = launchCounts[packageName] ?: 0,
+                        updatedAtEpochMs = now,
+                    )
+                },
+            )
+
+            analyticsDao.deleteSessionsForDay(dayStart)
+            analyticsDao.insertSessions(
+                sessions.map {
+                    SessionEntity(
+                        dayStartEpochMs = dayStart,
+                        packageName = it.packageName,
+                        appName = appLabels[it.packageName] ?: it.appName,
+                        startTimeEpochMs = it.startTimeEpochMs,
+                        endTimeEpochMs = it.endTimeEpochMs,
+                        durationMinutes = it.durationMinutes,
+                    )
+                },
+            )
+        }
 
         pruneOlderThan(settings.analyticsRetentionDays)
     }
@@ -205,6 +261,7 @@ class AnalyticsRepositoryImpl @Inject constructor(
         analyticsDao.deleteNotificationsBefore(before)
     }
 
+    /** Last-resort name for a package the launcher catalog doesn't know about. */
     private fun friendlyName(packageName: String): String {
         val candidate = packageName
             .substringBefore("/")
@@ -306,6 +363,11 @@ class AnalyticsRepositoryImpl @Inject constructor(
     }
 
     private companion object {
-        const val DAY_MS = 24L * 60L * 60L * 1000L
+        /**
+         * How many days of history to re-derive on each refresh. Android's own event log is
+         * the limit here; a week comfortably covers the trend chart and any gap where the
+         * launcher simply wasn't opened.
+         */
+        const val BACKFILL_DAYS = 7
     }
 }

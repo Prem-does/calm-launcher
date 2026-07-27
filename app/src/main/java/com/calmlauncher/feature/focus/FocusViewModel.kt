@@ -29,6 +29,7 @@ data class FocusUiState(
     val quote: String = "",
     val grayscale: Boolean = false,
     val grayscaleAmount: Float = 0f,
+    val einkTexture: Boolean = false,
     val remainingText: String = "--:--",
 )
 
@@ -67,6 +68,7 @@ class FocusViewModel @Inject constructor(
             quote = quote,
             grayscale = restriction.grayscale,
             grayscaleAmount = restriction.grayscaleAmount,
+            einkTexture = settings.einkSimulationEnabled,
             remainingText = formatRemaining(remainingMs),
         )
     }.stateIn(

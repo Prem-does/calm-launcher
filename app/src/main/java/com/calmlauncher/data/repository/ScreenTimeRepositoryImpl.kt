@@ -26,6 +26,8 @@ class ScreenTimeRepositoryImpl @Inject constructor(
     @IoDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ScreenTimeRepository {
 
+    override fun hasUsageAccess(): Boolean = usageStatsTracker.hasPermission()
+
     override fun observeToday(): Flow<ScreenTimeRecord> {
         val dayStart = startOfToday()
         return screenTimeDao.observe(dayStart)
