@@ -1,11 +1,16 @@
 # Calm Launcher
 
 **A minimalist Android home screen replacement inspired by the Light Phone III — built to reduce digital noise and encourage intentional phone usage.**
-<img width="738" height="1600" alt="WhatsApp Image 2026-07-28 at 18 33 37" src="https://github.com/user-attachments/assets/542d97e6-6fb5-459d-aceb-c65153c1742b" />
-<img width="738" height="1600" alt="WhatsApp Image 2026-07-28 at 18 33 38" src="https://github.com/user-attachments/assets/7d9509f8-d29d-44dd-ac3a-9eb6c6e64a97" />
-<img width="738" height="1600" alt="WhatsApp Image 2026-07-28 at 18 31 37" src="https://github.com/user-attachments/assets/cbc7b89b-2806-499d-869f-9c5d90c89608" />
-<img width="738" height="1600" alt="WhatsApp Image 2026-07-28 at 18 31 36" src="https://github.com/user-attachments/assets/816b6bbb-170f-4051-8070-71b735d333eb" />
-<img width="738" height="1600" alt="WhatsApp Image 2026-07-28 at 18 31 37 (1)" src="https://github.com/user-attachments/assets/f892618e-8ad7-40d5-aac0-ca472443fbf0" />
+
+## Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/542d97e6-6fb5-459d-aceb-c65153c1742b" width="180"/>
+  <img src="https://github.com/user-attachments/assets/7d9509f8-d29d-44dd-ac3a-9eb6c6e64a97" width="180"/>
+  <img src="https://github.com/user-attachments/assets/cbc7b89b-2806-499d-869f-9c5d90c89608" width="180"/>
+  <img src="https://github.com/user-attachments/assets/816b6bbb-170f-4051-8070-71b735d333eb" width="180"/>
+  <img src="https://github.com/user-attachments/assets/f892618e-8ad7-40d5-aac0-ca472443fbf0" width="180"/>
+</p>
 
 
 
