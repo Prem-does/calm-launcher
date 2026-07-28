@@ -19,6 +19,7 @@
 - [Architecture](#architecture)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
+  - [Download APK](#download-apk)
   - [Build & Run](#build--run)
   - [Required Permissions](#required-permissions)
 - [Design System](#design-system)
@@ -116,6 +117,10 @@ Calm Launcher follows an **MVVM + Unidirectional Data Flow** pattern with a clea
 | Compile / Target SDK | 34 |
 | Min SDK | 26 (Android 8.0) |
 | Android Studio | Hedgehog or newer (recommended) |
+
+### Download APK
+
+[Download the debug APK](app/build/outputs/apk/debug/app-debug.apk)
 
 ### Build & Run
 
