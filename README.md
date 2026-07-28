@@ -212,6 +212,3 @@ No license file was found in this repository at the time of writing. Please chec
 
 ---
 
-<p align="center">
-  <sub>Documentation sourced from the <a href="https://deepwiki.com/Prem-does/calm-laucher-">Calm Launcher DeepWiki</a>.</sub>
-</p>
