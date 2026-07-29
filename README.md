@@ -222,7 +222,7 @@ Please try to keep new UI work aligned with the existing monochrome, typography-
 
 ## License
 
-No license file was found in this repository at the time of writing. Please check with the repository owner ([Prem-does](https://github.com/Prem-does)) before reusing or redistributing this code, or add a `LICENSE` file to clarify usage terms.
+No license file was found in this repository at the time of writing. Please check with the repository owner ([Prem-does](https://github.com/Prem-does)) before reusing or redistributing this code, or add a `LICENSE` file to clarify usage terms..
 
 ---
 
