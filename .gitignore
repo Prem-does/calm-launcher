@@ -63,17 +63,20 @@ out/
 .vscode/
 
 # Environment files
+
 .env
 .env.*
 
-# Others
-.gradle/
+
+
 
 # Ignore generated lint reports
 lint/intermediates/
 
-# Ignore stitch-assets (if generated)
+# Stitch and Design assets
 stitch-assets/
+design/stitch/
 
+# Documentation
 docs/
 

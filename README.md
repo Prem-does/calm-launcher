@@ -2,6 +2,15 @@
 
 **A minimalist Android home screen replacement inspired by the Light Phone III — built to reduce digital noise and encourage intentional phone usage.**
 
+## Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/cbc7b89b-2806-499d-869f-9c5d90c89608" width="180"/>
+  <img src="https://github.com/user-attachments/assets/f892618e-8ad7-40d5-aac0-ca472443fbf0" width="180"/>
+  <img src="https://github.com/user-attachments/assets/816b6bbb-170f-4051-8070-71b735d333eb" width="180"/>
+  <img src="https://github.com/user-attachments/assets/542d97e6-6fb5-459d-aceb-c65153c1742b" width="180"/>
+</p>
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
@@ -215,7 +224,7 @@ Please try to keep new UI work aligned with the existing monochrome, typography-
 
 ## License
 
-No license file was found in this repository at the time of writing. Please check with the repository owner ([Prem-does](https://github.com/Prem-does)) before reusing or redistributing this code, or add a `LICENSE` file to clarify usage terms.
+No license file was found in this repository at the time of writing. Please check with the repository owner ([Prem-does](https://github.com/Prem-does)) before reusing or redistributing this code, or add a `LICENSE` file to clarify usage terms..
 
 ---
 
