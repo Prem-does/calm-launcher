@@ -28,12 +28,15 @@ import javax.inject.Inject
  * @property batteryExempt Calm is ignoring battery optimizations — critical on Samsung
  *  One UI, which otherwise sleeps the focus/grayscale services.
  * @property focusServiceOn The [FocusBlockAccessibilityService] is enabled (optional).
+ * @property canDrawOverlays "Display over other apps" is granted, which is what lets a block
+ *  screen cover the app it is blocking instead of the user being silently thrown home.
  */
 data class OnboardingUiState(
     val isDefaultHome: Boolean = false,
     val hasUsageAccess: Boolean = false,
     val batteryExempt: Boolean = false,
     val focusServiceOn: Boolean = false,
+    val canDrawOverlays: Boolean = false,
 )
 
 /**
@@ -68,6 +71,7 @@ class OnboardingViewModel @Inject constructor(
             context,
             FocusBlockAccessibilityService::class.java,
         ),
+        canDrawOverlays = PlatformGuardPolicy.canDrawOverlays(context),
     )
 
     fun openUsageAccess() = systemActions.openUsageAccessSettings()
@@ -75,6 +79,8 @@ class OnboardingViewModel @Inject constructor(
     fun requestBattery() = systemActions.requestIgnoreBatteryOptimizations()
 
     fun openAccessibility() = systemActions.openAccessibilitySettings()
+
+    fun openOverlayPermission() = systemActions.openOverlaySettings()
 
     /** Mark onboarding done and schedule the launcher's periodic work. */
     fun complete() {

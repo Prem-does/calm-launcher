@@ -23,6 +23,7 @@ import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
 import com.calmlauncher.domain.model.AppLimitUsage
+import com.calmlauncher.domain.model.LimitNotifyStage
 import com.calmlauncher.domain.repository.AppLimitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineDispatcher
@@ -48,12 +49,6 @@ class AppLimitRepositoryImpl @Inject constructor(
 
     private companion object {
         private const val MAX_DAILY_OVERRIDES = 2
-
-        /** Start warning once this little of the daily allowance is left. */
-        private const val WARNING_WINDOW_MINUTES = 10
-
-        /** Never re-notify about the same app more often than this. */
-        private const val NOTIFY_SUPPRESSION_MS = 5L * 60_000L
     }
 
     override fun hasUsageAccess(): Boolean = usageStatsTracker.hasPermission()
@@ -121,7 +116,10 @@ class AppLimitRepositoryImpl @Inject constructor(
     override suspend fun setEnabled(packageName: String, enabled: Boolean) = withContext(dispatcher) {
         val current = appLimitDao.getRule(packageName)?.toDomain() ?: AppLimitRule(packageName = packageName)
         appLimitDao.upsertRule(current.copy(enabled = enabled, updatedAtEpochMs = System.currentTimeMillis()).toEntity())
-        if (!enabled) notifications.clear(packageName)
+        if (!enabled) {
+            notifications.clear(packageName)
+            resetNotificationStage(packageName)
+        }
     }
 
     override suspend fun extendOverride(packageName: String, minutes: Int): Boolean = withContext(dispatcher) {
@@ -143,8 +141,10 @@ class AppLimitRepositoryImpl @Inject constructor(
                 updatedAtEpochMs = now,
             ).toEntity(),
         )
-        // The user bought themselves time — clear the "you're done" notification.
+        // The user bought themselves time — clear the "you're done" notification, and forget
+        // the stage so the countdown can speak again when the extension runs out.
         notifications.clear(packageName)
+        resetNotificationStage(packageName)
 
         appLimitDao.upsertEvent(
             AppLimitEvent(
@@ -178,45 +178,103 @@ class AppLimitRepositoryImpl @Inject constructor(
         syncLimitNotifications(snapshot.perApp)
     }
 
-    /**
-     * Bring the notification shade in line with current usage.
-     *
-     * The old implementation only fired on an *exact* remaining value of 10/5/1 minutes, which
-     * a 15-minute rollup almost always steps straight over. Instead we notify whenever the app
-     * is inside the warning window and re-state the real remaining time, rate-limited by
-     * [NOTIFY_SUPPRESSION_MS]. Notifications are also actively cleared once a rule stops
-     * applying, so a stale "5 minutes left" can't linger after the user disables the limit.
-     */
+    override suspend fun syncLimitNotification(packageName: String) = withContext(dispatcher) {
+        val rule = appLimitDao.getRule(packageName)?.toDomain() ?: return@withContext
+        val usedMs = runCatching { usageStatsTracker.todayForegroundFor(packageName) }.getOrDefault(0L)
+        syncNotificationFor(rule, usedMs, System.currentTimeMillis())
+    }
+
+    /** Re-evaluate every rule against a fresh usage snapshot. */
     private suspend fun syncLimitNotifications(usageByPackage: Map<String, Long>) {
+        // Best-effort only; a notification failure must never break the usage rollup.
         runCatching {
             val nowMs = System.currentTimeMillis()
             appLimitDao.getAllRules().map { it.toDomain() }.forEach { rule ->
-                val usedMs = usageByPackage[rule.packageName] ?: 0L
-                val limitMs = rule.dailyLimitMinutes * 60_000L
-                val remainingMinutes = ((limitMs - usedMs) / 60_000L).toInt()
-
-                // Rule off, overridden, or comfortably under the limit — nothing to say.
-                if (!rule.enabled ||
-                    rule.overrideUntilEpochMs > nowMs ||
-                    remainingMinutes > WARNING_WINDOW_MINUTES
-                ) {
-                    notifications.clear(rule.packageName)
-                    return@forEach
-                }
-
-                if (nowMs - rule.lastNotifiedEpochMs < NOTIFY_SUPPRESSION_MS) return@forEach
-
-                val label = runCatching { appRepository.getApp(rule.packageName)?.label }
-                    .getOrNull() ?: rule.packageName
-                if (remainingMinutes <= 0) {
-                    notifications.notifyLimitReached(rule.packageName, label)
-                } else {
-                    notifications.notifyApproachingLimit(rule.packageName, label, remainingMinutes)
-                }
-                appLimitDao.upsertRule(rule.copy(lastNotifiedEpochMs = nowMs).toEntity())
+                syncNotificationFor(rule, usageByPackage[rule.packageName] ?: 0L, nowMs)
             }
         }
-        // Best-effort only; a notification failure must never break the usage rollup.
+    }
+
+    /**
+     * The single place that decides whether an app-limit notification gets posted.
+     *
+     * Both the exact threshold alarm and the 15-minute usage rollup land here, and neither can
+     * tell the other what it has already said — so the *rule itself* remembers, as a
+     * [LimitNotifyStage] stamped with the day it belongs to. A sync posts only when it can move
+     * that stage forward, which makes repeat calls silent no matter how many fire for the same
+     * moment. Two consequences worth stating plainly:
+     *
+     *  - "Limit reached" is told exactly once per app per day, not once per rollup.
+     *  - A 15-minute rollup that steps straight over the 5-minute mark still warns, because the
+     *    stage is derived from *current* remaining time rather than an exact tripwire value.
+     *
+     * The stage also walks backwards, but only for the right reasons: a new day, a granted
+     * override, a disabled rule, or a raised limit all reset it to [LimitNotifyStage.NONE] and
+     * clear the shade, so a stale "5 minutes left" can't outlive the thing it described.
+     */
+    private suspend fun syncNotificationFor(rule: AppLimitRule, usedMs: Long, nowMs: Long) {
+        val dayStart = todayDayStart(nowMs)
+        // A stage recorded yesterday says nothing about today's allowance.
+        val recordedStage = if (rule.lastNotifiedDayStartEpochMs == dayStart) {
+            rule.lastNotifiedStage
+        } else {
+            LimitNotifyStage.NONE
+        }
+
+        val limitMs = rule.dailyLimitMinutes * 60_000L
+        val remainingMinutes = ((limitMs - usedMs) / 60_000L).toInt()
+        val suppressed = !rule.enabled || rule.overrideUntilEpochMs > nowMs
+        val targetStage = if (suppressed) {
+            LimitNotifyStage.NONE
+        } else {
+            LimitNotifyStage.forRemaining(remainingMinutes)
+        }
+
+        if (targetStage == recordedStage) {
+            // Nothing has changed since the last sync. Still re-stamp the day so a rule that
+            // sat at NONE overnight doesn't look like it belongs to an older day.
+            if (rule.lastNotifiedDayStartEpochMs != dayStart) {
+                persistStage(rule, LimitNotifyStage.NONE, dayStart, rule.lastNotifiedEpochMs)
+            }
+            return
+        }
+
+        if (targetStage == LimitNotifyStage.NONE) {
+            // Back under the warning window, overridden, or switched off.
+            notifications.clear(rule.packageName)
+            persistStage(rule, LimitNotifyStage.NONE, dayStart, rule.lastNotifiedEpochMs)
+            return
+        }
+
+        // Never re-announce a threshold already passed today — usage only goes up, so a lower
+        // stage here means a slightly stale reading, not new information.
+        if (targetStage.ordinal < recordedStage.ordinal) return
+
+        val label = runCatching { appRepository.getApp(rule.packageName)?.label }
+            .getOrNull() ?: rule.packageName
+        notifications.notifyStage(rule.packageName, label, targetStage, remainingMinutes)
+        persistStage(rule, targetStage, dayStart, nowMs)
+    }
+
+    private suspend fun persistStage(
+        rule: AppLimitRule,
+        stage: LimitNotifyStage,
+        dayStart: Long,
+        notifiedAtMs: Long,
+    ) {
+        appLimitDao.upsertRule(
+            rule.copy(
+                lastNotifiedEpochMs = notifiedAtMs,
+                lastNotifiedStage = stage,
+                lastNotifiedDayStartEpochMs = dayStart,
+            ).toEntity(),
+        )
+    }
+
+    /** Forget what we've told the user about [packageName], so the next real change speaks. */
+    private suspend fun resetNotificationStage(packageName: String) {
+        val rule = appLimitDao.getRule(packageName)?.toDomain() ?: return
+        persistStage(rule, LimitNotifyStage.NONE, todayDayStart(), rule.lastNotifiedEpochMs)
     }
 
     override suspend fun scheduleApproachAlarms(packageName: String) = withContext(dispatcher) {

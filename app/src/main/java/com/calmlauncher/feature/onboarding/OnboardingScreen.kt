@@ -130,6 +130,23 @@ fun OnboardingScreen(
                 value = stepValue(state.focusServiceOn),
                 onClick = { viewModel.openAccessibility() },
             )
+            SettingRow(
+                title = "Show block screens (optional)",
+                value = stepValue(state.canDrawOverlays),
+                onClick = { viewModel.openOverlayPermission() },
+            )
+            Text(
+                text = "Without this, an app that runs out of time is simply closed. With it, " +
+                    "Calm can explain why first — and offer you a few more minutes.",
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier.padding(
+                    start = Spacing.marginMobile,
+                    end = Spacing.marginMobile,
+                    top = Spacing.stackSm,
+                    bottom = Spacing.stackMd,
+                ),
+            )
 
             Spacer(Modifier.height(Spacing.stackLg))
 

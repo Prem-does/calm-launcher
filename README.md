@@ -120,7 +120,9 @@ Calm Launcher follows an **MVVM + Unidirectional Data Flow** pattern with a clea
 
 ### Download APK
 
-[Download the debug APK](app/build/outputs/apk/debug/app-debug.apk)
+[Download the latest debug APK](https://github.com/Prem-does/calm-launcher/releases/latest/download/app-debug.apk)
+
+The APK is published as a GitHub Release asset because `app/build/` is ignored by Git.
 
 ### Build & Run
 

@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import com.calmlauncher.accessibility.PlatformGuardPolicy
 import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLimitEventType
@@ -63,6 +64,11 @@ data class AppLimitGroupUiState(
 data class AppLimitsUiState(
     val summary: AppLimitSummary = AppLimitSummary(),
     val usageAccessGranted: Boolean = true,
+    /**
+     * "Display over other apps". Optional, and limits still work without it — but an app that
+     * runs out of time mid-use can then only be closed, with no chance to say why first.
+     */
+    val canShowBlockScreens: Boolean = true,
     val apps: List<AppLimitRowUiState> = emptyList(),
     val groups: List<AppLimitGroupUiState> = emptyList(),
 ) {
@@ -108,6 +114,8 @@ class AppLimitsViewModel @Inject constructor(
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
 
     private val usageAccessGranted = MutableStateFlow(appLimitRepository.hasUsageAccess())
+    private val canShowBlockScreens =
+        MutableStateFlow(PlatformGuardPolicy.canDrawOverlays(applicationContext))
 
     private val apps = appRepository.observeApps()
     private val rules = appLimitRepository.observeRules()
@@ -158,8 +166,9 @@ class AppLimitsViewModel @Inject constructor(
     val uiState: StateFlow<AppLimitsUiState> = combine(
         limitData,
         usageAccessGranted,
-    ) { data, granted ->
-        data.copy(usageAccessGranted = granted)
+        canShowBlockScreens,
+    ) { data, granted, canOverlay ->
+        data.copy(usageAccessGranted = granted, canShowBlockScreens = canOverlay)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -177,6 +186,7 @@ class AppLimitsViewModel @Inject constructor(
      */
     fun refresh() {
         usageAccessGranted.value = appLimitRepository.hasUsageAccess()
+        canShowBlockScreens.value = PlatformGuardPolicy.canDrawOverlays(applicationContext)
         viewModelScope.launch {
             appLimitRepository.refreshUsageSnapshot()
             usageAccessGranted.value = appLimitRepository.hasUsageAccess()

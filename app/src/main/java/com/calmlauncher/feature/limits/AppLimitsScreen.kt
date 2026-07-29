@@ -124,6 +124,22 @@ fun AppLimitsScreen(
                 }
             }
 
+            if (!state.canShowBlockScreens) {
+                item {
+                    // Limits still fire without this; they just can't explain themselves. An
+                    // app that runs out mid-scroll simply closes, which reads as a crash.
+                    NoticeLine(
+                        "Apps that run out of time are closed without warning. " +
+                            "Allow block screens to see why first — and to add a few minutes.",
+                    )
+                    SettingRow(
+                        title = "Allow block screens",
+                        onClick = { openOverlaySettings(context) },
+                        showChevron = true,
+                    )
+                }
+            }
+
             item {
                 SearchField(
                     query = query,
@@ -531,6 +547,19 @@ private fun openUsageAccessSettings(context: android.content.Context) {
     val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }
+}
+
+/** "Display over other apps", scoped to Calm — the grant that lets a block screen be drawn. */
+private fun openOverlaySettings(context: android.content.Context) {
+    val scoped = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+        .setData(android.net.Uri.fromParts("package", context.packageName, null))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    // Some OEM builds reject the package-scoped form; fall back to the full list.
+    if (runCatching { context.startActivity(scoped) }.isFailure) {
+        val list = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(list) }
+    }
 }
 
 /** "0m" / "45m" / "2h" / "1h 30m". */

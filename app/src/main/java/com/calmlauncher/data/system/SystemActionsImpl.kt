@@ -39,6 +39,17 @@ class SystemActionsImpl @Inject constructor(
     override fun openDefaultHomeSettings(): Boolean =
         start(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
 
+    /**
+     * Deep-links straight to Calm's own entry in "display over other apps". Some OEM builds
+     * reject the package-scoped intent, so fall back to the full list rather than doing nothing.
+     */
+    override fun openOverlaySettings(): Boolean =
+        start(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+            },
+        ) || start(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+
     @android.annotation.SuppressLint("BatteryLife")
     override fun requestIgnoreBatteryOptimizations(): Boolean = start(
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {

@@ -3,8 +3,7 @@ package com.calmlauncher.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.calmlauncher.data.db.AppLimitDao
-import com.calmlauncher.domain.repository.AppRepository
+import com.calmlauncher.domain.repository.AppLimitRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,40 +13,28 @@ import javax.inject.Inject
 
 /**
  * Fires at the precise moment an app is due to cross a limit threshold, which is far more
- * accurate than waiting for the 15-minute usage rollup. Re-checks the rule before posting so
- * a limit the user disabled (or overrode) in the meantime stays quiet.
+ * accurate than waiting for the 15-minute usage rollup.
+ *
+ * It deliberately posts nothing itself. The alarm is only a *prompt to re-check*: it hands off
+ * to [AppLimitRepository.syncLimitNotification], which reads real usage, compares it against
+ * what the user has already been told today, and stays quiet when that is nothing new. Four
+ * alarms plus a rollup all landing in the same minute therefore produce at most one
+ * notification — and a limit disabled or overridden since the alarm was scheduled produces
+ * none at all.
  */
 @AndroidEntryPoint
 class LimitAlarmReceiver : BroadcastReceiver() {
-    @Inject lateinit var notifications: LimitNotificationManager
-    @Inject lateinit var dao: AppLimitDao
-    @Inject lateinit var appRepository: AppRepository
+    @Inject lateinit var appLimitRepository: AppLimitRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
         val packageName = intent.getStringExtra(EXTRA_PACKAGE) ?: return
-        val remaining = intent.getIntExtra(EXTRA_REMAINING_MINUTES, 0)
         val pending = goAsync()
 
         scope.launch {
             try {
-                val rule = dao.getRule(packageName)
-                val now = System.currentTimeMillis()
-                // The alarm was scheduled minutes ago; the rule may have changed since.
-                if (rule == null || !rule.enabled || rule.overrideUntilEpochMs > now) {
-                    notifications.clear(packageName)
-                    return@launch
-                }
-
-                val label = runCatching { appRepository.getApp(packageName)?.label }
-                    .getOrNull() ?: packageName
-                if (remaining <= 0) {
-                    notifications.notifyLimitReached(packageName, label)
-                } else {
-                    notifications.notifyApproachingLimit(packageName, label, remaining)
-                }
-                dao.upsertRule(rule.copy(lastNotifiedEpochMs = now))
+                appLimitRepository.syncLimitNotification(packageName)
             } catch (_: Exception) {
                 // Best-effort: a failed notification must not crash the receiver.
             } finally {

@@ -44,6 +44,14 @@ object PlatformGuardPolicy {
         return flat.contains(context.packageName)
     }
 
+    /**
+     * "Display over other apps". Optional, but without it a limit that runs out while the user
+     * is inside an app can only bounce them to the home screen with no explanation — there is
+     * no way to draw the block screen over someone else's activity.
+     */
+    fun canDrawOverlays(context: Context): Boolean =
+        runCatching { Settings.canDrawOverlays(context) }.getOrDefault(false)
+
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
         val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return false
         return pm.isIgnoringBatteryOptimizations(context.packageName)

@@ -31,6 +31,15 @@ interface AppLimitRepository {
     suspend fun setEnabled(packageName: String, enabled: Boolean)
     suspend fun extendOverride(packageName: String, minutes: Int): Boolean
     suspend fun scheduleApproachAlarms(packageName: String)
+
+    /**
+     * Bring [packageName]'s limit notification in line with its current usage, posting only if
+     * that says something the user has not already been told today. Safe to call repeatedly —
+     * this is the one path both the threshold alarm and the usage rollup share, and it is what
+     * keeps a single app from collecting four copies of the same warning.
+     */
+    suspend fun syncLimitNotification(packageName: String)
+
     suspend fun refreshUsageSnapshot()
     suspend fun recordBlockedLaunch(status: AppLimitStatus)
     suspend fun todaySummary(): AppLimitSummary

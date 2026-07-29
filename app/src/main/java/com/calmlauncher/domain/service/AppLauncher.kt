@@ -36,6 +36,10 @@ interface SystemActions {
     fun openUsageAccessSettings(): Boolean
     fun openNotificationListenerSettings(): Boolean
     fun openDefaultHomeSettings(): Boolean
+
+    /** "Display over other apps" — what lets a block screen cover the app being blocked. */
+    fun openOverlaySettings(): Boolean
+
     fun requestIgnoreBatteryOptimizations(): Boolean
     fun openBatteryOptimizationSettings(): Boolean
     fun lockScreen(): Boolean

@@ -41,7 +41,7 @@ import com.calmlauncher.data.db.entity.UnlockEntity
         UnlockEntity::class,
         RiskStateEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class CalmDatabase : RoomDatabase() {

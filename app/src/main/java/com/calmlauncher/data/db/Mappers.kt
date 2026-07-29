@@ -15,6 +15,7 @@ import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
 import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
+import com.calmlauncher.domain.model.LimitNotifyStage
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
 import com.calmlauncher.domain.model.AppLimitUsage
@@ -142,6 +143,8 @@ internal fun AppLimitRuleEntity.toDomain(): AppLimitRule = AppLimitRule(
     overrideUntilEpochMs = overrideUntilEpochMs,
     updatedAtEpochMs = updatedAtEpochMs,
     lastNotifiedEpochMs = lastNotifiedEpochMs,
+    lastNotifiedStage = LimitNotifyStage.fromName(lastNotifiedStage),
+    lastNotifiedDayStartEpochMs = lastNotifiedDayStartEpochMs,
 )
 
 internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
@@ -151,6 +154,8 @@ internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
     overrideUntilEpochMs = overrideUntilEpochMs,
     updatedAtEpochMs = updatedAtEpochMs,
     lastNotifiedEpochMs = lastNotifiedEpochMs,
+    lastNotifiedStage = lastNotifiedStage.name,
+    lastNotifiedDayStartEpochMs = lastNotifiedDayStartEpochMs,
 )
 
 internal fun AppLimitGroupAssignmentEntity.toDomain(): AppLimitGroupAssignment = AppLimitGroupAssignment(
