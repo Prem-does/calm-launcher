@@ -22,8 +22,18 @@ data class Reminder(
     val completed: Boolean = false,
     val completedAtEpochMs: Long? = null,
     val createdAtEpochMs: Long = 0L,
+    /**
+     * Due time of the occurrence the user has already been shown. See
+     * [com.calmlauncher.data.db.entity.ReminderEntity.lastFiredOccurrenceEpochMs] — this is the
+     * single piece of state that makes firing idempotent.
+     */
+    val lastFiredOccurrenceEpochMs: Long? = null,
 ) {
     val hasDueTime: Boolean get() = dueAtEpochMs != null
+
+    /** True when this reminder's *current* occurrence has already been announced. */
+    val currentOccurrenceAlreadyFired: Boolean
+        get() = dueAtEpochMs != null && dueAtEpochMs == lastFiredOccurrenceEpochMs
 
     /** True when the due time has passed and the reminder is still open. */
     fun isOverdue(nowEpochMs: Long = System.currentTimeMillis()): Boolean =

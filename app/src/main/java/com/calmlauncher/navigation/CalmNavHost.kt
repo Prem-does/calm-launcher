@@ -35,6 +35,7 @@ import com.calmlauncher.feature.reflection.ReflectionScreen
 import com.calmlauncher.feature.reminders.RemindersScreen
 import com.calmlauncher.feature.reset.DeadEndResetScreen
 import com.calmlauncher.feature.search.SearchScreen
+import com.calmlauncher.feature.settings.CustomizationScreen
 import com.calmlauncher.feature.settings.EnvironmentScreen
 import com.calmlauncher.feature.settings.FrictionScreen
 import com.calmlauncher.feature.settings.ManageAppsScreen
@@ -51,11 +52,13 @@ import com.calmlauncher.feature.settings.ThemeViewModel
 fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val onboardingComplete by rootViewModel.onboardingComplete.collectAsStateWithLifecycle()
     val themeViewModel: ThemeViewModel = hiltViewModel()
-    val themePreference by themeViewModel.themePreference.collectAsStateWithLifecycle()
+    // The full appearance, not just light/dark: collecting it here is what makes every
+    // Customization change apply on the next frame, with no launcher restart.
+    val appearance by themeViewModel.appearance.collectAsStateWithLifecycle()
     val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
-    CalmTheme(themePreference = themePreference) {
+    CalmTheme(appearance = appearance) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -196,6 +199,7 @@ fun CalmNavHost(
                 onOpenEnvironment = { navController.navigate(Routes.SETTINGS_ENVIRONMENT) },
                 onOpenReflection = { navController.navigate(Routes.REFLECTION) },
                 onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
+                onOpenCustomization = { navController.navigate(Routes.SETTINGS_CUSTOMIZATION) },
             )
         }
 
@@ -205,5 +209,6 @@ fun CalmNavHost(
         composable(Routes.SETTINGS_FRICTION) { FrictionScreen(onBack = back) }
         composable(Routes.SETTINGS_ENVIRONMENT) { EnvironmentScreen(onBack = back) }
         composable(Routes.SETTINGS_REMINDERS) { RemindersScreen(onBack = back) }
+        composable(Routes.SETTINGS_CUSTOMIZATION) { CustomizationScreen(onBack = back) }
     }
 }

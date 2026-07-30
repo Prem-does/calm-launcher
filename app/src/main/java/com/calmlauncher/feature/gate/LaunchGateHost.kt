@@ -54,22 +54,34 @@ fun LaunchGateHost(
         appLimitBlock != null -> {
             val limit = appLimitBlock!!
             val status = limit.status
+            // The extension is offered only when one can actually be granted, and its label states
+            // the real cost and what is left. An "Add 10 minutes" button that silently refuses is
+            // what made the limit feel negotiable in the first place.
+            val extensionMinutes = minOf(
+                viewModel.minutesPerExtension,
+                status.overrideMinutesRemaining,
+            )
             BlockCountdownOverlay(
                 seconds = LimitCountdownSeconds,
                 title = "Limit reached",
                 appLabel = status.label,
                 detail = "${status.usedMinutes}m used today of ${status.dailyLimitMinutes ?: 0}m.",
-                overrideLabel = if (status.canGrantOverride) "Add 10 minutes" else null,
+                overrideLabel = if (status.canGrantOverride) {
+                    "Add $extensionMinutes minutes"
+                } else {
+                    null
+                },
                 onOverride = {
-                    viewModel.coordinator.grantAppLimitOverrideAndLaunch(limit.request, 10)
+                    viewModel.coordinator.grantAppLimitOverrideAndLaunch(
+                        limit.request,
+                        extensionMinutes,
+                    )
                     appLimitBlock = null
                 },
                 onDismiss = { appLimitBlock = null },
-                footnote = if (status.canGrantOverride) {
-                    null
-                } else {
-                    "Both 10-minute extensions are used up for today."
-                },
+                footnote = status.overrideExhaustedReason
+                    ?: "${status.overridesRemaining} left today, " +
+                    "${status.overrideMinutesRemaining}m of extra time.",
                 modifier = modifier,
             )
         }

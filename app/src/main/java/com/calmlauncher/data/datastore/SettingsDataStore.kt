@@ -77,6 +77,12 @@ class SettingsDataStore @Inject constructor(
             einkSimulationEnabled = this[Keys.EINK_SIMULATION_ENABLED] ?: defaults.einkSimulationEnabled,
             grayscaleEnabled = this[Keys.GRAYSCALE_ENABLED] ?: defaults.grayscaleEnabled,
             themePreference = this[Keys.THEME_PREFERENCE].toThemePreference(defaults.themePreference),
+            limitExtensionsPerDay = this[Keys.LIMIT_EXTENSIONS_PER_DAY] ?: defaults.limitExtensionsPerDay,
+            limitExtraMinutesPerDay = this[Keys.LIMIT_EXTRA_MINUTES_PER_DAY] ?: defaults.limitExtraMinutesPerDay,
+            limitMinutesPerExtension = this[Keys.LIMIT_MINUTES_PER_EXTENSION] ?: defaults.limitMinutesPerExtension,
+            pendingLimitExtensionsPerDay = this[Keys.PENDING_LIMIT_EXTENSIONS_PER_DAY] ?: defaults.pendingLimitExtensionsPerDay,
+            pendingLimitExtraMinutesPerDay = this[Keys.PENDING_LIMIT_EXTRA_MINUTES_PER_DAY] ?: defaults.pendingLimitExtraMinutesPerDay,
+            limitCapsPendingSinceDayStartEpochMs = this[Keys.LIMIT_CAPS_PENDING_SINCE] ?: defaults.limitCapsPendingSinceDayStartEpochMs,
             collectUsageAnalyticsEnabled = this[Keys.COLLECT_USAGE_ANALYTICS] ?: defaults.collectUsageAnalyticsEnabled,
             analyticsRetentionDays = this[Keys.ANALYTICS_RETENTION_DAYS] ?: defaults.analyticsRetentionDays,
             kioskModeEnabled = this[Keys.KIOSK_MODE_ENABLED] ?: defaults.kioskModeEnabled,
@@ -111,6 +117,12 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.EINK_SIMULATION_ENABLED] = einkSimulationEnabled
         prefs[Keys.GRAYSCALE_ENABLED] = grayscaleEnabled
         prefs[Keys.THEME_PREFERENCE] = themePreference.name
+        prefs[Keys.LIMIT_EXTENSIONS_PER_DAY] = limitExtensionsPerDay
+        prefs[Keys.LIMIT_EXTRA_MINUTES_PER_DAY] = limitExtraMinutesPerDay
+        prefs[Keys.LIMIT_MINUTES_PER_EXTENSION] = limitMinutesPerExtension
+        prefs[Keys.PENDING_LIMIT_EXTENSIONS_PER_DAY] = pendingLimitExtensionsPerDay
+        prefs[Keys.PENDING_LIMIT_EXTRA_MINUTES_PER_DAY] = pendingLimitExtraMinutesPerDay
+        prefs[Keys.LIMIT_CAPS_PENDING_SINCE] = limitCapsPendingSinceDayStartEpochMs
         prefs[Keys.COLLECT_USAGE_ANALYTICS] = collectUsageAnalyticsEnabled
         prefs[Keys.ANALYTICS_RETENTION_DAYS] = analyticsRetentionDays
         prefs[Keys.KIOSK_MODE_ENABLED] = kioskModeEnabled
@@ -172,6 +184,13 @@ class SettingsDataStore @Inject constructor(
         val EINK_SIMULATION_ENABLED = booleanPreferencesKey("eink_simulation_enabled")
         val GRAYSCALE_ENABLED = booleanPreferencesKey("grayscale_enabled")
         val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
+        val LIMIT_EXTENSIONS_PER_DAY = intPreferencesKey("limit_extensions_per_day")
+        val LIMIT_EXTRA_MINUTES_PER_DAY = intPreferencesKey("limit_extra_minutes_per_day")
+        val LIMIT_MINUTES_PER_EXTENSION = intPreferencesKey("limit_minutes_per_extension")
+        val PENDING_LIMIT_EXTENSIONS_PER_DAY = intPreferencesKey("pending_limit_extensions_per_day")
+        val PENDING_LIMIT_EXTRA_MINUTES_PER_DAY =
+            intPreferencesKey("pending_limit_extra_minutes_per_day")
+        val LIMIT_CAPS_PENDING_SINCE = longPreferencesKey("limit_caps_pending_since")
         val COLLECT_USAGE_ANALYTICS = booleanPreferencesKey("collect_usage_analytics")
         val ANALYTICS_RETENTION_DAYS = intPreferencesKey("analytics_retention_days")
         val KIOSK_MODE_ENABLED = booleanPreferencesKey("kiosk_mode_enabled")

@@ -83,6 +83,7 @@ fun SettingsScreen(
     onOpenEnvironment: () -> Unit,
     onOpenReflection: () -> Unit,
     onOpenReminders: () -> Unit,
+    onOpenCustomization: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -236,6 +237,27 @@ fun SettingsScreen(
             ThemeModeSelector(
                 selected = themePreference,
                 onSelected = themeViewModel::setThemePreference,
+            )
+
+            // --- Customization -----------------------------------------------------------
+            // Last section on purpose. Everything above changes what the launcher *does*;
+            // everything behind this row changes only how it looks, and the separation is
+            // easier to trust when it is also a separation on screen.
+            SectionLabel("Customization")
+            SettingRow(
+                title = "Appearance & Layout",
+                onClick = onOpenCustomization,
+                showChevron = true,
+            )
+            Text(
+                text = "Theme, accent, fonts, grid, clock, search bar and spacing. " +
+                    "Visual only — nothing here changes how the launcher behaves.",
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier.padding(
+                    horizontal = Spacing.marginMobile,
+                    vertical = Spacing.stackMd,
+                ),
             )
 
             Spacer(Modifier.height(Spacing.stackLg))

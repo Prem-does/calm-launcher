@@ -21,6 +21,7 @@ object Routes {
     const val SETTINGS_FRICTION = "settings/friction"
     const val SETTINGS_ENVIRONMENT = "settings/environment"
     const val SETTINGS_REMINDERS = "settings/reminders"
+    const val SETTINGS_CUSTOMIZATION = "settings/customization"
 
     /** The three primary bottom-nav tabs, in order. */
     val bottomTabs = listOf(HOME, APPS, FOCUS)

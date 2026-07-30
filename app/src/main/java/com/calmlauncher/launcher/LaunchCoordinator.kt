@@ -5,6 +5,7 @@ import com.calmlauncher.domain.model.AppLaunchRequest
 import com.calmlauncher.domain.model.FrictionStep
 import com.calmlauncher.domain.model.LaunchEvent
 import com.calmlauncher.domain.model.AppLimitStatus
+import com.calmlauncher.domain.model.OverrideResult
 import com.calmlauncher.domain.service.AppLauncher
 import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.SettingsRepository
@@ -87,10 +88,25 @@ class LaunchCoordinator @Inject constructor(
         }
     }
 
+    /**
+     * Spend an extension and open the app, or report why the extension was refused.
+     *
+     * A refusal re-emits [LaunchEffect.AppLimitBlocked] with a freshly read status rather than
+     * failing quietly. That matters: the previous version simply did nothing when the grant was
+     * denied, so the gate closed and the user was returned to the launcher with no explanation —
+     * which reads as a bug and invites another attempt. Now the block screen comes back and says
+     * the extensions are gone.
+     */
     fun grantAppLimitOverrideAndLaunch(request: AppLaunchRequest, minutes: Int) {
         scope.launch {
-            if (appLimitRepository.extendOverride(request.packageName, minutes)) {
-                request(request)
+            when (appLimitRepository.extendOverride(request.packageName, minutes)) {
+                is OverrideResult.Granted -> request(request)
+                is OverrideResult.Denied -> {
+                    val status = appLimitRepository.statusFor(request.packageName, request.label)
+                    if (status != null) {
+                        _effects.emit(LaunchEffect.AppLimitBlocked(request, status))
+                    }
+                }
             }
         }
     }

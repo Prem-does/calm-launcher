@@ -41,6 +41,27 @@ data class LauncherSettings(
     val grayscaleEnabled: Boolean = false,
     val themePreference: ThemePreference = ThemePreference.DARK,
 
+    // App-limit extension budget.
+    //
+    // These are user-configurable but deliberately awkward to abuse. A *lower* value applies at
+    // once, because tightening your own limits should never be blocked. A *higher* value is parked
+    // in the `pending` fields and only becomes effective at the next daily reset — otherwise, when
+    // an app is blocked, "raise the cap" would simply be a slower version of the unlimited
+    // "Add 10 minutes" button this replaced. Absolute ceilings live in
+    // [com.calmlauncher.domain.model.AppLimitCeilings] and no setting can exceed them.
+    val limitExtensionsPerDay: Int = 2,
+    val limitExtraMinutesPerDay: Int = 20,
+    val limitMinutesPerExtension: Int = 10,
+
+    /** A raised extensions cap awaiting the next daily reset. -1 when nothing is pending. */
+    val pendingLimitExtensionsPerDay: Int = -1,
+
+    /** A raised extra-minutes cap awaiting the next daily reset. -1 when nothing is pending. */
+    val pendingLimitExtraMinutesPerDay: Int = -1,
+
+    /** Day-start on which the pending caps were requested; they apply on any later day. */
+    val limitCapsPendingSinceDayStartEpochMs: Long = 0L,
+
     // Analytics
     val collectUsageAnalyticsEnabled: Boolean = true,
     val analyticsRetentionDays: Int = 365,

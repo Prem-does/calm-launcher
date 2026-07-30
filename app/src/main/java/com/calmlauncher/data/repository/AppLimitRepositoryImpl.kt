@@ -15,16 +15,21 @@ import android.content.Intent
 import android.os.Build
 import com.calmlauncher.notification.LimitAlarmReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.calmlauncher.domain.model.AppLimitCeilings
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
 import com.calmlauncher.domain.model.AppLimitEventType
+import com.calmlauncher.domain.model.AppLimitExtensionCaps
 import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
 import com.calmlauncher.domain.model.AppLimitUsage
 import com.calmlauncher.domain.model.LimitNotifyStage
+import com.calmlauncher.domain.model.OverrideDenialReason
+import com.calmlauncher.domain.model.OverrideResult
 import com.calmlauncher.domain.repository.AppLimitRepository
+import com.calmlauncher.domain.repository.SettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -42,14 +47,11 @@ class AppLimitRepositoryImpl @Inject constructor(
     private val clockTicker: ClockTicker,
     private val usageStatsTracker: UsageStatsTracker,
     private val appRepository: AppRepository,
+    private val settingsRepository: SettingsRepository,
     private val notifications: LimitNotificationManager,
     @ApplicationContext private val context: Context,
     @IoDispatcher private val dispatcher: CoroutineDispatcher,
 ) : AppLimitRepository {
-
-    private companion object {
-        private const val MAX_DAILY_OVERRIDES = 2
-    }
 
     override fun hasUsageAccess(): Boolean = usageStatsTracker.hasPermission()
 
@@ -81,8 +83,38 @@ class AppLimitRepositoryImpl @Inject constructor(
         appLimitDao.getRule(packageName)?.toDomain()
     }
 
+    /**
+     * Write a rule, preserving the bookkeeping the caller has no business setting.
+     *
+     * This is a deliberate choke point. Callers build an [AppLimitRule] to express intent — which
+     * app, enabled or not, how many minutes — and construct it fresh, leaving the extension ledger
+     * and the active override window at their defaults. Upserting that directly is how the old code
+     * let a user reset their own extension budget by saving a group limit, or clear an in-flight
+     * override by toggling a preset. So the durable fields are taken from the stored row and the
+     * caller's values for them are ignored, rather than trusting every call site to remember.
+     */
     override suspend fun saveRule(rule: AppLimitRule) = withContext(dispatcher) {
-        appLimitDao.upsertRule(rule.toEntity())
+        val existing = appLimitDao.getRule(rule.packageName)?.toDomain()
+        val merged = if (existing == null) {
+            rule
+        } else {
+            rule.copy(
+                overrideUntilEpochMs = existing.overrideUntilEpochMs,
+                overrideDayStartEpochMs = existing.overrideDayStartEpochMs,
+                overridesUsedToday = existing.overridesUsedToday,
+                overrideMinutesUsedToday = existing.overrideMinutesUsedToday,
+                lastNotifiedEpochMs = existing.lastNotifiedEpochMs,
+                // A changed limit invalidates what the user was last told about their remaining
+                // time, so the countdown is allowed to speak again — but only that.
+                lastNotifiedStage = if (existing.dailyLimitMinutes == rule.dailyLimitMinutes) {
+                    existing.lastNotifiedStage
+                } else {
+                    LimitNotifyStage.NONE
+                },
+                lastNotifiedDayStartEpochMs = existing.lastNotifiedDayStartEpochMs,
+            )
+        }
+        appLimitDao.upsertRule(merged.toEntity())
     }
 
     override suspend fun saveGroupAssignments(groupId: String, packageNames: Set<String>) = withContext(dispatcher) {
@@ -122,44 +154,163 @@ class AppLimitRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun extendOverride(packageName: String, minutes: Int): Boolean = withContext(dispatcher) {
-        val now = System.currentTimeMillis()
-        val dayStart = todayDayStart(now)
-        val current = appLimitDao.getRule(packageName)?.toDomain() ?: AppLimitRule(packageName = packageName)
-        val overridesUsedToday = todayOverrideCount(packageName, dayStart)
-        if (overridesUsedToday >= MAX_DAILY_OVERRIDES) return@withContext false
+    /**
+     * The extension budget in force right now, promoting any pending raise whose day has come.
+     *
+     * A *lowered* cap is written straight to the effective fields by the settings layer, because
+     * tightening your own limits must never be deferred. A *raised* cap is parked as pending and
+     * only promoted here, on a later day than it was requested. That single asymmetry is what stops
+     * the settings screen from becoming a second unlimited-extension button: while an app is
+     * blocked, raising the cap changes nothing until tomorrow.
+     */
+    private suspend fun activeCaps(nowMs: Long): AppLimitExtensionCaps {
+        val settings = settingsRepository.current()
+        val dayStart = todayDayStart(nowMs)
+        val pendingExtensions = settings.pendingLimitExtensionsPerDay
+        val pendingMinutes = settings.pendingLimitExtraMinutesPerDay
+        val hasPending = pendingExtensions >= 0 || pendingMinutes >= 0
+        val pendingIsDue = hasPending && dayStart > settings.limitCapsPendingSinceDayStartEpochMs
 
-        // Accumulate remaining override time when the user is already inside an allowed window.
-        val existingRemainingMs = (current.overrideUntilEpochMs - now).coerceAtLeast(0L)
-        val addedMs = minutes * 60_000L
-        val newRemainingMs = existingRemainingMs + addedMs
-        val newOverrideUntil = now + newRemainingMs
+        if (!pendingIsDue) {
+            return AppLimitExtensionCaps(
+                extensionsPerDay = settings.limitExtensionsPerDay,
+                extraMinutesPerDay = settings.limitExtraMinutesPerDay,
+            ).clamped()
+        }
 
-        appLimitDao.upsertRule(
-            current.copy(
-                overrideUntilEpochMs = newOverrideUntil,
-                updatedAtEpochMs = now,
-            ).toEntity(),
-        )
-        // The user bought themselves time — clear the "you're done" notification, and forget
-        // the stage so the countdown can speak again when the extension runs out.
-        notifications.clear(packageName)
-        resetNotificationStage(packageName)
+        val promoted = AppLimitExtensionCaps(
+            extensionsPerDay = if (pendingExtensions >= 0) {
+                pendingExtensions
+            } else {
+                settings.limitExtensionsPerDay
+            },
+            extraMinutesPerDay = if (pendingMinutes >= 0) {
+                pendingMinutes
+            } else {
+                settings.limitExtraMinutesPerDay
+            },
+        ).clamped()
 
-        appLimitDao.upsertEvent(
-            AppLimitEvent(
-                packageName = packageName,
-                label = runCatching { appRepository.getApp(packageName)?.label ?: packageName }.getOrNull() ?: packageName,
-                eventType = AppLimitEventType.OVERRIDE,
-                timestampEpochMs = now,
-                dayStartEpochMs = dayStart,
-                limitMinutes = current.dailyLimitMinutes,
-                usedMinutes = (usageStatsTracker.todayForegroundFor(packageName) / 60_000L).toInt(),
-                overrideMinutes = minutes,
-            ).toEntity(),
-        )
-        true
+        settingsRepository.update {
+            it.copy(
+                limitExtensionsPerDay = promoted.extensionsPerDay,
+                limitExtraMinutesPerDay = promoted.extraMinutesPerDay,
+                pendingLimitExtensionsPerDay = -1,
+                pendingLimitExtraMinutesPerDay = -1,
+                limitCapsPendingSinceDayStartEpochMs = 0L,
+            )
+        }
+        return promoted
     }
+
+    /**
+     * Grant more time for [packageName], or explain why not.
+     *
+     * This method is the fix for the "press Add 10 Minutes forever" exploit, and it is worth being
+     * explicit about why the old version failed. It counted OVERRIDE rows in the event log, decided
+     * in Kotlin whether there was room, and then wrote the grant. Three separate weaknesses fell
+     * out of that:
+     *
+     *  1. **Nothing bounded the total time.** Only the *count* of extensions was checked, so a
+     *     caller passing a large `minutes` — or accumulating a leftover window, as it did — could
+     *     turn two extensions into hours.
+     *  2. **The ledger was rebuildable.** Saving a group limit reconstructed the rule from
+     *     scratch, resetting `overrideUntilEpochMs`; anything that rewrote the rule handed back a
+     *     fresh allowance.
+     *  3. **Check and write were not atomic.** Two quick taps both read "one left" and both spent
+     *     it.
+     *
+     * Now: the budget lives on the rule, both a count *and* a minute total are enforced, the spend
+     * happens inside a single conditional UPDATE ([AppLimitDao.spendOverrideBudget]), and the event
+     * log is consulted as a floor so deleting and re-adding a rule can't wipe the day's spending.
+     * A refusal is returned as a typed [OverrideResult] rather than a bare `false`, because the
+     * caller has to be able to tell the user *why* — and, critically, must not dismiss the block
+     * screen when the answer is no.
+     */
+    override suspend fun extendOverride(packageName: String, minutes: Int): OverrideResult =
+        withContext(dispatcher) {
+            val now = System.currentTimeMillis()
+            val dayStart = todayDayStart(now)
+            val rule = appLimitDao.getRule(packageName)?.toDomain()
+                ?: return@withContext OverrideResult.Denied(OverrideDenialReason.NO_RULE)
+            if (!rule.enabled) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.NO_RULE)
+            }
+
+            val caps = activeCaps(now)
+            if (caps.extensionsPerDay <= 0 || caps.extraMinutesPerDay <= 0) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.DISABLED)
+            }
+
+            // Take the worse of the rule's ledger and the event log. The ledger is authoritative
+            // for today; the log is the backstop that survives the rule being deleted and re-added.
+            val usedCount = maxOf(
+                rule.overridesUsedOn(dayStart),
+                appLimitDao.countOverridesOn(dayStart, packageName),
+            )
+            val usedMinutes = maxOf(
+                rule.overrideMinutesUsedOn(dayStart),
+                appLimitDao.sumOverrideMinutesOn(dayStart, packageName),
+            )
+
+            if (usedCount >= caps.extensionsPerDay) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.EXTENSIONS_EXHAUSTED)
+            }
+            val minutesBudget = caps.extraMinutesPerDay - usedMinutes
+            if (minutesBudget <= 0) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.MINUTES_EXHAUSTED)
+            }
+
+            // Grant no more than the day's remaining budget, and never more than one extension is
+            // allowed to be worth. Clamping here (rather than trusting the caller's `minutes`) is
+            // what stops any call site from asking for an arbitrary amount of time.
+            val granted = minutes
+                .coerceAtMost(minutesBudget)
+                .coerceAtMost(AppLimitCeilings.MAX_MINUTES_PER_EXTENSION)
+            if (granted <= 0) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.MINUTES_EXHAUSTED)
+            }
+
+            // Extend from the later of now and the current window, so overlapping grants don't
+            // silently discard time — but the total is still bounded by the minute budget above.
+            val windowStart = maxOf(now, rule.overrideUntilEpochMs)
+            val overrideUntil = windowStart + granted * 60_000L
+
+            // The conditional UPDATE re-checks the budget against the row itself. A zero row count
+            // means another caller spent it first, and we must refuse rather than retry.
+            val spent = appLimitDao.spendOverrideBudget(
+                packageName = packageName,
+                minutes = granted,
+                overrideUntilEpochMs = overrideUntil,
+                nowEpochMs = now,
+                dayStartEpochMs = dayStart,
+                maxExtensions = caps.extensionsPerDay,
+                maxExtraMinutes = caps.extraMinutesPerDay,
+            )
+            if (spent == 0) {
+                return@withContext OverrideResult.Denied(OverrideDenialReason.EXTENSIONS_EXHAUSTED)
+            }
+
+            // The user bought themselves time — clear the "you're done" notification. The stage was
+            // reset to NONE inside the same UPDATE, so the countdown can speak again when the
+            // extension runs out.
+            notifications.clear(packageName)
+
+            appLimitDao.upsertEvent(
+                AppLimitEvent(
+                    packageName = packageName,
+                    label = runCatching { appRepository.getApp(packageName)?.label ?: packageName }
+                        .getOrNull() ?: packageName,
+                    eventType = AppLimitEventType.OVERRIDE,
+                    timestampEpochMs = now,
+                    dayStartEpochMs = dayStart,
+                    limitMinutes = rule.dailyLimitMinutes,
+                    usedMinutes = (usageStatsTracker.todayForegroundFor(packageName) / 60_000L).toInt(),
+                    overrideMinutes = granted,
+                ).toEntity(),
+            )
+            OverrideResult.Granted(grantedMinutes = granted, untilEpochMs = overrideUntil)
+        }
 
     override suspend fun refreshUsageSnapshot() = withContext(dispatcher) {
         val snapshot = usageStatsTracker.todayForeground()
@@ -359,28 +510,123 @@ class AppLimitRepositoryImpl @Inject constructor(
             return@withContext AppLimitDecision.Allowed
         }
 
-        val status = AppLimitStatus(
-            packageName = packageName,
-            label = label,
-            enabled = true,
-            dailyLimitMinutes = rule.dailyLimitMinutes,
-            usedMinutes = (usedMs / 60_000L).toInt(),
-            overrideUntilEpochMs = rule.overrideUntilEpochMs,
-            blockedToday = true,
-            overridesUsedToday = todayOverrideCount(packageName, todayDayStart(now)),
-            overrideLimitPerDay = MAX_DAILY_OVERRIDES,
-        )
+        val status = statusFor(rule, label, usedMs, now, blockedToday = true)
         recordBlockedLaunch(status)
         refreshUsageSnapshot()
         AppLimitDecision.Blocked(status)
     }
 
-    private suspend fun todayOverrideCount(packageName: String, dayStartEpochMs: Long): Int =
-        appLimitDao.observeEvents(dayStartEpochMs)
-            .first()
-            .count { row ->
-                row.packageName == packageName && row.eventType == AppLimitEventType.OVERRIDE.name
+    override suspend fun statusFor(packageName: String, label: String): AppLimitStatus? =
+        withContext(dispatcher) {
+            val rule = appLimitDao.getRule(packageName)?.toDomain() ?: return@withContext null
+            val now = System.currentTimeMillis()
+            val usedMs = runCatching { usageStatsTracker.todayForegroundFor(packageName) }
+                .getOrDefault(0L)
+            val blocked = rule.enabled &&
+                rule.overrideUntilEpochMs <= now &&
+                usedMs >= rule.dailyLimitMinutes * 60_000L
+            statusFor(rule, label, usedMs, now, blockedToday = blocked)
+        }
+
+    /**
+     * Build the UI-facing status for a rule, with the extension budget resolved.
+     *
+     * Both the count and the minute total are reported so the block screen can be specific about
+     * what has run out — and so it can hide the extension button for the right reason rather than
+     * offering an action that is certain to be refused.
+     */
+    private suspend fun statusFor(
+        rule: AppLimitRule,
+        label: String,
+        usedMs: Long,
+        nowMs: Long,
+        blockedToday: Boolean,
+    ): AppLimitStatus {
+        val dayStart = todayDayStart(nowMs)
+        val caps = activeCaps(nowMs)
+        val usedCount = maxOf(
+            rule.overridesUsedOn(dayStart),
+            appLimitDao.countOverridesOn(dayStart, rule.packageName),
+        )
+        val usedMinutes = maxOf(
+            rule.overrideMinutesUsedOn(dayStart),
+            appLimitDao.sumOverrideMinutesOn(dayStart, rule.packageName),
+        )
+        return AppLimitStatus(
+            packageName = rule.packageName,
+            label = label,
+            enabled = rule.enabled,
+            dailyLimitMinutes = rule.dailyLimitMinutes,
+            usedMinutes = (usedMs / 60_000L).toInt(),
+            overrideUntilEpochMs = rule.overrideUntilEpochMs,
+            blockedToday = blockedToday,
+            overridesUsedToday = usedCount,
+            overrideLimitPerDay = caps.extensionsPerDay,
+            overrideMinutesUsedToday = usedMinutes,
+            overrideMinutesLimitPerDay = caps.extraMinutesPerDay,
+        )
+    }
+
+    override suspend fun minutesPerExtension(): Int = withContext(dispatcher) {
+        settingsRepository.current().limitMinutesPerExtension
+            .coerceIn(1, AppLimitCeilings.MAX_MINUTES_PER_EXTENSION)
+    }
+
+    /**
+     * Change the extension caps.
+     *
+     * Lowering applies at once; raising is parked until the next daily reset. See
+     * [activeCaps] for why that asymmetry exists — without it, the caps screen would be a slower
+     * route to the very exploit the caps were added to close.
+     *
+     * @return true when the change took effect immediately, false when it is pending.
+     */
+    override suspend fun setExtensionCaps(extensionsPerDay: Int, extraMinutesPerDay: Int): Boolean =
+        withContext(dispatcher) {
+            val requested = AppLimitExtensionCaps(extensionsPerDay, extraMinutesPerDay).clamped()
+            val settings = settingsRepository.current()
+            val currentEffective = AppLimitExtensionCaps(
+                extensionsPerDay = settings.limitExtensionsPerDay,
+                extraMinutesPerDay = settings.limitExtraMinutesPerDay,
+            ).clamped()
+
+            val isRelaxation = requested.extensionsPerDay > currentEffective.extensionsPerDay ||
+                requested.extraMinutesPerDay > currentEffective.extraMinutesPerDay
+
+            if (!isRelaxation) {
+                settingsRepository.update {
+                    it.copy(
+                        limitExtensionsPerDay = requested.extensionsPerDay,
+                        limitExtraMinutesPerDay = requested.extraMinutesPerDay,
+                        pendingLimitExtensionsPerDay = -1,
+                        pendingLimitExtraMinutesPerDay = -1,
+                        limitCapsPendingSinceDayStartEpochMs = 0L,
+                    )
+                }
+                return@withContext true
             }
+
+            settingsRepository.update {
+                it.copy(
+                    // Any part of the change that tightens still lands now; only the raise waits.
+                    limitExtensionsPerDay = minOf(
+                        it.limitExtensionsPerDay,
+                        requested.extensionsPerDay,
+                    ),
+                    limitExtraMinutesPerDay = minOf(
+                        it.limitExtraMinutesPerDay,
+                        requested.extraMinutesPerDay,
+                    ),
+                    pendingLimitExtensionsPerDay = requested.extensionsPerDay,
+                    pendingLimitExtraMinutesPerDay = requested.extraMinutesPerDay,
+                    limitCapsPendingSinceDayStartEpochMs = todayDayStart(),
+                )
+            }
+            false
+        }
+
+    override suspend fun currentExtensionCaps(): AppLimitExtensionCaps =
+        withContext(dispatcher) { activeCaps(System.currentTimeMillis()) }
 
     private fun todayDayStart(nowEpochMs: Long = System.currentTimeMillis()): Long {
         val cal = java.util.Calendar.getInstance().apply {

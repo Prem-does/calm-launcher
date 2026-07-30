@@ -2,6 +2,7 @@ package com.calmlauncher.feature.limits
 
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,12 +15,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +30,7 @@ import androidx.compose.foundation.border
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +62,9 @@ import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
+import com.calmlauncher.domain.model.AppLimitCeilings
+import com.calmlauncher.domain.model.AppLimitExtensionCaps
+import com.calmlauncher.domain.model.OverrideDenialReason
 import java.util.Locale
 
 /** Daily limits the picker offers, in minutes. 0 blocks the app outright. */
@@ -76,9 +83,27 @@ fun AppLimitsScreen(
     viewModel: AppLimitsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val caps by viewModel.extensionCaps.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var query by remember { mutableStateOf("") }
+
+    // A refused extension and a deferred cap increase are both things the user has to be told
+    // about explicitly: silently doing nothing is what made the old limit system feel broken.
+    LaunchedEffect(viewModel) {
+        viewModel.overrideDenied.collect { reason ->
+            Toast.makeText(context, reason.message(), Toast.LENGTH_LONG).show()
+        }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.capChangeDeferred.collect {
+            Toast.makeText(
+                context,
+                "Raising a cap takes effect tomorrow, so it can't unblock an app right now.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
     var editor by remember { mutableStateOf<AppLimitRowUiState?>(null) }
     var groupEditor by remember { mutableStateOf<AppLimitGroupUiState?>(null) }
 
@@ -182,6 +207,11 @@ fun AppLimitsScreen(
                             vertical = Spacing.rowVertical,
                         ),
                     )
+
+                    ExtensionBudgetSection(
+                        caps = caps,
+                        onChange = viewModel::setExtensionCaps,
+                    )
                 }
             } else {
                 items(filteredApps, key = { it.app.packageName }) { row ->
@@ -228,6 +258,113 @@ fun AppLimitsScreen(
             },
         )
     }
+}
+
+/**
+ * The daily extension budget: how many times an app may be extended past its limit, and how much
+ * extra time that can add up to across the day.
+ *
+ * Both are enforced, and running out of either ends extensions for the day — which is the point.
+ * Capping only the *count* is what allowed the original exploit: two extensions of unbounded length
+ * is not a limit. The note about relaxations landing tomorrow is shown here rather than only in a
+ * toast because it is the reason this screen cannot be used to get around a block in progress.
+ */
+@Composable
+private fun ExtensionBudgetSection(
+    caps: AppLimitExtensionCaps,
+    onChange: (extensionsPerDay: Int, extraMinutesPerDay: Int) -> Unit,
+) {
+    SectionLabel("Extensions")
+    SettingRow(
+        title = "Per app, per day",
+        value = if (caps.extensionsPerDay == 0) "Off" else caps.extensionsPerDay.toString(),
+    )
+    StepperRow(
+        options = (0..AppLimitCeilings.MAX_EXTENSIONS_PER_DAY).toList(),
+        selected = caps.extensionsPerDay,
+        label = { if (it == 0) "Off" else it.toString() },
+        onSelect = { onChange(it, caps.extraMinutesPerDay) },
+    )
+    Spacer(Modifier.height(Spacing.gutter))
+    SettingRow(
+        title = "Extra time per day",
+        value = if (caps.extraMinutesPerDay == 0) "None" else "${caps.extraMinutesPerDay}m",
+    )
+    StepperRow(
+        options = ExtraMinuteChoices,
+        selected = caps.extraMinutesPerDay,
+        label = { if (it == 0) "None" else "${it}m" },
+        onSelect = { onChange(caps.extensionsPerDay, it) },
+    )
+    Text(
+        text = "Lowering a cap applies straight away. Raising one waits until tomorrow, " +
+            "so it can't be used to get back into an app that's already blocked.",
+        style = CalmType.labelMd,
+        color = CalmGray,
+        modifier = Modifier.padding(
+            horizontal = Spacing.marginMobile,
+            vertical = Spacing.rowVertical,
+        ),
+    )
+}
+
+/** Extra-minute budgets on offer, all within [AppLimitCeilings.MAX_EXTRA_MINUTES_PER_DAY]. */
+private val ExtraMinuteChoices = listOf(0, 10, 20, 30, 45, 60)
+
+/** A row of mutually exclusive numeric choices; the active one inverts to solid white. */
+@Composable
+private fun <T> StepperRow(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.marginMobile),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.base),
+    ) {
+        options.forEach { option ->
+            val interaction = remember { MutableInteractionSource() }
+            val isSelected = option == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        color = if (isSelected) CalmWhite else androidx.compose.ui.graphics.Color.Transparent,
+                        shape = RoundedCornerShape(Spacing.base),
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) CalmWhite else CalmGray,
+                        shape = RoundedCornerShape(Spacing.base),
+                    )
+                    .clickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        onClick = { onSelect(option) },
+                    )
+                    .padding(vertical = Spacing.stackMd),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label(option),
+                    style = CalmType.labelMd,
+                    color = if (isSelected) CalmBlack else CalmWhite,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Plain-language explanation of a refused extension. */
+private fun OverrideDenialReason.message(): String = when (this) {
+    OverrideDenialReason.NO_RULE -> "That app doesn't have a limit set."
+    OverrideDenialReason.EXTENSIONS_EXHAUSTED -> "No extensions left for that app today."
+    OverrideDenialReason.MINUTES_EXHAUSTED -> "Today's extra time is used up for that app."
+    OverrideDenialReason.DISABLED -> "Extensions are turned off."
 }
 
 /** The value shown on a group row: the timer if one is set, plus how much of it is gone. */

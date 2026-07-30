@@ -7,8 +7,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,8 +39,10 @@ import com.calmlauncher.core.designsystem.component.HomeShortcutRow
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
+import com.calmlauncher.core.designsystem.theme.LocalAppearance
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.AppEntry
+import com.calmlauncher.domain.model.ClockStyle
 import com.calmlauncher.feature.settings.displayName
 import com.calmlauncher.navigation.Routes
 import androidx.compose.material3.Text
@@ -65,6 +69,10 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Purely visual choices, read from the theme rather than passed in — see LocalAppearance.
+    val appearance = LocalAppearance.current
+    val clockStyle = appearance.clockStyle
+    val gridColumns = appearance.gridColumns
     val clockInteraction = remember { MutableInteractionSource() }
     val environmentInteraction = remember { MutableInteractionSource() }
     // Long-pressing a shortcut opens the shared app menu rather than unpinning outright,
@@ -127,24 +135,34 @@ fun HomeScreen(
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = timeText,
-                        style = CalmType.heroTime.copy(
-                            fontSize = 72.sp,
-                            lineHeight = 76.sp,
-                            letterSpacing = 0.sp,
-                        ),
-                        color = CalmWhite,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = dateText,
-                        style = CalmType.headlineMd,
-                        color = CalmGray,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    // Clock presentation is a Customization choice. HIDDEN drops the time and
+                    // date entirely but keeps this block in place, so the long-press-for-Settings
+                    // gesture survives — hiding the clock must not hide the way into Settings.
+                    if (clockStyle != ClockStyle.HIDDEN) {
+                        Text(
+                            text = timeText,
+                            style = when (clockStyle) {
+                                ClockStyle.COMPACT -> CalmType.headlineLgMobile
+                                else -> CalmType.heroTime.copy(
+                                    fontSize = 72.sp,
+                                    lineHeight = 76.sp,
+                                    letterSpacing = 0.sp,
+                                )
+                            },
+                            color = CalmWhite,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    if (clockStyle == ClockStyle.LARGE || clockStyle == ClockStyle.WITH_DATE) {
+                        Text(
+                            text = dateText,
+                            style = CalmType.headlineMd,
+                            color = CalmGray,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     Text(
                         text = screenTimeText,
                         style = CalmType.labelMd.copy(
@@ -195,13 +213,36 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .padding(bottom = Spacing.stackSm),
                     )
-                } else {
+                } else if (gridColumns.columns <= 1) {
                     state.favorites.forEach { app ->
                         HomeShortcutRow(
                             label = app.label,
                             onClick = { viewModel.open(app) },
                             onLongClick = { actionTarget = app },
                         )
+                    }
+                } else {
+                    // A multi-column grid, built from chunked Rows rather than a LazyVerticalGrid:
+                    // the favourites list is short and already inside a height-constrained Column,
+                    // and nesting a lazy grid in that would need an explicit height to measure.
+                    state.favorites.chunked(gridColumns.columns).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.base),
+                        ) {
+                            row.forEach { app ->
+                                HomeShortcutRow(
+                                    label = app.label,
+                                    onClick = { viewModel.open(app) },
+                                    onLongClick = { actionTarget = app },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            // Pad the final row so its items keep the column width above.
+                            repeat(gridColumns.columns - row.size) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
 
