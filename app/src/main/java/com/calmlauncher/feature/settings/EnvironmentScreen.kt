@@ -53,7 +53,6 @@ import com.calmlauncher.core.designsystem.component.SectionLabel
 import com.calmlauncher.core.designsystem.component.ThinDivider
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
-import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
@@ -100,7 +99,6 @@ fun EnvironmentScreen(
                 mode = mode,
                 settings = settings,
                 onDismiss = { detailMode = null },
-                onEdit = onBack,
                 onActivate = {
                     viewModel.update { current -> current.applyEnvironmentSetup(mode) }
                     detailMode = null
@@ -148,7 +146,7 @@ private fun EnvironmentRow(
                     Text(
                         text = mode.summary(),
                         style = CalmType.bodyMd,
-                        color = CalmGrayDim,
+                        color = CalmGray,
                         maxLines = 1,
                     )
                 }
@@ -178,7 +176,6 @@ private fun EnvironmentDetailSheet(
     mode: EnvironmentMode,
     settings: LauncherSettings,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit,
     onActivate: () -> Unit,
 ) {
     BackHandler(enabled = true, onBack = onDismiss)
@@ -229,23 +226,12 @@ private fun EnvironmentDetailSheet(
                 }
                 DetailSection(title = "Schedule", lines = listOf("Manual"), bulleted = false)
 
-                Row(
+                CalmButton(
+                    text = "Activate",
+                    style = CalmButtonStyle.Filled,
+                    onClick = onActivate,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
-                ) {
-                    CalmButton(
-                        text = "Edit",
-                        style = CalmButtonStyle.Outlined,
-                        onClick = onEdit,
-                        modifier = Modifier.weight(1f),
-                    )
-                    CalmButton(
-                        text = "Activate",
-                        style = CalmButtonStyle.Filled,
-                        onClick = onActivate,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                )
             }
         }
     }

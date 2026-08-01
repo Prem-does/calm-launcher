@@ -58,7 +58,6 @@ import com.calmlauncher.core.designsystem.component.SectionLabel
 import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
-import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmSurfaceContainer
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
@@ -282,7 +281,7 @@ private fun ThemeModeSelector(
             text = "Light Mode",
             style = CalmType.bodyLg,
             fontWeight = FontWeight.Medium,
-            color = if (selected == ThemePreference.LIGHT) CalmWhite else CalmGrayDim,
+            color = if (selected == ThemePreference.LIGHT) CalmWhite else CalmGray,
             modifier = Modifier.weight(1f),
         )
         ThemeModeSwitch(
@@ -294,7 +293,7 @@ private fun ThemeModeSelector(
             text = "Dark Mode",
             style = CalmType.bodyLg,
             fontWeight = FontWeight.Medium,
-            color = if (selected == ThemePreference.DARK) CalmWhite else CalmGrayDim,
+            color = if (selected == ThemePreference.DARK) CalmWhite else CalmGray,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
         )

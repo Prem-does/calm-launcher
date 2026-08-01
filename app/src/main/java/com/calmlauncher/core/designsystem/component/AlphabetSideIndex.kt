@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
-import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmSurfaceContainer
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
@@ -158,7 +157,7 @@ private fun LetterRail(
                 style = CalmType.labelMd.copy(
                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Light,
                 ),
-                color = if (selected) CalmWhite.copy(alpha = 0.78f) else CalmGrayDim.copy(alpha = 0.64f),
+                color = if (selected) CalmWhite.copy(alpha = 0.78f) else CalmGray,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.size(width = 28.dp, height = 18.dp),
             )

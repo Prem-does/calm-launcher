@@ -33,7 +33,6 @@ import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.component.ThinDivider
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
-import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
@@ -144,7 +143,7 @@ private fun FrictionRow(
     onClick: () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val descriptionColor = if (selected) CalmGray else CalmGrayDim
+    val descriptionColor = CalmGray
 
     Column {
         Column(
