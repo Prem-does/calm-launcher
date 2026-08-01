@@ -145,6 +145,9 @@ internal fun AppLimitRuleEntity.toDomain(): AppLimitRule = AppLimitRule(
     lastNotifiedEpochMs = lastNotifiedEpochMs,
     lastNotifiedStage = LimitNotifyStage.fromName(lastNotifiedStage),
     lastNotifiedDayStartEpochMs = lastNotifiedDayStartEpochMs,
+    overrideDayStartEpochMs = overrideDayStartEpochMs,
+    overridesUsedToday = overridesUsedToday,
+    overrideMinutesUsedToday = overrideMinutesUsedToday,
 )
 
 internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
@@ -156,6 +159,9 @@ internal fun AppLimitRule.toEntity(): AppLimitRuleEntity = AppLimitRuleEntity(
     lastNotifiedEpochMs = lastNotifiedEpochMs,
     lastNotifiedStage = lastNotifiedStage.name,
     lastNotifiedDayStartEpochMs = lastNotifiedDayStartEpochMs,
+    overrideDayStartEpochMs = overrideDayStartEpochMs,
+    overridesUsedToday = overridesUsedToday,
+    overrideMinutesUsedToday = overrideMinutesUsedToday,
 )
 
 internal fun AppLimitGroupAssignmentEntity.toDomain(): AppLimitGroupAssignment = AppLimitGroupAssignment(

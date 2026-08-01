@@ -100,9 +100,22 @@ class BlockOverlayController @Inject constructor(
      * Showing the same package twice is a no-op, so this is safe to call from an accessibility
      * event handler that fires several times per second.
      */
+    /**
+     * @param onOverride asks for more time. It is handed a completion callback and **must** invoke
+     *   it with the outcome: `true` when time was actually granted (the overlay comes down and the
+     *   user stays where they are), `false` when it was refused (the overlay says so and then
+     *   pushes the user out).
+     *
+     *   This shape exists because of a specific bug. The override used to be a plain `() -> Unit`,
+     *   and the overlay dismissed itself the instant the button was pressed — before the grant had
+     *   even been attempted, and regardless of whether it succeeded. Pressing "Add 10 minutes" was
+     *   therefore free: refused or not, the block screen went away and the app stayed open. Making
+     *   the result mandatory means the overlay cannot dismiss on a refusal, because it does not
+     *   know it may until the answer comes back.
+     */
     fun show(
         spec: BlockOverlaySpec,
-        onOverride: (() -> Unit)? = null,
+        onOverride: ((onResult: (Boolean) -> Unit) -> Unit)? = null,
         onExit: () -> Unit,
     ): Boolean {
         if (!canShow()) return false
@@ -128,7 +141,7 @@ class BlockOverlayController @Inject constructor(
 
     private fun attachInternal(
         spec: BlockOverlaySpec,
-        onOverride: (() -> Unit)?,
+        onOverride: ((onResult: (Boolean) -> Unit) -> Unit)?,
         onExit: () -> Unit,
     ): Boolean {
         val wm = windowManager ?: return false
@@ -186,7 +199,7 @@ class BlockOverlayController @Inject constructor(
     @SuppressLint("ClickableViewAccessibility", "SetTextI18n")
     private fun buildView(
         spec: BlockOverlaySpec,
-        onOverride: (() -> Unit)?,
+        onOverride: ((onResult: (Boolean) -> Unit) -> Unit)?,
         onExit: () -> Unit,
     ): BuiltOverlay {
         val font = runCatching { ResourcesCompat.getFont(context, R.font.ibm_plex_sans) }
@@ -244,22 +257,40 @@ class BlockOverlayController @Inject constructor(
             visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(40) }
         }
+        val footnote = label(spec.footnote.orEmpty(), 13f, MUTED, font).withTopMargin(dp(20)).apply {
+            if (spec.footnote == null) visibility = View.GONE
+        }
+
         if (spec.overrideLabel != null && onOverride != null) {
-            actions.addView(
-                actionButton(spec.overrideLabel, font) {
-                    // The user bought more time: leave them where they are.
-                    finish(false)
-                    onOverride()
-                },
-            )
+            val overrideButton = actionButton(spec.overrideLabel, font) { /* set below */ }
+            overrideButton.setOnClickListener {
+                // Disable immediately so a second tap can't queue a second request while the first
+                // is still being decided — that race is how a two-extension budget could be spent
+                // three times.
+                overrideButton.isEnabled = false
+                overrideButton.alpha = 0.4f
+                onOverride { granted ->
+                    runOnMain {
+                        if (granted) {
+                            // Time was actually bought: leave the user where they are.
+                            finish(false)
+                        } else {
+                            // Refused. The overlay stays, says why, and the exit proceeds — the
+                            // whole point being that pressing the button cannot itself buy time.
+                            overrideButton.visibility = View.GONE
+                            footnote.text = "No extensions left today."
+                            footnote.visibility = View.VISIBLE
+                        }
+                    }
+                }
+            }
+            actions.addView(overrideButton)
         }
         actions.addView(
             actionButton("Close ${spec.appLabel}", font) { finish(true) }
                 .withTopMargin(dp(12)),
         )
-        spec.footnote?.let {
-            actions.addView(label(it, 13f, MUTED, font).withTopMargin(dp(20)))
-        }
+        actions.addView(footnote)
         column.addView(actions)
 
         val exitNote = label("", 13f, MUTED, font).withTopMargin(dp(20)).apply {

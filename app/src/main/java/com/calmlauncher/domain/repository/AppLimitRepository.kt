@@ -2,11 +2,13 @@ package com.calmlauncher.domain.repository
 
 import com.calmlauncher.domain.model.AppLimitDecision
 import com.calmlauncher.domain.model.AppLimitEvent
+import com.calmlauncher.domain.model.AppLimitExtensionCaps
 import com.calmlauncher.domain.model.AppLimitGroupAssignment
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitStatus
 import com.calmlauncher.domain.model.AppLimitSummary
 import com.calmlauncher.domain.model.AppLimitUsage
+import com.calmlauncher.domain.model.OverrideResult
 import kotlinx.coroutines.flow.Flow
 
 interface AppLimitRepository {
@@ -29,7 +31,39 @@ interface AppLimitRepository {
 
     suspend fun deleteRule(packageName: String)
     suspend fun setEnabled(packageName: String, enabled: Boolean)
-    suspend fun extendOverride(packageName: String, minutes: Int): Boolean
+
+    /**
+     * Ask for [minutes] more time on [packageName].
+     *
+     * Returns a typed [OverrideResult] rather than a boolean, and callers **must** honour a
+     * [OverrideResult.Denied] by keeping the app blocked. This is the contract that closes the
+     * original exploit: the old signature returned `false` on refusal and the block overlay
+     * dismissed itself regardless of the answer, so pressing "Add 10 minutes" bought free time
+     * whether or not any was actually granted.
+     *
+     * The minutes actually granted may be fewer than requested when the day's budget is nearly
+     * spent — see [OverrideResult.Granted.grantedMinutes] — and are always clamped to
+     * [com.calmlauncher.domain.model.AppLimitCeilings.MAX_MINUTES_PER_EXTENSION], so no caller can
+     * ask for an arbitrary amount of time.
+     */
+    suspend fun extendOverride(packageName: String, minutes: Int): OverrideResult
+
+    /** Current usage and extension budget for one app, or null when it has no limit rule. */
+    suspend fun statusFor(packageName: String, label: String): AppLimitStatus?
+
+    /** How many minutes a single extension is worth, per user configuration. */
+    suspend fun minutesPerExtension(): Int
+
+    /**
+     * Change the daily extension budget. Tightening applies immediately; relaxing takes effect at
+     * the next daily reset so the setting can't be used to unblock an app that is blocked right
+     * now. Returns true when the change is already in force, false when it is pending.
+     */
+    suspend fun setExtensionCaps(extensionsPerDay: Int, extraMinutesPerDay: Int): Boolean
+
+    /** The extension budget currently in force. */
+    suspend fun currentExtensionCaps(): AppLimitExtensionCaps
+
     suspend fun scheduleApproachAlarms(packageName: String)
 
     /**

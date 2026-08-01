@@ -1,6 +1,8 @@
 package com.calmlauncher.feature.search
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,10 +41,13 @@ import com.calmlauncher.core.designsystem.component.AppListRow
 import com.calmlauncher.core.designsystem.component.CalmBackBar
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.theme.CalmGray
+import com.calmlauncher.core.designsystem.theme.CalmSurfaceContainer
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
+import com.calmlauncher.core.designsystem.theme.LocalAppearance
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.AppEntry
+import com.calmlauncher.domain.model.SearchBarStyle
 
 /**
  * The Search screen: a single, autofocused query field styled with a bottom border only,
@@ -155,9 +161,10 @@ fun SearchScreen(
 private val UnderlineThickness = 1.dp
 
 /**
- * A bare single-line text field: white text, a 1dp [CalmWhite] bottom border and a
- * [CalmGray] "Search" placeholder. No Material container — just the underline, matching the
- * monochrome Stitch aesthetic.
+ * A bare single-line text field with a [CalmGray] "Search" placeholder. No Material container.
+ *
+ * The container treatment follows the user's [SearchBarStyle]: an underline (the default, and the
+ * launcher's original look), a rounded outline, a filled surface, or nothing at all.
  */
 @Composable
 private fun SearchField(
@@ -168,11 +175,10 @@ private fun SearchField(
     modifier: Modifier = Modifier,
 ) {
     val textStyle: TextStyle = CalmType.bodyLg.copy(color = CalmWhite)
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .focusRequester(focusRequester)
+    val style = LocalAppearance.current.searchBarStyle
+    val container = when (style) {
+        // Unchanged from the original: a rule drawn at the baseline of the field.
+        SearchBarStyle.UNDERLINE -> Modifier
             .drawBehind {
                 val y = size.height - UnderlineThickness.toPx() / 2f
                 drawLine(
@@ -182,7 +188,26 @@ private fun SearchField(
                     strokeWidth = UnderlineThickness.toPx(),
                 )
             }
-            .padding(bottom = Spacing.base),
+            .padding(bottom = Spacing.base)
+
+        SearchBarStyle.OUTLINED -> Modifier
+            .border(UnderlineThickness, CalmWhite, RoundedCornerShape(Spacing.gutter))
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.stackMd)
+
+        SearchBarStyle.FILLED -> Modifier
+            .background(CalmSurfaceContainer, RoundedCornerShape(Spacing.gutter))
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.stackMd)
+
+        SearchBarStyle.MINIMAL -> Modifier
+            .padding(bottom = Spacing.base)
+    }
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .then(container),
         singleLine = true,
         textStyle = textStyle,
         cursorBrush = androidx.compose.ui.graphics.SolidColor(CalmWhite),

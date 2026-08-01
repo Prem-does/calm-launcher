@@ -12,14 +12,21 @@ import com.calmlauncher.accessibility.PlatformGuardPolicy
 import com.calmlauncher.domain.model.AppCategory
 import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLimitEventType
+import com.calmlauncher.domain.model.AppLimitExtensionCaps
 import com.calmlauncher.domain.model.AppLimitRule
 import com.calmlauncher.domain.model.AppLimitSummary
+import com.calmlauncher.domain.model.OverrideDenialReason
+import com.calmlauncher.domain.model.OverrideResult
 import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.AppRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -116,6 +123,40 @@ class AppLimitsViewModel @Inject constructor(
     private val usageAccessGranted = MutableStateFlow(appLimitRepository.hasUsageAccess())
     private val canShowBlockScreens =
         MutableStateFlow(PlatformGuardPolicy.canDrawOverlays(applicationContext))
+
+    /**
+     * A refused extension, surfaced so the screen can say so. Emitting rather than swallowing is
+     * the point: a silently ignored tap looks like a broken button and invites another try.
+     */
+    private val _overrideDenied = MutableSharedFlow<OverrideDenialReason>(extraBufferCapacity = 1)
+    val overrideDenied: SharedFlow<OverrideDenialReason> = _overrideDenied.asSharedFlow()
+
+    /** A cap increase that has been parked until the next daily reset. */
+    private val _capChangeDeferred = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val capChangeDeferred: SharedFlow<Unit> = _capChangeDeferred.asSharedFlow()
+
+    private val _extensionCaps = MutableStateFlow(DefaultCaps)
+
+    /** The extension budget currently in force, for the caps section of the screen. */
+    val extensionCaps: StateFlow<AppLimitExtensionCaps> = _extensionCaps.asStateFlow()
+
+    init {
+        refreshExtensionCaps()
+    }
+
+    /**
+     * Re-read the caps in force.
+     *
+     * Called after any change rather than assuming the requested value took effect, because a
+     * relaxation is deliberately deferred to the next daily reset — so the value the user picked and
+     * the value now in force are legitimately different, and the screen has to show the latter.
+     */
+    private fun refreshExtensionCaps() {
+        viewModelScope.launch {
+            _extensionCaps.value = runCatching { appLimitRepository.currentExtensionCaps() }
+                .getOrDefault(DefaultCaps)
+        }
+    }
 
     private val apps = appRepository.observeApps()
     private val rules = appLimitRepository.observeRules()
@@ -311,15 +352,35 @@ class AppLimitsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Spend an extension from the App Limits screen.
+     *
+     * Enforcement work is only (re)scheduled when the grant actually succeeded. Rescheduling on a
+     * refusal would push the enforcement worker out past a block that is supposed to be in force,
+     * which is how a denied extension could still buy time.
+     */
     fun grantOverride(packageName: String, minutes: Int) {
         viewModelScope.launch {
-            appLimitRepository.extendOverride(packageName, minutes)
+            val result = appLimitRepository.extendOverride(packageName, minutes)
             appLimitRepository.refreshUsageSnapshot()
-            // After extending, schedule a worker at the override expiry to enforce closing the app.
-            val rule = appLimitRepository.currentRule(packageName)
-            val now = System.currentTimeMillis()
-            val delay = rule?.overrideUntilEpochMs?.let { (it - now).coerceAtLeast(0L) } ?: 0L
-            if (delay >= 0L) scheduleEnforceWork(packageName, delay)
+            when (result) {
+                is OverrideResult.Granted -> {
+                    val delay = (result.untilEpochMs - System.currentTimeMillis())
+                        .coerceAtLeast(0L)
+                    scheduleEnforceWork(packageName, delay)
+                }
+
+                is OverrideResult.Denied -> _overrideDenied.emit(result.reason)
+            }
+        }
+    }
+
+    /** Change the daily extension budget. See [AppLimitRepository.setExtensionCaps]. */
+    fun setExtensionCaps(extensionsPerDay: Int, extraMinutesPerDay: Int) {
+        viewModelScope.launch {
+            val immediate = appLimitRepository.setExtensionCaps(extensionsPerDay, extraMinutesPerDay)
+            if (!immediate) _capChangeDeferred.emit(Unit)
+            refreshExtensionCaps()
         }
     }
 
@@ -346,5 +407,10 @@ class AppLimitsViewModel @Inject constructor(
 
     private fun cancelEnforceWork(packageName: String) {
         workManager.cancelUniqueWork("app_limit_enforce_$packageName")
+    }
+
+    private companion object {
+        /** Mirrors the defaults in [com.calmlauncher.domain.model.LauncherSettings]. */
+        val DefaultCaps = AppLimitExtensionCaps(extensionsPerDay = 2, extraMinutesPerDay = 20)
     }
 }

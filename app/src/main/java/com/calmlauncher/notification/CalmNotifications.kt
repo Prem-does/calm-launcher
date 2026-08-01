@@ -26,6 +26,17 @@ object CalmChannels {
 
     /** Reminders and tasks that are due now. */
     const val REMINDERS = "calm_reminders"
+
+    /**
+     * A silent copy of a reminder that has *already* interrupted the user full-screen.
+     *
+     * Separate from [REMINDERS] because importance is a channel-level property: posting the
+     * record into the loud channel would buzz a second time for a reminder the user is currently
+     * looking at, which is the duplicate-notification complaint all over again. A distinct
+     * low-importance channel also lets the user hide these entirely without silencing real
+     * reminders.
+     */
+    const val REMINDERS_QUIET = "calm_reminders_quiet"
 }
 
 /**
@@ -106,6 +117,19 @@ class CalmNotifications @Inject constructor(
                     description = "Your reminders and tasks, when they're due."
                     setShowBadge(true)
                     enableVibration(true)
+                },
+            )
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CalmChannels.REMINDERS_QUIET,
+                    "Reminders already shown",
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description =
+                        "A silent copy of a reminder that has already appeared full-screen."
+                    setShowBadge(false)
+                    enableVibration(false)
+                    setSound(null, null)
                 },
             )
             // Retire the pre-split channel so it stops appearing in system settings.

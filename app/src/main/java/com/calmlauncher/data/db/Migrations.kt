@@ -49,5 +49,34 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * v9 makes reminder delivery exactly-once and puts the app-limit extension budget on the rule.
+ *
+ * Both columns exist to stop a bypass of a different kind:
+ *
+ *  - `reminders.lastFiredOccurrenceEpochMs` records which occurrence has already been shown, so
+ *    a reboot, an app update, or a duplicate alarm delivery can no longer re-announce it. NULL
+ *    for existing rows means "nothing announced yet", which is the safe default: the worst case
+ *    is one notification for a reminder that is genuinely still outstanding.
+ *
+ *  - `app_limit_rules.override*` moves the extension ledger out of the event log and onto the
+ *    rule, where it is read and written in the same transaction as the grant. Existing rows
+ *    start at zero on a day-start of 0, which never matches today, so they simply reset.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `reminders` ADD COLUMN `lastFiredOccurrenceEpochMs` INTEGER")
+        db.execSQL(
+            "ALTER TABLE `app_limit_rules` ADD COLUMN `overrideDayStartEpochMs` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "ALTER TABLE `app_limit_rules` ADD COLUMN `overridesUsedToday` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "ALTER TABLE `app_limit_rules` ADD COLUMN `overrideMinutesUsedToday` INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}
+
 /** Every migration the database knows about, in order. */
-val CALM_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_6_7, MIGRATION_7_8)
+val CALM_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)

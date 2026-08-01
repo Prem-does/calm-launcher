@@ -24,6 +24,14 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
+    <!-- A due reminder takes the whole screen rather than posting a dismissible notification.
+         From a background alarm broadcast, a full-screen intent is the route the platform
+         sanctions for that; SYSTEM_ALERT_WINDOW below covers the case where Android 14+ withholds
+         this one. See ReminderAlertPresenter for how the routes are chosen. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Pairs with requestDismissKeyguard() so the overlay's actions are reachable on an
+         unsecured lock screen. On a secured device this does nothing and the user unlocks first. -->
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
@@ -59,6 +67,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The full-screen reminder interruption.
+
+             singleInstance + a task of its own: a second reminder arriving while one is showing
+             must rebind the existing screen rather than stack another copy, and the overlay must
+             never end up inside the launcher's back stack. excludeFromRecents/noHistory keep a
+             dismissed reminder from lingering in Recents as something to tap back into. -->
+        <activity
+            android:name=".feature.reminderalert.ReminderAlertActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:stateNotNeeded="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale"
+            android:theme="@style/Theme.CalmLauncher.Overlay" />
 
         <!-- Focus-mode in-scope blocking (accessibility). -->
         <service

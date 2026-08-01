@@ -10,4 +10,30 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+
+    <!--
+        Theme for the full-screen reminder interruption.
+
+        Translucent rather than opaque so the app underneath stays faintly visible behind the
+        scrim: the reminder should read as something placed in front of what the user was doing,
+        not as the app having crashed and been replaced. windowIsFloating stays false because the
+        window must fill the screen and take all input — a floating window would let touches
+        through at the edges, which is exactly the "too easy to ignore" behaviour being replaced.
+    -->
+    <style name="Theme.CalmLauncher.Overlay" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
 </resources>
