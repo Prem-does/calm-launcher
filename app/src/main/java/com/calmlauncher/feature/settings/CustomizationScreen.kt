@@ -39,7 +39,6 @@ import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
-import com.calmlauncher.domain.model.AccentColor
 import com.calmlauncher.domain.model.ClockStyle
 import com.calmlauncher.domain.model.FontScale
 import com.calmlauncher.domain.model.FontStyle
@@ -94,21 +93,6 @@ fun CustomizationScreen(
                 selected = appearance.themeMode,
                 label = { it.label },
                 onSelect = viewModel::setThemeMode,
-            )
-
-            SectionLabel("Accent")
-            AccentRow(
-                selected = appearance.accent,
-                onSelect = viewModel::setAccent,
-            )
-            Text(
-                text = "Used for selection and toggles. Text and backgrounds stay monochrome.",
-                style = CalmType.labelMd,
-                color = CalmGray,
-                modifier = Modifier.padding(
-                    horizontal = Spacing.marginMobile,
-                    vertical = Spacing.base,
-                ),
             )
 
             SectionLabel("Typography")
@@ -260,49 +244,6 @@ private fun ChoiceChip(
             textAlign = TextAlign.Center,
             maxLines = 1,
         )
-    }
-}
-
-/** Accent swatches. "None" is shown as an outlined circle — the absence of colour is a choice. */
-@Composable
-private fun AccentRow(
-    selected: AccentColor,
-    onSelect: (AccentColor) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.marginMobile),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.stackMd),
-    ) {
-        AccentColor.entries.forEach { accent ->
-            val interaction = remember { MutableInteractionSource() }
-            val isSelected = accent == selected
-            Box(
-                modifier = Modifier
-                    .size(SWATCH_OUTER)
-                    .border(
-                        width = if (isSelected) 2.dp else 1.dp,
-                        color = if (isSelected) CalmWhite else CalmDivider,
-                        shape = CircleShape,
-                    )
-                    .clickable(
-                        interactionSource = interaction,
-                        indication = null,
-                        onClick = { onSelect(accent) },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!accent.isMonochrome) {
-                    Box(
-                        modifier = Modifier
-                            .size(SWATCH_INNER)
-                            .background(Color(accent.darkArgb), CircleShape),
-                    )
-                }
-            }
-        }
     }
 }
 

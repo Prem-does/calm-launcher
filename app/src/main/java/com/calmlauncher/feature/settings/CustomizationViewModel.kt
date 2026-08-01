@@ -2,7 +2,6 @@ package com.calmlauncher.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calmlauncher.domain.model.AccentColor
 import com.calmlauncher.domain.model.AppearanceSettings
 import com.calmlauncher.domain.model.ClockStyle
 import com.calmlauncher.domain.model.FontScale
@@ -43,8 +42,6 @@ class CustomizationViewModel @Inject constructor(
         )
 
     fun setThemeMode(value: ThemeMode) = update { it.copy(themeMode = value) }
-
-    fun setAccent(value: AccentColor) = update { it.copy(accent = value) }
 
     fun setFontStyle(value: FontStyle) = update { it.copy(fontStyle = value) }
 

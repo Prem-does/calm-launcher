@@ -250,7 +250,7 @@ fun SettingsScreen(
                 showChevron = true,
             )
             Text(
-                text = "Theme, accent, fonts, grid, clock, search bar and spacing. " +
+                text = "Theme, fonts, grid, clock, search bar and spacing. " +
                     "Visual only — nothing here changes how the launcher behaves.",
                 style = CalmType.labelMd,
                 color = CalmGray,
