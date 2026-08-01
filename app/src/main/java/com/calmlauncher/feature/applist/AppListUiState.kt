@@ -2,6 +2,7 @@ package com.calmlauncher.feature.applist
 
 import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.domain.model.AppEntry
+import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.domain.model.UiRestrictionState
 
 /**
@@ -16,5 +17,6 @@ data class AppListUiState(
     val displayMode: AppDisplayMode = AppDisplayMode.TEXT,
     val batteryText: String = "",
     val signalText: String = "",
+    val environmentMode: EnvironmentMode = EnvironmentMode.NONE,
     val restriction: UiRestrictionState = UiRestrictionState(),
 )

@@ -9,6 +9,7 @@ import com.calmlauncher.data.system.LauncherAppCatalog
 import com.calmlauncher.domain.model.AppDisplayMode
 import com.calmlauncher.domain.model.AppEntry
 import com.calmlauncher.domain.model.AppLaunchRequest
+import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.domain.model.LaunchSource
 import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.SettingsRepository
@@ -63,12 +64,14 @@ class AppListViewModel @Inject constructor(
         battery,
         connectivityObserver.signal,
         observeRestriction(),
-    ) { drawerState, batteryText, signalText, restriction ->
+        settingsRepository.settings,
+    ) { drawerState, batteryText, signalText, restriction, settings ->
         AppListUiState(
             apps = drawerState.apps,
             displayMode = drawerState.displayMode,
             batteryText = batteryText,
             signalText = signalText,
+            environmentMode = settings.environmentMode,
             restriction = restriction,
         )
     }.stateIn(

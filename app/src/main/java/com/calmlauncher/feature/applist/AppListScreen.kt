@@ -31,6 +31,8 @@ import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
 import com.calmlauncher.core.designsystem.component.rememberAlphabetIndex
 import com.calmlauncher.core.designsystem.theme.CalmAppNameTextStyle
+import com.calmlauncher.domain.model.EnvironmentMode
+import com.calmlauncher.feature.settings.displayName
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.CalmType
@@ -48,6 +50,7 @@ import com.calmlauncher.navigation.Routes
 fun AppListScreen(
     onSelectTab: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenEnvironment: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AppListViewModel = hiltViewModel(),
 ) {
@@ -60,7 +63,14 @@ fun AppListScreen(
 
     CalmScaffold(
         modifier = modifier,
-        topBar = { CalmStatusBar(batteryText = state.batteryText, signalText = state.signalText) },
+        topBar = {
+            CalmStatusBar(
+                batteryText = state.batteryText,
+                signalText = state.signalText,
+                environmentText = state.environmentMode.takeIf { it != EnvironmentMode.NONE }?.displayName(),
+                onEnvironmentClick = onOpenEnvironment,
+            )
+        },
         bottomBar = { CalmBottomNav(current = Routes.APPS, onSelect = onSelectTab) },
     ) { padding ->
         if (state.apps.isEmpty()) {

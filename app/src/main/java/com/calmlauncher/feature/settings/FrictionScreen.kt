@@ -13,10 +13,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,6 +33,7 @@ import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.component.ThinDivider
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
+import com.calmlauncher.core.designsystem.theme.CalmGrayDim
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
@@ -139,9 +144,7 @@ private fun FrictionRow(
     onClick: () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val background = if (selected) CalmWhite else CalmBlack
-    val titleColor = if (selected) CalmBlack else CalmWhite
-    val bodyColor = if (selected) CalmBlack else CalmGray
+    val descriptionColor = if (selected) CalmGray else CalmGrayDim
 
     Column {
         Column(
@@ -152,16 +155,30 @@ private fun FrictionRow(
                     indication = null,
                     onClick = onClick,
                 )
-                .background(background)
                 .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
         ) {
-            Text(text = title, style = CalmType.bodyLg, color = titleColor)
-            Text(
-                text = description,
-                style = CalmType.bodyMd,
-                color = bodyColor,
-                modifier = Modifier.padding(top = Spacing.stackSm),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = title, style = CalmType.bodyLg, color = CalmWhite)
+                    Text(
+                        text = description,
+                        style = CalmType.bodyMd,
+                        color = descriptionColor,
+                        modifier = Modifier.padding(top = Spacing.stackSm),
+                    )
+                }
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = CalmGray,
+                    )
+                }
+            }
         }
         ThinDivider()
     }

@@ -170,6 +170,7 @@ fun CalmNavHost(
             AppListScreen(
                 onSelectTab = selectTab,
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenEnvironment = { navController.navigate(Routes.SETTINGS_ENVIRONMENT) },
             )
         }
 

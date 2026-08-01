@@ -77,17 +77,6 @@ fun FocusScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Dimmed time strip at the very top (~20% opacity).
-            Text(
-                text = state.remainingText,
-                style = CalmType.labelMd,
-                color = CalmWhite.copy(alpha = DimTimeAlpha),
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Spacing.base),
-            )
-
             // Centered, day-stable quote — the sole focal point.
             Text(
                 text = state.quote,
