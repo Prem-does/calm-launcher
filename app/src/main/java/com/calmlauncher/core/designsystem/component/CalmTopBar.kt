@@ -1,5 +1,11 @@
 package com.calmlauncher.core.designsystem.component
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AirplanemodeActive
@@ -27,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calmlauncher.core.designsystem.theme.CalmType
+import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 
@@ -38,12 +46,17 @@ private val BarMinHeight = 56.dp
  * (default "CALM") centered, and [batteryText] on the right. Mirrors the Stitch
  * TopAppBar — horizontal [Spacing.marginMobile] gutters, status-bar inset padding and
  * a closing [ThinDivider]. [signalText] is shown beside the signal glyph when non-blank
- * (e.g. a carrier or "5G" tag); it is omitted otherwise.
+ * (e.g. a carrier or "5G" tag); it is omitted otherwise. When provided, the optional
+ * [environmentText] renders to the left of the battery text and can be tapped or long-pressed.
  */
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun CalmStatusBar(
     batteryText: String,
     signalText: String,
+    environmentText: String? = null,
+    onEnvironmentClick: (() -> Unit)? = null,
+    onEnvironmentLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     centerLabel: String = "CALM",
 ) {
@@ -56,7 +69,6 @@ fun CalmStatusBar(
                 .heightIn(min = BarMinHeight),
             contentAlignment = Alignment.Center,
         ) {
-            // Leading: signal indicator (+ optional carrier text).
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
                 verticalAlignment = Alignment.CenterVertically,
@@ -72,20 +84,51 @@ fun CalmStatusBar(
                 }
             }
 
+            // Trailing: environment text and battery.
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.stackSm),
+            ) {
+                if (!environmentText.isNullOrBlank()) {
+                    val envInteraction = remember { MutableInteractionSource() }
+                    AnimatedContent(
+                        targetState = environmentText,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(140))
+                        },
+                        label = "environment-indicator",
+                    ) { label ->
+                        Text(
+                            text = label.orEmpty(),
+                            style = CalmType.labelMd,
+                            color = CalmGray,
+                            modifier = if (onEnvironmentClick != null || onEnvironmentLongPress != null) {
+                                Modifier.combinedClickable(
+                                    interactionSource = envInteraction,
+                                    indication = null,
+                                    onClick = { onEnvironmentClick?.invoke() },
+                                    onLongClick = onEnvironmentLongPress,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        )
+                    }
+                }
+                Text(
+                    text = batteryText,
+                    style = CalmType.labelMd,
+                    color = CalmWhite,
+                )
+            }
+
             // Center: brand / context label.
             Text(
                 text = centerLabel,
                 style = CalmType.headlineMd,
                 color = CalmWhite,
                 modifier = Modifier.align(Alignment.Center),
-            )
-
-            // Trailing: battery.
-            Text(
-                text = batteryText,
-                style = CalmType.labelMd,
-                color = CalmWhite,
-                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
         ThinDivider()

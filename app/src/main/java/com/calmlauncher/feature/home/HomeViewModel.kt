@@ -16,6 +16,7 @@ import com.calmlauncher.domain.repository.SettingsRepository
 import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import com.calmlauncher.launcher.LaunchCoordinator
+import com.calmlauncher.feature.settings.applyEnvironmentSetup
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +37,7 @@ class HomeViewModel @Inject constructor(
     clockTicker: ClockTicker,
     batteryObserver: BatteryObserver,
     connectivityObserver: ConnectivityObserver,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     private val screenTimeRepository: ScreenTimeRepository,
     buildInsights: BuildInsightsUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
@@ -114,6 +115,13 @@ class HomeViewModel @Inject constructor(
     /** Unpin a shortcut straight from Home (long-press). Reversible in Manage Apps. */
     fun unpin(app: AppEntry) {
         viewModelScope.launch { appRepository.setFavorite(app.packageName, false) }
+    }
+
+    /** Apply an environment preset directly from the Home quick switcher. */
+    fun applyEnvironment(mode: EnvironmentMode) {
+        viewModelScope.launch {
+            settingsRepository.update { current -> current.applyEnvironmentSetup(mode) }
+        }
     }
 
     private data class ClockText(val time: String, val date: String)

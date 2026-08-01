@@ -1,20 +1,25 @@
 package com.calmlauncher.feature.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,26 +27,36 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.calmlauncher.core.designsystem.component.AppAction
 import com.calmlauncher.core.designsystem.component.AppActionSheet
 import com.calmlauncher.core.designsystem.component.CalmScaffold
 import com.calmlauncher.core.designsystem.component.CalmStatusBar
 import com.calmlauncher.core.designsystem.component.HomeDockNav
 import com.calmlauncher.core.designsystem.component.HomeShortcutRow
+import com.calmlauncher.core.designsystem.component.SectionLabel
+import com.calmlauncher.core.designsystem.component.ThinDivider
+import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.AppEntry
+import com.calmlauncher.domain.model.EnvironmentMode
 import com.calmlauncher.feature.settings.displayName
 import com.calmlauncher.navigation.Routes
-import androidx.compose.material3.Text
 
 /**
  * The launcher home: a pure-black canvas with the oversized clock and date centered, the
@@ -66,7 +81,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val clockInteraction = remember { MutableInteractionSource() }
-    val environmentInteraction = remember { MutableInteractionSource() }
+    var environmentSwitcherOpen by remember { mutableStateOf(false) }
     // Long-pressing a shortcut opens the shared app menu rather than unpinning outright,
     // so it can't happen by accident.
     var actionTarget by remember { mutableStateOf<AppEntry?>(null) }
@@ -77,6 +92,9 @@ fun HomeScreen(
             CalmStatusBar(
                 batteryText = state.batteryText,
                 signalText = state.signalText,
+                environmentText = state.environmentMode.takeIf { it != EnvironmentMode.NONE }?.displayName(),
+                onEnvironmentClick = onOpenEnvironment,
+                onEnvironmentLongPress = { environmentSwitcherOpen = true },
             )
         },
         bottomBar = {
@@ -158,14 +176,18 @@ fun HomeScreen(
                     )
                 }
 
-                // Active context preset. Hidden entirely when the environment is None, so
-                // the canvas stays empty unless a mode is actually shaping behaviour.
-                if (state.showEnvironment) {
-                    EnvironmentChip(
-                        label = state.environmentMode.displayName(),
-                        interactionSource = environmentInteraction,
-                        onClick = onOpenEnvironment,
-                        modifier = Modifier.padding(top = Spacing.stackMd),
+                if (environmentSwitcherOpen) {
+                    EnvironmentQuickSwitcherSheet(
+                        selected = state.environmentMode,
+                        onDismiss = { environmentSwitcherOpen = false },
+                        onOpenFullScreen = {
+                            environmentSwitcherOpen = false
+                            onOpenEnvironment()
+                        },
+                        onActivate = { mode ->
+                            viewModel.applyEnvironment(mode)
+                            environmentSwitcherOpen = false
+                        },
                     )
                 }
 
@@ -234,26 +256,93 @@ fun HomeScreen(
     }
 }
 
-/** A small outlined label naming the active environment preset. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EnvironmentChip(
-    label: String,
-    interactionSource: MutableInteractionSource,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun EnvironmentQuickSwitcherSheet(
+    selected: EnvironmentMode,
+    onDismiss: () -> Unit,
+    onOpenFullScreen: () -> Unit,
+    onActivate: (EnvironmentMode) -> Unit,
 ) {
-    Text(
-        text = label.uppercase(),
-        style = CalmType.labelMd.copy(fontSize = 11.sp, lineHeight = 14.sp),
-        color = CalmWhite,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-            .border(1.dp, CalmGray, RoundedCornerShape(999.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = Spacing.stackMd, vertical = 6.dp),
-    )
+    BackHandler(enabled = true, onBack = onDismiss)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.72f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        ) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .systemBarsPadding()
+                    .background(CalmBlack)
+                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),
+                verticalArrangement = Arrangement.spacedBy(Spacing.stackSm),
+            ) {
+                SectionLabel("Environment")
+                EnvironmentMode.entries.forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onActivate(mode) },
+                            )
+                            .padding(vertical = Spacing.rowVertical),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = mode.displayName(),
+                            style = CalmType.bodyLg,
+                            color = CalmWhite,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (mode == selected) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = CalmGray)
+                                Text(text = "Current", style = CalmType.labelMd, color = CalmGray)
+                            }
+                        }
+                    }
+                    ThinDivider()
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = Spacing.stackSm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+                ) {
+                    Text(
+                        text = "Open full Environment screen",
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                        modifier = Modifier
+                            .weight(1f)
+                            .combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onOpenFullScreen,
+                            ),
+                    )
+                    Text(
+                        text = "Close",
+                        style = CalmType.labelMd,
+                        color = CalmGray,
+                        modifier = Modifier.combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onDismiss,
+                        ),
+                    )
+                }
+            }
+        }
+    }
 }
