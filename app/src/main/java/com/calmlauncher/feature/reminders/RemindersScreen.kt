@@ -61,6 +61,7 @@ import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.Reminder
 import com.calmlauncher.domain.model.RepeatRule
+import com.calmlauncher.domain.model.Routine
 import java.util.Calendar
 import java.util.Locale
 
@@ -78,8 +79,10 @@ fun RemindersScreen(
     viewModel: RemindersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var editing by remember { mutableStateOf<Reminder?>(null) }
-    var pendingDelete by remember { mutableStateOf<Reminder?>(null) }
+    var editingReminder by remember { mutableStateOf<Reminder?>(null) }
+    var pendingDeleteReminder by remember { mutableStateOf<Reminder?>(null) }
+    var editingRoutine by remember { mutableStateOf<Routine?>(null) }
+    var pendingDeleteRoutine by remember { mutableStateOf<Routine?>(null) }
 
     CalmScaffold(
         modifier = modifier,
@@ -92,9 +95,20 @@ fun RemindersScreen(
             contentPadding = PaddingValues(bottom = Spacing.stackLg),
         ) {
             item {
+                com.calmlauncher.feature.reminders.routines.RoutineDashboardSection(
+                    dashboard = state.routineDashboard,
+                    onNewRoutine = { editingRoutine = Routine(title = "", activeDaysMask = com.calmlauncher.domain.model.weekdaysMask()) },
+                    onEditRoutine = { editingRoutine = it },
+                    onCheckboxChanged = viewModel::setRoutineCheckbox,
+                    onMetricChanged = { taskId, value -> viewModel.setRoutineMetricValue(taskId, value, value != null) },
+                )
+            }
+
+            item { SectionLabel("Reminders") }
+            item {
                 SettingRow(
                     title = "New reminder",
-                    onClick = { editing = Reminder(title = "") },
+                    onClick = { editingReminder = Reminder(title = "") },
                     showChevron = true,
                 )
             }
@@ -117,24 +131,24 @@ fun RemindersScreen(
                 label = "Due now",
                 reminders = state.overdue,
                 onToggleComplete = viewModel::setCompleted,
-                onEdit = { editing = it },
-                onLongPress = { pendingDelete = it },
+                onEdit = { editingReminder = it },
+                onLongPress = { pendingDeleteReminder = it },
                 onSnooze = { viewModel.snooze(it, SnoozeMinutes) },
             )
             reminderSection(
                 label = "Upcoming",
                 reminders = state.upcoming,
                 onToggleComplete = viewModel::setCompleted,
-                onEdit = { editing = it },
-                onLongPress = { pendingDelete = it },
+                onEdit = { editingReminder = it },
+                onLongPress = { pendingDeleteReminder = it },
                 onSnooze = null,
             )
             reminderSection(
                 label = "Done",
                 reminders = state.completed,
                 onToggleComplete = viewModel::setCompleted,
-                onEdit = { editing = it },
-                onLongPress = { pendingDelete = it },
+                onEdit = { editingReminder = it },
+                onLongPress = { pendingDeleteReminder = it },
                 onSnooze = null,
             )
 
@@ -146,35 +160,65 @@ fun RemindersScreen(
         }
     }
 
-    editing?.let { reminder ->
+    editingReminder?.let { reminder ->
         ReminderEditor(
             reminder = reminder,
-            onDismiss = { editing = null },
+            onDismiss = { editingReminder = null },
             onSave = { title, note, dueAt, repeat ->
                 viewModel.save(reminder.id, title, note, dueAt, repeat)
-                editing = null
+                editingReminder = null
             },
             onDelete = if (reminder.id == 0L) {
                 null
             } else {
                 {
                     viewModel.delete(reminder)
-                    editing = null
+                    editingReminder = null
                 }
             },
         )
     }
 
-    pendingDelete?.let { reminder ->
+    pendingDeleteReminder?.let { reminder ->
         ConfirmSheet(
             title = "Delete reminder?",
             detail = reminder.title,
             confirmLabel = "Delete",
             onConfirm = {
                 viewModel.delete(reminder)
-                pendingDelete = null
+                pendingDeleteReminder = null
             },
-            onDismiss = { pendingDelete = null },
+            onDismiss = { pendingDeleteReminder = null },
+        )
+    }
+
+    editingRoutine?.let { routine ->
+        com.calmlauncher.feature.reminders.routines.RoutineBuilderDialog(
+            routine = routine,
+            onDismiss = { editingRoutine = null },
+            onSave = {
+                viewModel.saveRoutine(it)
+                editingRoutine = null
+            },
+            onDelete = if (routine.id == 0L) null else {
+                {
+                    viewModel.deleteRoutine(routine.id)
+                    editingRoutine = null
+                }
+            },
+        )
+    }
+
+    pendingDeleteRoutine?.let { routine ->
+        ConfirmSheet(
+            title = "Delete routine?",
+            detail = routine.title,
+            confirmLabel = "Delete",
+            onConfirm = {
+                viewModel.deleteRoutine(routine.id)
+                pendingDeleteRoutine = null
+            },
+            onDismiss = { pendingDeleteRoutine = null },
         )
     }
 }

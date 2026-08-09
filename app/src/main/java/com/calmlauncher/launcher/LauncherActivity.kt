@@ -10,12 +10,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.calmlauncher.navigation.CalmRoot
-import com.calmlauncher.work.CalmWorkScheduler
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -29,9 +25,6 @@ class LauncherActivity : ComponentActivity() {
     companion object {
         private const val TAG = "LauncherActivity"
     }
-
-    @Inject
-    lateinit var workScheduler: CalmWorkScheduler
 
     /**
      * Android 13+ requires an explicit grant before anything can be posted. Without it, app
@@ -49,10 +42,6 @@ class LauncherActivity : ComponentActivity() {
         }
 
         ensureNotificationPermission()
-
-        lifecycleScope.launch(Dispatchers.Default) {
-            workScheduler.scheduleAll()
-        }
     }
 
     private fun ensureNotificationPermission() {

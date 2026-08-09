@@ -74,6 +74,14 @@ class CalmWorkScheduler @Inject constructor(
                 .setInitialDelay(initialNightDelayMillis(), TimeUnit.MILLISECONDS)
                 .build(),
         )
+
+        wm.enqueueUniquePeriodicWork(
+            ROUTINE_ROLLOVER,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<RoutineRolloverWorker>(1, TimeUnit.DAYS)
+                .setInitialDelay(initialRoutineDelayMillis(), TimeUnit.MILLISECONDS)
+                .build(),
+        )
     }
 
     /** Milliseconds until the next ~22:00 local time. */
@@ -81,6 +89,15 @@ class CalmWorkScheduler @Inject constructor(
         val zone = ZoneId.systemDefault()
         val now = java.time.ZonedDateTime.now(zone)
         var next = LocalDate.now(zone).atTime(LocalTime.of(22, 0)).atZone(zone)
+        if (!next.isAfter(now)) next = next.plusDays(1)
+        return java.time.Duration.between(now, next).toMillis().coerceAtLeast(0L)
+    }
+
+    /** Milliseconds until the next ~02:00 local time, a calm rollover after late-night use. */
+    private fun initialRoutineDelayMillis(): Long {
+        val zone = ZoneId.systemDefault()
+        val now = java.time.ZonedDateTime.now(zone)
+        var next = LocalDate.now(zone).atTime(LocalTime.of(2, 0)).atZone(zone)
         if (!next.isAfter(now)) next = next.plusDays(1)
         return java.time.Duration.between(now, next).toMillis().coerceAtLeast(0L)
     }
@@ -94,5 +111,6 @@ class CalmWorkScheduler @Inject constructor(
         const val ANALYTICS = "calm_analytics_rollup"
         const val RISK_EVAL = "calm_risk_evaluation"
         const val REFLECTION = "calm_nightly_reflection"
+        const val ROUTINE_ROLLOVER = "calm_routine_rollover"
     }
 }

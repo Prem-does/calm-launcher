@@ -78,5 +78,51 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/** v10 adds recurring routines and their per-day task completion records. */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `routines` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `title` TEXT NOT NULL,
+                `activeDaysMask` INTEGER NOT NULL,
+                `createdAtEpochMs` INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `routine_tasks` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `routineId` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `taskType` TEXT NOT NULL,
+                `targetValue` INTEGER,
+                `unit` TEXT NOT NULL,
+                `reminderMinuteOfDay` INTEGER,
+                `orderIndex` INTEGER NOT NULL,
+                FOREIGN KEY(`routineId`) REFERENCES `routines`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `routine_completions` (
+                `taskId` INTEGER NOT NULL,
+                `dayStartEpochMs` INTEGER NOT NULL,
+                `completed` INTEGER NOT NULL,
+                `actualValue` INTEGER,
+                `timestampEpochMs` INTEGER NOT NULL,
+                PRIMARY KEY(`taskId`, `dayStartEpochMs`),
+                FOREIGN KEY(`taskId`) REFERENCES `routine_tasks`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_tasks_routineId` ON `routine_tasks` (`routineId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_completions_dayStartEpochMs` ON `routine_completions` (`dayStartEpochMs`)")
+    }
+}
+
 /** Every migration the database knows about, in order. */
-val CALM_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+val CALM_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)

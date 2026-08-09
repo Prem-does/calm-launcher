@@ -139,6 +139,15 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name="com.calmlauncher.notification.RoutineAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Usage analytics collector for unlock and boot broadcasts. -->
         <receiver
             android:name=".accessibility.AnalyticsEventReceiver"

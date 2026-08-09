@@ -7,6 +7,7 @@ import com.calmlauncher.data.repository.AppearanceRepositoryImpl
 import com.calmlauncher.data.repository.LaunchEventRepositoryImpl
 import com.calmlauncher.data.repository.ReflectionRepositoryImpl
 import com.calmlauncher.data.repository.ReminderRepositoryImpl
+import com.calmlauncher.data.repository.RoutineRepositoryImpl
 import com.calmlauncher.data.repository.RiskRepositoryImpl
 import com.calmlauncher.data.repository.ScreenTimeRepositoryImpl
 import com.calmlauncher.data.repository.SettingsRepositoryImpl
@@ -19,6 +20,7 @@ import com.calmlauncher.domain.repository.AppearanceRepository
 import com.calmlauncher.domain.repository.LaunchEventRepository
 import com.calmlauncher.domain.repository.ReflectionRepository
 import com.calmlauncher.domain.repository.ReminderRepository
+import com.calmlauncher.domain.repository.RoutineRepository
 import com.calmlauncher.domain.repository.RiskRepository
 import com.calmlauncher.domain.repository.ScreenTimeRepository
 import com.calmlauncher.domain.repository.SettingsRepository
@@ -73,6 +75,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindReminderRepository(impl: ReminderRepositoryImpl): ReminderRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRoutineRepository(impl: RoutineRepositoryImpl): RoutineRepository
 
     @Binds
     @Singleton

@@ -27,6 +27,9 @@ object CalmChannels {
     /** Reminders and tasks that are due now. */
     const val REMINDERS = "calm_reminders"
 
+    /** Low-key routine nudges for the day's checklist items. */
+    const val ROUTINES = "calm_routines"
+
     /**
      * A silent copy of a reminder that has *already* interrupted the user full-screen.
      *
@@ -127,6 +130,18 @@ class CalmNotifications @Inject constructor(
                 ).apply {
                     description =
                         "A silent copy of a reminder that has already appeared full-screen."
+                    setShowBadge(false)
+                    enableVibration(false)
+                    setSound(null, null)
+                },
+            )
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CalmChannels.ROUTINES,
+                    "Routine tasks",
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "Low-key nudges for routine checklist items."
                     setShowBadge(false)
                     enableVibration(false)
                     setSound(null, null)

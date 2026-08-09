@@ -3,11 +3,14 @@ package com.calmlauncher
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.calmlauncher.data.datastore.SettingsDataStore
+import com.calmlauncher.work.CalmWorkScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,11 +28,19 @@ class CalmLauncherApp : Application(), Configuration.Provider {
 	@Inject
 	lateinit var settingsDataStore: SettingsDataStore
 
+	@Inject
+	lateinit var workScheduler: CalmWorkScheduler
+
 	private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 	override fun onCreate() {
 		super.onCreate()
+		if (!WorkManager.isInitialized()) {
+			WorkManager.initialize(this, workManagerConfiguration)
+		}
 		appScope.launch {
+			delay(5_000)
+			workScheduler.scheduleAll()
 			settingsDataStore.purgeLegacyKeys()
 		}
 	}

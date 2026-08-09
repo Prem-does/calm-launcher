@@ -10,6 +10,7 @@ import com.calmlauncher.data.db.CalmDatabase
 import com.calmlauncher.data.db.LaunchEventDao
 import com.calmlauncher.data.db.ReflectionDao
 import com.calmlauncher.data.db.ReminderDao
+import com.calmlauncher.data.db.RoutineDao
 import com.calmlauncher.data.db.RiskStateDao
 import com.calmlauncher.data.db.ScreenTimeDao
 import dagger.Module
@@ -55,6 +56,9 @@ object DatabaseModule {
 
     @Provides
     fun provideReminderDao(db: CalmDatabase): ReminderDao = db.reminderDao()
+
+    @Provides
+    fun provideRoutineDao(db: CalmDatabase): RoutineDao = db.routineDao()
 
     @Provides
     fun provideScreenTimeDao(db: CalmDatabase): ScreenTimeDao = db.screenTimeDao()

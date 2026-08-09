@@ -13,6 +13,9 @@ import com.calmlauncher.data.db.entity.LaunchEventEntity
 import com.calmlauncher.data.db.entity.NotificationEventEntity
 import com.calmlauncher.data.db.entity.ReflectionEntity
 import com.calmlauncher.data.db.entity.ReminderEntity
+import com.calmlauncher.data.db.entity.RoutineCompletionEntity
+import com.calmlauncher.data.db.entity.RoutineEntity
+import com.calmlauncher.data.db.entity.RoutineTaskEntity
 import com.calmlauncher.data.db.entity.RiskStateEntity
 import com.calmlauncher.data.db.entity.ScreenTimeEntity
 import com.calmlauncher.data.db.entity.SessionEntity
@@ -36,12 +39,15 @@ import com.calmlauncher.data.db.entity.UnlockEntity
         NotificationEventEntity::class,
         ReflectionEntity::class,
         ReminderEntity::class,
+        RoutineEntity::class,
+        RoutineTaskEntity::class,
+        RoutineCompletionEntity::class,
         ScreenTimeEntity::class,
         SessionEntity::class,
         UnlockEntity::class,
         RiskStateEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class CalmDatabase : RoomDatabase() {
@@ -51,6 +57,7 @@ abstract class CalmDatabase : RoomDatabase() {
     abstract fun launchEventDao(): LaunchEventDao
     abstract fun reflectionDao(): ReflectionDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun routineDao(): RoutineDao
     abstract fun screenTimeDao(): ScreenTimeDao
     abstract fun riskStateDao(): RiskStateDao
 
