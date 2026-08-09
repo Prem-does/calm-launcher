@@ -92,6 +92,8 @@ A dashboard summarizing daily/weekly usage, backed by an analytics data pipeline
 ### Settings & Configuration
 Granular control over environment modes, friction levels, and advanced/debug options, all persisted through a dedicated settings domain model.
 
+Users can customize which shortcuts appear on the Home screen, adjust typography sizes, and enable optional color accents from the Settings screen. Advanced users can export and import their settings as a JSON file to transfer preferences between devices.
+
 ## Tech Stack
 
 | Layer | Technology |
