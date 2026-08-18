@@ -67,24 +67,29 @@ fun routineProgressFraction(tasks: List<RoutineTask>, completions: Map<Long, Rou
     return (progress / total).toFloat().coerceIn(0f, 1f)
 }
 
+/**
+ * How many consecutive active days up to today have been completed in full.
+ *
+ * A rest day — one with no routine scheduled — is skipped rather than counted or treated as a
+ * break, which is exactly why the walk backwards has to be bounded explicitly. Without
+ * [maxLookbackDays], a user whose routines are all inactive — or who has no routines at all,
+ * which is every user the first time they open this screen — never reaches the exit condition
+ * and this walks back through epoch time forever, hanging whichever thread called it.
+ */
 fun routineStreak(
     dayProgress: Map<Long, Float>,
     dayIsActive: (Long) -> Boolean,
     todayStartEpochMs: Long,
+    maxLookbackDays: Int = ROUTINE_STREAK_LOOKBACK_DAYS,
 ): Int {
     var streak = 0
     var cursor = todayStartEpochMs
-    while (true) {
-        if (!dayIsActive(cursor)) {
-            cursor -= DAY_MILLIS
-            continue
-        }
-        if ((dayProgress[cursor] ?: 0f) >= 1f) {
+    repeat(maxLookbackDays) {
+        if (dayIsActive(cursor)) {
+            if ((dayProgress[cursor] ?: 0f) < 1f) return streak
             streak += 1
-            cursor -= DAY_MILLIS
-            continue
         }
-        break
+        cursor -= DAY_MILLIS
     }
     return streak
 }
@@ -108,3 +113,11 @@ fun weekdaysMask(): Int =
 fun allDaysMask(): Int = (1 shl 7) - 1
 
 private const val DAY_MILLIS = 86_400_000L
+
+/**
+ * How far back a streak walk and the dashboard progress history both look.
+ *
+ * Shared so the two cannot drift: the streak may only count days the dashboard has actually
+ * computed progress for.
+ */
+const val ROUTINE_STREAK_LOOKBACK_DAYS = 90

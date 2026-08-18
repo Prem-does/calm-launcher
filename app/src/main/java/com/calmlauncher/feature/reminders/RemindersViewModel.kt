@@ -12,9 +12,11 @@ import com.calmlauncher.feature.reminders.routines.RoutineDashboardUiState
 import com.calmlauncher.feature.reminders.routines.buildRoutineDashboard
 import com.calmlauncher.domain.model.dayStartEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -53,11 +55,16 @@ class RemindersViewModel @Inject constructor(
             completed = done.sortedByDescending { it.completedAtEpochMs ?: it.createdAtEpochMs },
             routineDashboard = buildRoutineDashboard(routines, completions, now),
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = RemindersUiState(),
-    )
+    }
+        // The combine block runs wherever the flow is collected, which is viewModelScope — the
+        // main thread. Grouping every completion row and walking the streak window is real work,
+        // so it is pushed onto a background dispatcher rather than trusted to stay cheap.
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = RemindersUiState(),
+        )
 
     fun save(
         id: Long,

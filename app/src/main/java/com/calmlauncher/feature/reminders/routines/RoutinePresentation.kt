@@ -9,6 +9,7 @@ import com.calmlauncher.domain.model.currentWeekStartEpochMs
 import com.calmlauncher.domain.model.dayStartEpochMs
 import com.calmlauncher.domain.model.hasDay
 import com.calmlauncher.domain.model.routineProgressFraction
+import com.calmlauncher.domain.model.ROUTINE_STREAK_LOOKBACK_DAYS
 import com.calmlauncher.domain.model.routineStreak
 import com.calmlauncher.domain.model.weekdaysMask
 import java.time.DayOfWeek
@@ -85,7 +86,7 @@ fun buildRoutineDashboard(
     }
 
     val progressByDay = generateSequence(todayStart) { it - DAY_MILLIS }
-        .take(90)
+        .take(ROUTINE_STREAK_LOOKBACK_DAYS)
         .associateWith { dayStart ->
             routineProgressForDay(routines, completionsByDay[dayStart].orEmpty(), dayStart, zoneId)
         }

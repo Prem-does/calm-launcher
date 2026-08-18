@@ -80,6 +80,56 @@ class RoutinePresentationTest {
         assertEquals(0, dashboard.streakDays)
     }
 
+    /**
+     * The freeze that made the to-do tab unopenable: with no routines, `dayIsActive` is false for
+     * every day, so the streak walk had no exit condition and span backwards through epoch time on
+     * the main thread. The timeout is the assertion — a reintroduced unbounded walk fails here
+     * instead of hanging the suite.
+     */
+    @Test(timeout = 2_000L)
+    fun streakTerminatesWhenNoDayIsEverActive() {
+        val today = dayStartEpochMs(System.currentTimeMillis())
+
+        val streak = routineStreak(
+            dayProgress = emptyMap(),
+            dayIsActive = { false },
+            todayStartEpochMs = today,
+        )
+
+        assertEquals(0, streak)
+    }
+
+    @Test(timeout = 2_000L)
+    fun emptyDashboardBuildsWithoutHanging() {
+        val dashboard = buildRoutineDashboard(
+            routines = emptyList(),
+            completions = emptyList(),
+            nowEpochMs = System.currentTimeMillis(),
+        )
+
+        assertEquals(0, dashboard.streakDays)
+        assertTrue(dashboard.todayTasks.isEmpty())
+    }
+
+    /** A day with nothing scheduled is skipped, not counted and not treated as a break. */
+    @Test(timeout = 2_000L)
+    fun restDaysAreSkippedRatherThanBreakingTheStreak() {
+        val today = dayStartEpochMs(System.currentTimeMillis())
+        val restDay = today - DAY_MILLIS
+        val progress = mapOf(
+            today to 1f,
+            today - 2 * DAY_MILLIS to 1f,
+        )
+
+        val streak = routineStreak(
+            dayProgress = progress,
+            dayIsActive = { day -> day != restDay },
+            todayStartEpochMs = today,
+        )
+
+        assertEquals(2, streak)
+    }
+
     private companion object {
         const val DAY_MILLIS = 86_400_000L
     }
