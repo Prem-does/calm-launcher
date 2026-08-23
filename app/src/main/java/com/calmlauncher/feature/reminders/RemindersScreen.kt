@@ -98,37 +98,13 @@ fun RemindersScreen(
                 com.calmlauncher.feature.reminders.routines.RoutineDashboardSection(
                     dashboard = state.routineDashboard,
                     onNewRoutine = { editingRoutine = Routine(title = "", activeDaysMask = com.calmlauncher.domain.model.weekdaysMask()) },
-                    onEditRoutine = { editingRoutine = it },
                     onCheckboxChanged = viewModel::setRoutineCheckbox,
                     onMetricChanged = { taskId, value -> viewModel.setRoutineMetricValue(taskId, value, value != null) },
                 )
             }
 
             item { SectionLabel("Reminders") }
-            item {
-                SettingRow(
-                    title = "New reminder",
-                    onClick = { editingReminder = Reminder(title = "") },
-                    showChevron = true,
-                )
-            }
-
-            if (state.isEmpty) {
-                item {
-                    Text(
-                        text = "Nothing to remember yet.",
-                        style = CalmType.bodyMd,
-                        color = CalmGray,
-                        modifier = Modifier.padding(
-                            horizontal = Spacing.marginMobile,
-                            vertical = Spacing.rowVertical,
-                        ),
-                    )
-                }
-            }
-
             reminderSection(
-                label = "Due now",
                 reminders = state.overdue,
                 onToggleComplete = viewModel::setCompleted,
                 onEdit = { editingReminder = it },
@@ -136,7 +112,6 @@ fun RemindersScreen(
                 onSnooze = { viewModel.snooze(it, SnoozeMinutes) },
             )
             reminderSection(
-                label = "Upcoming",
                 reminders = state.upcoming,
                 onToggleComplete = viewModel::setCompleted,
                 onEdit = { editingReminder = it },
@@ -144,13 +119,25 @@ fun RemindersScreen(
                 onSnooze = null,
             )
             reminderSection(
-                label = "Done",
                 reminders = state.completed,
                 onToggleComplete = viewModel::setCompleted,
                 onEdit = { editingReminder = it },
                 onLongPress = { pendingDeleteReminder = it },
                 onSnooze = null,
             )
+
+            item {
+                Text(
+                    text = "New reminder  +",
+                    style = CalmType.labelLg,
+                    color = CalmWhite,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { editingReminder = Reminder(title = "") }
+                        .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+                )
+                ThinDivider()
+            }
 
             if (state.completed.isNotEmpty()) {
                 item {
@@ -225,7 +212,6 @@ fun RemindersScreen(
 
 /** Emits a labelled group of rows, or nothing at all when the group is empty. */
 private fun androidx.compose.foundation.lazy.LazyListScope.reminderSection(
-    label: String,
     reminders: List<Reminder>,
     onToggleComplete: (Reminder, Boolean) -> Unit,
     onEdit: (Reminder) -> Unit,
@@ -233,7 +219,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reminderSection(
     onSnooze: ((Reminder) -> Unit)?,
 ) {
     if (reminders.isEmpty()) return
-    item { SectionLabel(label) }
     items(reminders, key = { it.id }) { reminder ->
         ReminderRow(
             reminder = reminder,
@@ -271,19 +256,12 @@ private fun ReminderRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
         ) {
-            CheckMark(checked = reminder.completed, onCheckedChange = onToggleComplete)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = reminder.title,
-                    style = CalmType.bodyLg,
+                    style = CalmType.bodyMd,
                     color = titleColor,
                     maxLines = 2,
-                )
-                Text(
-                    text = metaLine(reminder),
-                    style = CalmType.labelMd,
-                    color = if (reminder.isOverdue()) CalmWhite else CalmGray,
-                    maxLines = 1,
                 )
             }
             if (onSnooze != null) {
@@ -298,6 +276,7 @@ private fun ReminderRow(
                     ),
                 )
             }
+            CheckMark(checked = reminder.completed, onCheckedChange = onToggleComplete)
         }
         ThinDivider()
     }

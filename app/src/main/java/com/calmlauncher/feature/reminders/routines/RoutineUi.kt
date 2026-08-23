@@ -66,37 +66,27 @@ fun CalmProgressGauge(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(modifier = Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.size(220.dp, 160.dp)) {
-                val strokeWidth = 18.dp.toPx()
-                val startAngle = 180f
-                val sweep = 180f
+        Box(modifier = Modifier.fillMaxWidth().height(142.dp), contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(102.dp)) {
+                val strokeWidth = 4.dp.toPx()
+                val inset = strokeWidth / 2f
                 drawArc(
                     color = CalmGrayDim,
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    topLeft = Offset(inset, inset),
+                    size = androidx.compose.ui.geometry.Size(size.width - strokeWidth, size.height - strokeWidth),
+                    style = Stroke(width = strokeWidth),
                 )
                 drawArc(
                     color = CalmWhite,
-                    startAngle = startAngle,
-                    sweepAngle = (sweep * progress.coerceIn(0f, 1f)).coerceAtLeast(1f),
+                    startAngle = -90f,
+                    sweepAngle = 360f * progress.coerceIn(0f, 1f),
                     useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                )
-                val needleAngle = Math.toRadians((180f + 180f * progress.coerceIn(0f, 1f)).toDouble())
-                val center = Offset(size.width / 2f, size.height)
-                val radius = size.width / 2.5f
-                drawLine(
-                    color = CalmWhite,
-                    start = center,
-                    end = Offset(
-                        x = center.x + (kotlin.math.cos(needleAngle) * radius).toFloat(),
-                        y = center.y + (kotlin.math.sin(needleAngle) * radius).toFloat(),
-                    ),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
+                    topLeft = Offset(inset, inset),
+                    size = androidx.compose.ui.geometry.Size(size.width - strokeWidth, size.height - strokeWidth),
+                    style = Stroke(width = strokeWidth),
                 )
             }
             Text(text = "${(progress.coerceIn(0f, 1f) * 100).toInt()}%", style = CalmType.headlineLgMobile, color = CalmWhite)
@@ -121,14 +111,14 @@ fun WeeklyCompletionStrip(
             ) {
                 Box(
                     modifier = Modifier
-                        .height(10.dp)
+                    .height(1.dp)
                         .fillMaxWidth()
                         .background(CalmGrayDim)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(fraction)
-                            .height(10.dp)
+                            .height(1.dp)
                             .background(CalmWhite),
                     )
                 }
@@ -153,8 +143,7 @@ fun RoutineTaskRow(
             horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.routineTitle, style = CalmType.labelMd, color = CalmGray)
-                Text(text = item.title, style = CalmType.bodyLg, color = CalmWhite)
+                Text(text = item.title, style = CalmType.bodyMd, color = CalmWhite)
                 if (item.taskType == RoutineTaskType.METRIC) {
                     Text(
                         text = metricLabel(item),
@@ -206,7 +195,6 @@ private fun metricLabel(item: RoutineTaskUiState): String = buildString {
 fun RoutineDashboardSection(
     dashboard: RoutineDashboardUiState,
     onNewRoutine: () -> Unit,
-    onEditRoutine: (Routine) -> Unit,
     onCheckboxChanged: (Long, Boolean) -> Unit,
     onMetricChanged: (Long, Int?) -> Unit,
 ) {
@@ -216,20 +204,7 @@ fun RoutineDashboardSection(
         days = dashboard.weeklyProgress,
         modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),
     )
-    SettingRow(title = "Day streak", value = "${dashboard.streakDays} day streak")
-    SettingRow(title = "New routine", onClick = onNewRoutine, showChevron = true)
-
-    dashboard.routines.forEach { routine ->
-        SettingRow(
-            title = routine.title,
-            value = routineDaysLabel(routine.activeDaysMask),
-            onClick = { onEditRoutine(routine) },
-            showChevron = true,
-        )
-    }
-
     if (dashboard.todayTasks.isNotEmpty()) {
-        SectionLabel("Today")
         dashboard.todayTasks.forEach { task ->
             RoutineTaskRow(
                 item = task,
@@ -237,15 +212,17 @@ fun RoutineDashboardSection(
                 onMetricChanged = { value -> onMetricChanged(task.taskId, value) },
             )
         }
-    } else {
-        Text(
-            text = "No routine tasks for today.",
-            style = CalmType.labelMd,
-            color = CalmGray,
-            modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
-        )
-        ThinDivider()
     }
+    Text(
+        text = "New routine  +",
+        style = CalmType.labelLg,
+        color = CalmWhite,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onNewRoutine)
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+    )
+    ThinDivider()
 }
 
 @Composable
