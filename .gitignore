@@ -37,6 +37,7 @@ Thumbs.db
 # Keystore
 *.jks
 *.keystore
+release-keystore.properties
 
 # NDK
 .externalNativeBuild/

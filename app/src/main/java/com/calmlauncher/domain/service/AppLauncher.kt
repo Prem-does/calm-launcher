@@ -18,9 +18,8 @@ interface AppLauncher {
     fun resolveToolPackage(tool: LauncherTool): String?
 
     /**
-     * Best-effort "put this app away" used by One App At A Time. A launcher cannot force-stop
-     * another app, so this drops its background processes; the app stays installed and
-     * relaunchable. Returns false when the platform refuses.
+     * Best-effort capability retained for callers that can put an app away. A normal launcher
+     * cannot force-stop another package; implementations may return false.
      */
     fun closeApp(packageName: String): Boolean
 }

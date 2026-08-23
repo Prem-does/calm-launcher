@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,7 +45,6 @@ import com.calmlauncher.core.designsystem.component.CalmBackBar
 import com.calmlauncher.core.designsystem.component.CalmButton
 import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.SectionLabel
-import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.component.ThinDivider
 import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmGray
@@ -195,6 +195,8 @@ private fun metricLabel(item: RoutineTaskUiState): String = buildString {
 fun RoutineDashboardSection(
     dashboard: RoutineDashboardUiState,
     onNewRoutine: () -> Unit,
+    onEditRoutine: (Routine) -> Unit,
+    onDeleteRoutine: (Routine) -> Unit,
     onCheckboxChanged: (Long, Boolean) -> Unit,
     onMetricChanged: (Long, Int?) -> Unit,
 ) {
@@ -213,15 +215,59 @@ fun RoutineDashboardSection(
             )
         }
     }
-    Text(
-        text = "New routine  +",
-        style = CalmType.labelLg,
-        color = CalmWhite,
+    if (dashboard.routines.isNotEmpty()) {
+        SectionLabel("Your routines")
+        dashboard.routines.forEach { routine ->
+            RoutineSummaryRow(
+                routine = routine,
+                onEdit = { onEditRoutine(routine) },
+                onDelete = { onDeleteRoutine(routine) },
+            )
+        }
+    }
+    CalmButton(
+        text = "+ NEW ROUTINE",
+        style = CalmButtonStyle.Outlined,
+        onClick = onNewRoutine,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onNewRoutine)
             .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
     )
+    ThinDivider()
+}
+
+/** A routine always has an obvious edit and delete path, even on an inactive day. */
+@Composable
+private fun RoutineSummaryRow(
+    routine: Routine,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit)
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = routine.title, style = CalmType.bodyMd, color = CalmWhite)
+            Text(
+                text = "${routineDaysLabel(routine.activeDaysMask)} · ${routine.tasks.size} task" +
+                    if (routine.tasks.size == 1) "" else "s",
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier.padding(top = Spacing.stackSm),
+            )
+        }
+        Text(
+            text = "DELETE",
+            style = CalmType.labelMd,
+            color = CalmGray,
+            modifier = Modifier.clickable(onClick = onDelete),
+        )
+    }
     ThinDivider()
 }
 
@@ -263,7 +309,7 @@ fun RoutineBuilderDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(CalmBlack)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = Spacing.stackLg),
@@ -307,7 +353,14 @@ fun RoutineBuilderDialog(
                     } else null,
                 )
             }
-            SettingRow(title = "Add task", onClick = { tasks = tasks + defaultTask() }, showChevron = true)
+            CalmButton(
+                text = "+ ADD ANOTHER TASK",
+                style = CalmButtonStyle.Outlined,
+                onClick = { tasks = tasks + defaultTask() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
+            )
             Row(modifier = Modifier.fillMaxWidth().padding(Spacing.marginMobile), horizontalArrangement = Arrangement.spacedBy(Spacing.gutter)) {
                 CalmButton(text = "SAVE", style = CalmButtonStyle.Filled, enabled = title.isNotBlank(), onClick = {
                     onSave(

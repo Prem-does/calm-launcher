@@ -1,6 +1,5 @@
 package com.calmlauncher.data.system
 
-import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import com.calmlauncher.domain.model.LauncherTool
@@ -44,14 +43,10 @@ class AppLauncherImpl @Inject constructor(
     override fun resolveToolPackage(tool: LauncherTool): String? = catalog.resolveTool(tool)
 
     override fun closeApp(packageName: String): Boolean {
-        // Never let the launcher shut itself down.
-        if (packageName == context.packageName) return false
-        return runCatching {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-                ?: return false
-            am.killBackgroundProcesses(packageName)
-            true
-        }.getOrDefault(false)
+        // Android does not permit a normal launcher to force-stop another package. Callers return
+        // to HOME instead; reporting false makes that limitation explicit rather than pretending
+        // that an unsafe background-process kill is reliable enforcement.
+        return false
     }
 
     private fun startActivity(intent: Intent): Boolean = runCatching {

@@ -168,7 +168,7 @@ fun BlockCountdownOverlay(
                         )
                     }
                     CalmButton(
-                        text = "Back to home",
+                        text = "CLOSE APP",
                         style = CalmButtonStyle.Filled,
                         onClick = onDismiss,
                         modifier = Modifier.padding(top = Spacing.stackMd),

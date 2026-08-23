@@ -62,12 +62,12 @@ fun LaunchGateHost(
                 status.overrideMinutesRemaining,
             )
             BlockCountdownOverlay(
-                seconds = LimitCountdownSeconds,
-                title = "Limit reached",
+                seconds = 0,
+                title = "TIME'S UP",
                 appLabel = status.label,
-                detail = "${status.usedMinutes}m used today of ${status.dailyLimitMinutes ?: 0}m.",
+                detail = "You've reached today's ${status.label} limit.",
                 overrideLabel = if (status.canGrantOverride) {
-                    "Add $extensionMinutes minutes"
+                    "+$extensionMinutes MINUTES"
                 } else {
                     null
                 },
@@ -91,8 +91,8 @@ fun LaunchGateHost(
         blocked != null -> {
             val block = blocked!!
             BlockCountdownOverlay(
-                seconds = BlockCountdownSeconds,
-                title = "Blocked",
+                seconds = 0,
+                title = "APP BLOCKED",
                 appLabel = block.request.label,
                 detail = block.reason,
                 onDismiss = { blocked = null },

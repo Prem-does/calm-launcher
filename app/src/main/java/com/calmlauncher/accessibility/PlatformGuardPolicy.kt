@@ -13,7 +13,7 @@ import android.text.TextUtils
  * obtain. The Settings/Onboarding surfaces use the runtime checks below to show status.
  *
  * Hard limits (documented, not silently pretended):
- *  - True OS-level app killing for One-App-At-A-Time (needs device-owner / usage-kill).
+ *  - True OS-level app killing or task removal (needs device-owner / privileged APIs).
  *  - Global grayscale/dim enforcement (needs WRITE_SECURE_SETTINGS or device-owner).
  *  - Blocking quick settings / installs / notifications outside launcher scope.
  *  - Detecting scroll velocity inside third-party apps.

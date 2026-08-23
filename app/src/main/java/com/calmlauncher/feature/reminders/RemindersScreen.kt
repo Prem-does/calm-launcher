@@ -98,6 +98,8 @@ fun RemindersScreen(
                 com.calmlauncher.feature.reminders.routines.RoutineDashboardSection(
                     dashboard = state.routineDashboard,
                     onNewRoutine = { editingRoutine = Routine(title = "", activeDaysMask = com.calmlauncher.domain.model.weekdaysMask()) },
+                    onEditRoutine = { editingRoutine = it },
+                    onDeleteRoutine = { pendingDeleteRoutine = it },
                     onCheckboxChanged = viewModel::setRoutineCheckbox,
                     onMetricChanged = { taskId, value -> viewModel.setRoutineMetricValue(taskId, value, value != null) },
                 )
@@ -127,13 +129,12 @@ fun RemindersScreen(
             )
 
             item {
-                Text(
-                    text = "New reminder  +",
-                    style = CalmType.labelLg,
-                    color = CalmWhite,
+                CalmButton(
+                    text = "+ ADD REMINDER",
+                    style = CalmButtonStyle.Outlined,
+                    onClick = { editingReminder = Reminder(title = "") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { editingReminder = Reminder(title = "") }
                         .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
                 )
                 ThinDivider()
@@ -189,8 +190,8 @@ fun RemindersScreen(
             },
             onDelete = if (routine.id == 0L) null else {
                 {
-                    viewModel.deleteRoutine(routine.id)
                     editingRoutine = null
+                    pendingDeleteRoutine = routine
                 }
             },
         )
@@ -361,9 +362,45 @@ private fun ReminderEditor(
                 singleLine = false,
             )
 
-            SectionLabel("When")
+            SectionLabel("Schedule")
+            Text(
+                text = "Start simple. You can add a date or time only when it helps.",
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier.padding(
+                    horizontal = Spacing.marginMobile,
+                    vertical = Spacing.stackSm,
+                ),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.base),
+            ) {
+                CalmButton(
+                    text = "TODAY",
+                    style = if (dueAt?.let { formatDate(it) } == "Today") {
+                        CalmButtonStyle.Filled
+                    } else {
+                        CalmButtonStyle.Outlined
+                    },
+                    onClick = { dueAt = quickScheduleAt(dayOffset = 0, existingDueAt = dueAt) },
+                    modifier = Modifier.weight(1f),
+                )
+                CalmButton(
+                    text = "TOMORROW",
+                    style = if (dueAt?.let { formatDate(it) } == "Tomorrow") {
+                        CalmButtonStyle.Filled
+                    } else {
+                        CalmButtonStyle.Outlined
+                    },
+                    onClick = { dueAt = quickScheduleAt(dayOffset = 1, existingDueAt = dueAt) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             SettingRow(
-                title = "Date",
+                title = "Choose another day",
                 value = dueAt?.let { formatDate(it) } ?: "None",
                 onClick = { showDatePicker = true },
             )
@@ -608,6 +645,20 @@ private fun withTimeOfDay(baseEpochMs: Long, hour: Int, minute: Int): Long =
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
+
+/** Keeps a picked time while making the common Today/Tomorrow choices one tap. */
+private fun quickScheduleAt(dayOffset: Int, existingDueAt: Long?): Long {
+    val existing = Calendar.getInstance().apply {
+        timeInMillis = existingDueAt ?: System.currentTimeMillis()
+    }
+    return Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, dayOffset)
+        set(Calendar.HOUR_OF_DAY, if (existingDueAt == null) DEFAULT_HOUR else existing.get(Calendar.HOUR_OF_DAY))
+        set(Calendar.MINUTE, if (existingDueAt == null) 0 else existing.get(Calendar.MINUTE))
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+}
 
 /** "Today 09:00" / "Tomorrow 18:30" / "Mon 12 May 07:15". */
 private fun formatDueDateTime(epochMs: Long): String = "${formatDate(epochMs)} ${formatTime(epochMs)}"

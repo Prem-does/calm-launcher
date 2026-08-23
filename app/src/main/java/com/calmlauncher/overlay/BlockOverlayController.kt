@@ -19,6 +19,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
@@ -35,10 +36,11 @@ import javax.inject.Singleton
  * @param title the headline, e.g. "Limit reached".
  * @param appLabel the app the user is currently in.
  * @param detail one line of context: usage against the limit, or the reason for the block.
- * @param countdownSeconds how long the user sits with the message before anything is tappable.
+ * @param countdownSeconds how long the user sits with the message before actions appear. Zero
+ *   makes this an immediate, persistent block screen.
  * @param overrideLabel label for the escape hatch, or null when none is available.
- * @param graceSeconds how long the actions stay up before the user is sent home anyway. Zero
- *   means the exit is immediate once the countdown ends.
+ * @param graceSeconds how long the actions stay up before the user is sent home anyway. Null
+ *   keeps the block screen active until the user chooses an action.
  * @param footnote small print under the actions, e.g. "Both extensions are used up today".
  */
 data class BlockOverlaySpec(
@@ -48,13 +50,13 @@ data class BlockOverlaySpec(
     val detail: String,
     val countdownSeconds: Int,
     val overrideLabel: String? = null,
-    val graceSeconds: Int = 0,
+    val graceSeconds: Int? = null,
     val footnote: String? = null,
 )
 
 /**
- * Draws a full-screen black overlay **on top of another app** and, when it has had its say,
- * hands control back to the caller to push the user out.
+ * Draws a focusable, full-screen black blocking screen **on top of another app**. It owns input
+ * while visible, so the app underneath cannot receive taps or back presses.
  *
  * Why this exists: the in-launcher [com.calmlauncher.feature.gate.BlockCountdownOverlay] only
  * ever sees launches that start inside Calm. An app opened from a notification, from recents,
@@ -239,6 +241,17 @@ class BlockOverlayController @Inject constructor(
             layoutParams = FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER)
         }
 
+        val appIcon = ImageView(context).apply {
+            val icon = runCatching { context.packageManager.getApplicationIcon(spec.packageName) }
+                .getOrNull()
+            setImageDrawable(icon)
+            contentDescription = "${spec.appLabel} icon"
+            visibility = if (icon == null) View.GONE else View.VISIBLE
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+                bottomMargin = dp(16)
+            }
+        }
+        column.addView(appIcon)
         column.addView(
             label(spec.title.uppercase(), 12f, MUTED, font).apply {
                 letterSpacing = 0.18f
@@ -249,18 +262,22 @@ class BlockOverlayController @Inject constructor(
 
         val counter = label("${spec.countdownSeconds}", 64f, FOREGROUND, font)
             .withTopMargin(dp(40))
+            .apply { if (spec.countdownSeconds <= 0) visibility = View.GONE }
         column.addView(counter)
 
         val actions = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            visibility = View.GONE
+            visibility = if (spec.countdownSeconds <= 0) View.VISIBLE else View.GONE
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(40) }
         }
         val footnote = label(spec.footnote.orEmpty(), 13f, MUTED, font).withTopMargin(dp(20)).apply {
             if (spec.footnote == null) visibility = View.GONE
         }
 
+        actions.addView(
+            actionButton("CLOSE APP", font) { finish(true) },
+        )
         if (spec.overrideLabel != null && onOverride != null) {
             val overrideButton = actionButton(spec.overrideLabel, font) { /* set below */ }
             overrideButton.setOnClickListener {
@@ -284,12 +301,8 @@ class BlockOverlayController @Inject constructor(
                     }
                 }
             }
-            actions.addView(overrideButton)
+            actions.addView(overrideButton.withTopMargin(dp(12)))
         }
-        actions.addView(
-            actionButton("Close ${spec.appLabel}", font) { finish(true) }
-                .withTopMargin(dp(12)),
-        )
         actions.addView(footnote)
         column.addView(actions)
 
@@ -329,7 +342,7 @@ class BlockOverlayController @Inject constructor(
                 }
 
                 // Countdown done. Nothing to offer, or the grace is spent: out you go.
-                if (!hasActions || grace <= 0) {
+                if (!hasActions || grace == 0) {
                     finish(true)
                     return
                 }
@@ -339,12 +352,15 @@ class BlockOverlayController @Inject constructor(
                     actions.visibility = View.VISIBLE
                     exitNote.visibility = View.VISIBLE
                 }
-                exitNote.text = if (grace == 1) {
+                // A null grace is the normal app-limit screen: it is a real active screen, not a
+                // visual toast followed by an automatic bounce to home.
+                val remainingGrace = grace ?: return
+                exitNote.text = if (remainingGrace == 1) {
                     "Going home in 1 second"
                 } else {
-                    "Going home in $grace seconds"
+                    "Going home in $remainingGrace seconds"
                 }
-                grace--
+                grace = remainingGrace - 1
                 main.postDelayed(this, 1_000L)
             }
         }

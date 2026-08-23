@@ -14,15 +14,16 @@ import com.calmlauncher.domain.policy.ModeEngine
 import com.calmlauncher.domain.repository.AppLimitRepository
 import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.SettingsRepository
-import com.calmlauncher.domain.service.AppLauncher
 import com.calmlauncher.launcher.LauncherActivity
 import com.calmlauncher.overlay.BlockOverlayController
 import com.calmlauncher.overlay.BlockOverlaySpec
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -78,7 +79,6 @@ class FocusBlockAccessibilityService : AccessibilityService() {
     @Inject lateinit var appLimitRepository: AppLimitRepository
     @Inject lateinit var modeEngine: ModeEngine
     @Inject lateinit var blockOverlay: BlockOverlayController
-    @Inject lateinit var appLauncher: AppLauncher
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -103,6 +103,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
     /** Last known-*good* check per package, throttling only the expensive negative path. */
     private val lastCleanCheck = ConcurrentHashMap<String, Long>()
 
+    /** An extension is temporary even if the user never changes windows again. */
+    private val overrideExpiryJobs = ConcurrentHashMap<String, Job>()
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         settingsRepository.settings
@@ -118,6 +121,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
             .onEach { rules ->
                 limitedPackages = rules.filter { it.enabled }.associateBy { it.packageName }
                 invalidateVerdicts(rules)
+                scheduleOverrideExpiryChecks(rules)
             }
             .launchIn(scope)
     }
@@ -152,6 +156,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
             blockedUntil.remove(pkg)
             blockedStatus.remove(pkg)
             lastCleanCheck.remove(pkg)
+            overrideExpiryJobs.remove(pkg)?.cancel()
             if (blockOverlay.showingPackage() == pkg) blockOverlay.hide()
         }
     }
@@ -161,6 +166,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         when (received.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
             -> Unit
 
             else -> return
@@ -229,7 +235,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
 
     /**
      * A focus session or environment preset refused this app. There is no override to offer, so the
-     * overlay is a brief explanation and nothing more.
+     * overlay remains the active screen until the user chooses to close the app.
      */
     private fun showFocusBlock(pkg: String) {
         if (blockOverlay.showingPackage() == pkg) return
@@ -237,10 +243,10 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         val shown = blockOverlay.show(
             spec = BlockOverlaySpec(
                 packageName = pkg,
-                title = "Blocked",
+                title = "APP BLOCKED",
                 appLabel = label,
-                detail = "Focus mode is on. This one is off limits right now.",
-                countdownSeconds = FOCUS_COUNTDOWN_SECONDS,
+                detail = "$label is blocked while Focus Mode is on.",
+                countdownSeconds = 0,
             ),
             onExit = { goHome(pkg) },
         )
@@ -280,6 +286,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
                 withContext(Dispatchers.Main) { showLimitBlock(decision.status) }
             } else {
                 lastCleanCheck[pkg] = System.currentTimeMillis()
+                // A continuously-open app might not change windows again at the exact limit.
+                // Arm a fresh foreground re-check so it transitions to the block screen on time.
+                appLimitRepository.statusFor(pkg, label)?.let { scheduleLimitExpiryCheck(it) }
             }
         }
     }
@@ -305,14 +314,11 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         val shown = blockOverlay.show(
             spec = BlockOverlaySpec(
                 packageName = pkg,
-                title = "Limit reached",
+                title = "TIME'S UP",
                 appLabel = status.label,
-                detail = "${status.usedMinutes}m used today of ${status.dailyLimitMinutes ?: 0}m.",
-                countdownSeconds = LIMIT_COUNTDOWN_SECONDS,
-                overrideLabel = if (canExtend) "Add $extensionMinutes minutes" else null,
-                // With no extension to weigh up there is nothing to decide, so the exit follows the
-                // countdown immediately.
-                graceSeconds = if (canExtend) OVERRIDE_GRACE_SECONDS else 0,
+                detail = "You've reached today's ${status.label} limit.",
+                countdownSeconds = 0,
+                overrideLabel = if (canExtend) "+$extensionMinutes MINUTES" else null,
                 footnote = status.overrideExhaustedReason,
             ),
             onOverride = if (canExtend) {
@@ -329,6 +335,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
                                 blockedUntil.remove(pkg)
                                 blockedStatus.remove(pkg)
                                 lastCleanCheck[pkg] = System.currentTimeMillis()
+                                scheduleOverrideExpiryCheck(pkg, result.untilEpochMs)
                                 onResult(true)
                             }
 
@@ -350,6 +357,38 @@ class FocusBlockAccessibilityService : AccessibilityService() {
     /** A single extension is worth the standard amount, capped by what's left in the budget. */
     private fun extensionMinutesFor(status: AppLimitStatus): Int =
         minOf(DEFAULT_EXTENSION_MINUTES, status.overrideMinutesRemaining).coerceAtLeast(1)
+
+    private fun scheduleLimitExpiryCheck(status: AppLimitStatus) {
+        val remainingMs = ((status.remainingMinutes ?: 0).coerceAtLeast(0) * 60_000L)
+        // A rounded remaining-minute value of zero may still mean a few seconds are left.
+        scheduleOverrideExpiryCheck(status.packageName, System.currentTimeMillis() + remainingMs.coerceAtLeast(1_000L))
+    }
+
+    /** Re-check a still-visible app at an extension's exact expiry, not only on its next event. */
+    private fun scheduleOverrideExpiryChecks(rules: List<AppLimitRule>) {
+        val now = System.currentTimeMillis()
+        rules.filter { it.enabled && it.overrideUntilEpochMs > now }
+            .forEach { scheduleOverrideExpiryCheck(it.packageName, it.overrideUntilEpochMs) }
+    }
+
+    private fun scheduleOverrideExpiryCheck(pkg: String, untilEpochMs: Long) {
+        overrideExpiryJobs.remove(pkg)?.cancel()
+        overrideExpiryJobs[pkg] = scope.launch {
+            delay((untilEpochMs - System.currentTimeMillis()).coerceAtLeast(0L))
+            val label = labels[pkg] ?: pkg
+            val decision = runCatching { appLimitRepository.evaluate(pkg, label) }.getOrNull()
+            if (decision is AppLimitDecision.Blocked && isPackageVisible(pkg)) {
+                cacheBlock(pkg, decision.status)
+                withContext(Dispatchers.Main) { showLimitBlock(decision.status) }
+            }
+        }
+    }
+
+    private fun isPackageVisible(pkg: String): Boolean = runCatching {
+        windows.orEmpty().any { window ->
+            window.isVisibleAppWindow() && window.root?.packageName?.toString() == pkg
+        }
+    }.getOrDefault(false)
 
     /**
      * Get the user out of [pkg] and back to the launcher, and make it stick.
@@ -376,9 +415,8 @@ class FocusBlockAccessibilityService : AccessibilityService() {
                 ),
             )
         }
-        if (pkg != null && pkg != packageName) {
-            scope.launch { runCatching { appLauncher.closeApp(pkg) } }
-        }
+        // A normal launcher cannot force-stop another app. Going home and taking the home task to
+        // the front makes the app non-foreground without using unsafe process killing.
     }
 
     /** Next local midnight, matching the day boundary the limit repository uses. */
@@ -401,6 +439,8 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         blockedUntil.clear()
         blockedStatus.clear()
         lastCleanCheck.clear()
+        overrideExpiryJobs.values.forEach { it.cancel() }
+        overrideExpiryJobs.clear()
         scope.cancel()
         return super.onUnbind(intent)
     }
@@ -415,13 +455,10 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         const val CLEAN_CHECK_THROTTLE_MS = 5_000L
 
         /** Beat to sit with an exhausted limit before the actions appear. */
-        const val LIMIT_COUNTDOWN_SECONDS = 10
 
         /** Shorter pause for a focus block — there is no decision to make. */
-        const val FOCUS_COUNTDOWN_SECONDS = 5
 
         /** How long the extension stays on offer before the user is sent home anyway. */
-        const val OVERRIDE_GRACE_SECONDS = 8
 
         const val DEFAULT_EXTENSION_MINUTES = 10
     }
