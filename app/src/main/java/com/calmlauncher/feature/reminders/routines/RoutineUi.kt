@@ -138,6 +138,13 @@ fun RoutineTaskRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+                        if (item.taskType == RoutineTaskType.CHECKBOX) onCheckboxChanged(!item.completed)
+                    },
+                )
                 .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
@@ -171,7 +178,7 @@ private fun CheckMark(taskId: Long, checked: Boolean, onCheckedChange: (Boolean)
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(18.dp)
+            .size(24.dp)
             .testTag("routine_task_checkbox_$taskId")
             .border(1.dp, if (checked) CalmWhite else CalmGray)
             .background(if (checked) CalmWhite else CalmBlack)
@@ -261,11 +268,10 @@ private fun RoutineSummaryRow(
                 modifier = Modifier.padding(top = Spacing.stackSm),
             )
         }
-        Text(
+        CalmButton(
             text = "DELETE",
-            style = CalmType.labelMd,
-            color = CalmGray,
-            modifier = Modifier.clickable(onClick = onDelete),
+            style = CalmButtonStyle.Outlined,
+            onClick = onDelete,
         )
     }
     ThinDivider()
@@ -286,7 +292,17 @@ private fun MetricField(
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         textStyle = CalmType.bodyLg.copy(color = CalmWhite),
-        modifier = Modifier.width(84.dp).testTag("routine_task_metric_${item.taskId}"),
+        modifier = Modifier
+            .width(84.dp)
+            .border(1.dp, CalmGray)
+            .padding(horizontal = Spacing.base, vertical = Spacing.stackSm)
+            .testTag("routine_task_metric_${item.taskId}"),
+        decorationBox = { inner ->
+            if (value.isEmpty()) {
+                Text(text = "0", style = CalmType.bodyLg, color = CalmGray)
+            }
+            inner()
+        },
     )
 }
 
@@ -300,9 +316,9 @@ fun RoutineBuilderDialog(
     val initial = routine ?: Routine(title = "", activeDaysMask = weekdaysMask(), tasks = emptyList())
     var title by remember(initial.id) { mutableStateOf(initial.title) }
     var activeDaysMask by remember(initial.id) { mutableStateOf(initial.activeDaysMask) }
-    var tasks by remember(initial.id) {
-        mutableStateOf<List<RoutineDraftTaskState>>(initial.tasks.map { it.toDraft() }.ifEmpty { listOf(defaultTask()) })
-    }
+    var tasks by remember(initial.id) { mutableStateOf(initial.tasks.map { it.toDraft() }) }
+    var saveAttempted by remember(initial.id) { mutableStateOf(false) }
+    val validation = routineValidation(title, activeDaysMask, tasks)
 
     BackHandler(enabled = true, onBack = onDismiss)
 
@@ -315,7 +331,15 @@ fun RoutineBuilderDialog(
                 .padding(bottom = Spacing.stackLg),
         ) {
             CalmBackBar(title = if (routine == null || routine.id == 0L) "New routine" else "Edit routine", onBack = onDismiss)
-            TextFieldLine(value = title, onValueChange = { title = it }, placeholder = "Routine title")
+            TextFieldLine(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = "Routine title",
+                testTag = "routine_builder_title",
+            )
+            if (saveAttempted && title.isBlank()) {
+                ValidationMessage("Give this routine a name.")
+            }
             SectionLabel("Days")
             RoutinePresetRow(
                 activeDaysMask = activeDaysMask,
@@ -326,13 +350,20 @@ fun RoutineBuilderDialog(
                 onToggleDay = { day -> activeDaysMask = activeDaysMask xor day.mask }
             )
             SectionLabel("Tasks")
+            if (tasks.isEmpty()) {
+                Text(
+                    text = "Add the habits you want to complete. Empty tasks are never saved.",
+                    style = CalmType.bodyMd,
+                    color = CalmGray,
+                    modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
+                )
+            }
             tasks.forEachIndexed { index, task ->
                 RoutineTaskEditorRow(
                     task = task,
+                    titleTestTag = "routine_builder_task_$index",
                     onChange = { updated -> tasks = tasks.toMutableList().also { it[index] = updated } },
-                    onDelete = if (tasks.size > 1) {
-                        { tasks = tasks.filterIndexed { taskIndex, _ -> taskIndex != index } }
-                    } else null,
+                    onDelete = { tasks = tasks.filterIndexed { taskIndex, _ -> taskIndex != index } },
                     onMoveUp = if (index > 0) {
                         {
                             val mutable = tasks.toMutableList()
@@ -352,6 +383,9 @@ fun RoutineBuilderDialog(
                         }
                     } else null,
                 )
+                if (saveAttempted) {
+                    task.validationError()?.let { ValidationMessage(it) }
+                }
             }
             CalmButton(
                 text = "+ ADD ANOTHER TASK",
@@ -362,18 +396,19 @@ fun RoutineBuilderDialog(
                     .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
             )
             Row(modifier = Modifier.fillMaxWidth().padding(Spacing.marginMobile), horizontalArrangement = Arrangement.spacedBy(Spacing.gutter)) {
-                CalmButton(text = "SAVE", style = CalmButtonStyle.Filled, enabled = title.isNotBlank(), onClick = {
-                    onSave(
-                        Routine(
-                            id = routine?.id ?: 0L,
-                            title = title,
-                            activeDaysMask = activeDaysMask,
-                            createdAtEpochMs = routine?.createdAtEpochMs ?: System.currentTimeMillis(),
-                            tasks = tasks.mapIndexed { index, task ->
-                                task.toDomain(index, routine?.id ?: 0L)
-                            },
-                        ),
-                    )
+                CalmButton(text = "SAVE", style = CalmButtonStyle.Filled, onClick = {
+                    saveAttempted = true
+                    if (validation == null) {
+                        onSave(
+                            Routine(
+                                id = routine?.id ?: 0L,
+                                title = title.trim(),
+                                activeDaysMask = activeDaysMask,
+                                createdAtEpochMs = routine?.createdAtEpochMs ?: System.currentTimeMillis(),
+                                tasks = tasks.mapIndexed { index, task -> task.toDomain(index, routine?.id ?: 0L) },
+                            ),
+                        )
+                    }
                 })
                 if (onDelete != null) {
                     CalmButton(text = "DELETE", style = CalmButtonStyle.Text, onClick = onDelete)
@@ -381,6 +416,16 @@ fun RoutineBuilderDialog(
             }
         }
     }
+}
+
+@Composable
+private fun ValidationMessage(message: String) {
+    Text(
+        text = message,
+        style = CalmType.labelMd,
+        color = CalmGray,
+        modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
+    )
 }
 
 @Composable
@@ -438,20 +483,26 @@ private fun RoutinePresetButton(text: String, selected: Boolean, onClick: () -> 
 @Composable
 private fun RoutineTaskEditorRow(
     task: RoutineDraftTaskState,
+    titleTestTag: String,
     onChange: (RoutineDraftTaskState) -> Unit,
     onDelete: (() -> Unit)? = null,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
 ) {
     Column {
-        TextFieldLine(value = task.title, onValueChange = { onChange(task.copy(title = it)) }, placeholder = "Task title")
+        TextFieldLine(
+            value = task.title,
+            onValueChange = { onChange(task.copy(title = it)) },
+            placeholder = "Task title",
+            testTag = titleTestTag,
+        )
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.marginMobile), horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
             RoutinePresetButton("Checkbox", selected = task.taskType == RoutineTaskType.CHECKBOX, onClick = { onChange(task.copy(taskType = RoutineTaskType.CHECKBOX)) }, modifier = Modifier.weight(1f))
             RoutinePresetButton("Metric", selected = task.taskType == RoutineTaskType.METRIC, onClick = { onChange(task.copy(taskType = RoutineTaskType.METRIC)) }, modifier = Modifier.weight(1f))
         }
         if (task.taskType == RoutineTaskType.METRIC) {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.marginMobile), horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
-                SmallTextField(value = task.targetValue, placeholder = "Target", onValueChange = { onChange(task.copy(targetValue = it)) }, modifier = Modifier.weight(1f))
+                SmallTextField(value = task.targetValue, placeholder = "Target", numeric = true, onValueChange = { onChange(task.copy(targetValue = it)) }, modifier = Modifier.weight(1f))
                 SmallTextField(value = task.unit, placeholder = "Unit", onValueChange = { onChange(task.copy(unit = it)) }, modifier = Modifier.weight(1f))
             }
         }
@@ -465,7 +516,12 @@ private fun RoutineTaskEditorRow(
 }
 
 @Composable
-private fun TextFieldLine(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+private fun TextFieldLine(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    testTag: String? = null,
+) {
     Column {
         BasicTextField(
             value = value,
@@ -474,7 +530,7 @@ private fun TextFieldLine(value: String, onValueChange: (String) -> Unit, placeh
             cursorBrush = androidx.compose.ui.graphics.SolidColor(CalmWhite),
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("routine_builder_title")
+                .then(if (testTag == null) Modifier else Modifier.testTag(testTag))
                 .padding(horizontal = Spacing.marginMobile, vertical = Spacing.rowVertical),
             decorationBox = { inner ->
                 if (value.isEmpty()) {
@@ -488,10 +544,16 @@ private fun TextFieldLine(value: String, onValueChange: (String) -> Unit, placeh
 }
 
 @Composable
-private fun SmallTextField(value: String, placeholder: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun SmallTextField(
+    value: String,
+    placeholder: String,
+    numeric: Boolean = false,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     BasicTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { onValueChange(if (numeric) it.filter(Char::isDigit) else it) },
         textStyle = CalmType.bodyMd.copy(color = CalmWhite),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(CalmWhite),
         singleLine = true,
@@ -528,12 +590,27 @@ private fun RoutineTask.toDraft() = RoutineDraftTaskState(
 private fun RoutineDraftTaskState.toDomain(orderIndex: Int, routineId: Long) = RoutineTask(
     id = id,
     routineId = routineId,
-    title = title,
+    title = title.trim(),
     taskType = taskType,
     targetValue = targetValue.toIntOrNull(),
     unit = unit,
     reminderMinuteOfDay = reminderMinuteOfDay.toIntOrNull(),
     orderIndex = orderIndex,
 )
+
+private fun routineValidation(title: String, activeDaysMask: Int, tasks: List<RoutineDraftTaskState>): String? = when {
+    title.isBlank() -> "Routine title is required"
+    activeDaysMask == 0 -> "Choose at least one active day"
+    tasks.isEmpty() -> "Add at least one task"
+    tasks.any { it.validationError() != null } -> "Fix the task details"
+    else -> null
+}
+
+private fun RoutineDraftTaskState.validationError(): String? = when {
+    title.isBlank() -> "Task title is required."
+    taskType == RoutineTaskType.METRIC && targetValue.toIntOrNull()?.let { it > 0 } != true ->
+        "Metrics need a target greater than zero."
+    else -> null
+}
 
 private data class RoutineDraftTaskStateHolder(val state: RoutineDraftTaskState)

@@ -83,6 +83,8 @@ class RoutineUiTest {
         }
 
         composeRule.onNodeWithTag("routine_builder_title").performTextInput("Morning")
+        composeRule.onNodeWithText("+ ADD ANOTHER TASK").performClick()
+        composeRule.onNodeWithTag("routine_builder_task_0").performTextInput("Drink water")
         composeRule.onNodeWithText("SAVE").assertIsDisplayed().performClick()
 
         assertEquals("Morning", saved?.title)

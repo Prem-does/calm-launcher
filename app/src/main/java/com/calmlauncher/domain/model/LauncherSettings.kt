@@ -74,6 +74,8 @@ data class LauncherSettings(
     val focusActive: Boolean = false,
     val focusStartedAtEpochMs: Long = 0L,
     val focusDurationMinutes: Int = 25,
+    /** The single outcome the user committed to for their current focus session. */
+    val focusIntention: String = "",
 
     // Favourites shown on the home screen, ordered (package names)
     val favorites: List<String> = DEFAULT_FAVORITES,

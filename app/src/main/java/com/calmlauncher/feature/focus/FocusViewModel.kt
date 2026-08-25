@@ -31,6 +31,9 @@ data class FocusUiState(
     val grayscaleAmount: Float = 0f,
     val einkTexture: Boolean = false,
     val remainingText: String = "--:--",
+    val elapsedText: String = "0m",
+    val progressFraction: Float = 0f,
+    val intention: String = "",
 )
 
 /**
@@ -63,6 +66,8 @@ class FocusViewModel @Inject constructor(
         } else {
             settings.focusDurationMinutes.coerceAtLeast(1) * MINUTE_MS
         }
+        val durationMs = settings.focusDurationMinutes.coerceAtLeast(1) * MINUTE_MS
+        val elapsedMs = if (settings.focusActive) (durationMs - remainingMs).coerceIn(0L, durationMs) else 0L
         FocusUiState(
             active = settings.focusActive,
             quote = quote,
@@ -70,6 +75,9 @@ class FocusViewModel @Inject constructor(
             grayscaleAmount = restriction.grayscaleAmount,
             einkTexture = settings.einkSimulationEnabled,
             remainingText = formatRemaining(remainingMs),
+            elapsedText = formatRemaining(elapsedMs),
+            progressFraction = elapsedMs.toFloat() / durationMs.toFloat(),
+            intention = settings.focusIntention,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -93,6 +101,14 @@ class FocusViewModel @Inject constructor(
         viewModelScope.launch { toggleFocus.stop() }
     }
 
+    /** Persist the session's one meaningful outcome, clipped to stay readable on the canvas. */
+    fun saveIntention(value: String) {
+        val intention = value.trim().take(MAX_INTENTION_LENGTH)
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(focusIntention = intention) }
+        }
+    }
+
     private fun formatRemaining(remainingMs: Long): String {
         val totalMinutes = ((remainingMs + MINUTE_MS - 1) / MINUTE_MS).coerceAtLeast(0L)
         val hours = totalMinutes / 60L
@@ -106,5 +122,6 @@ class FocusViewModel @Inject constructor(
 
     private companion object {
         const val MINUTE_MS = 60_000L
+        const val MAX_INTENTION_LENGTH = 120
     }
 }

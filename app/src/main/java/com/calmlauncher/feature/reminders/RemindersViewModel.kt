@@ -111,9 +111,24 @@ class RemindersViewModel @Inject constructor(
 
     fun saveRoutine(routine: Routine) {
         val title = routine.title.trim()
-        if (title.isEmpty()) return
+        val normalized = routine.copy(
+            title = title,
+            tasks = routine.tasks.map { task ->
+                task.copy(title = task.title.trim(), unit = task.unit.trim())
+            },
+        )
+        // Keep malformed drafts out even if this method is called from somewhere other than the
+        // editor. A routine with blank tasks cannot be meaningfully completed or scheduled.
+        if (
+            normalized.title.isEmpty() || normalized.activeDaysMask == 0 || normalized.tasks.isEmpty() ||
+            normalized.tasks.any { task ->
+                task.title.isEmpty() ||
+                    (task.taskType == com.calmlauncher.domain.model.RoutineTaskType.METRIC &&
+                        (task.targetValue == null || task.targetValue <= 0))
+            }
+        ) return
         viewModelScope.launch {
-            routineRepository.saveRoutine(routine.copy(title = title))
+            routineRepository.saveRoutine(normalized)
         }
     }
 
