@@ -142,6 +142,7 @@ class RoutineRepositoryImpl @Inject constructor(
             id = id,
             title = title,
             activeDaysMask = activeDaysMask,
+            enabled = enabled,
             createdAtEpochMs = createdAtEpochMs,
             tasks = tasks,
         )
@@ -188,6 +189,7 @@ class RoutineRepositoryImpl @Inject constructor(
         id = id,
         title = title,
         activeDaysMask = activeDaysMask,
+        enabled = enabled,
         createdAtEpochMs = createdAtEpochMs,
     )
 }

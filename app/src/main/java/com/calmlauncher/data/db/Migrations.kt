@@ -124,5 +124,20 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/** v11 lets users pause a routine without losing its completion history. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `routines` ADD COLUMN `enabled` INTEGER NOT NULL DEFAULT 1",
+        )
+    }
+}
+
 /** Every migration the database knows about, in order. */
-val CALM_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+val CALM_MIGRATIONS: Array<Migration> = arrayOf(
+    MIGRATION_6_7,
+    MIGRATION_7_8,
+    MIGRATION_8_9,
+    MIGRATION_9_10,
+    MIGRATION_10_11,
+)

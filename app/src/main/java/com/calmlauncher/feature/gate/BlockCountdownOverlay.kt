@@ -74,7 +74,7 @@ fun BlockCountdownOverlay(
 ) {
     var remaining by remember(appLabel, seconds) { mutableIntStateOf(seconds) }
     // Guards the override against a double-tap while the coordinator is still working.
-    var overrideRequested by remember(appLabel) { mutableStateOf(false) }
+    var overrideRequested by remember(appLabel, seconds, overrideLabel) { mutableStateOf(false) }
 
     LaunchedEffect(appLabel, seconds) {
         while (remaining > 0) {
@@ -158,6 +158,7 @@ fun BlockCountdownOverlay(
                         CalmButton(
                             text = overrideLabel,
                             style = CalmButtonStyle.Outlined,
+                            enabled = !overrideRequested,
                             onClick = {
                                 if (!overrideRequested) {
                                     overrideRequested = true

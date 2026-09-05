@@ -204,6 +204,7 @@ fun RoutineDashboardSection(
     onNewRoutine: () -> Unit,
     onEditRoutine: (Routine) -> Unit,
     onDeleteRoutine: (Routine) -> Unit,
+    onEnabledChanged: (Routine, Boolean) -> Unit,
     onCheckboxChanged: (Long, Boolean) -> Unit,
     onMetricChanged: (Long, Int?) -> Unit,
 ) {
@@ -229,6 +230,7 @@ fun RoutineDashboardSection(
                 routine = routine,
                 onEdit = { onEditRoutine(routine) },
                 onDelete = { onDeleteRoutine(routine) },
+                onEnabledChanged = { enabled -> onEnabledChanged(routine, enabled) },
             )
         }
     }
@@ -249,6 +251,7 @@ private fun RoutineSummaryRow(
     routine: Routine,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onEnabledChanged: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -261,7 +264,8 @@ private fun RoutineSummaryRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = routine.title, style = CalmType.bodyMd, color = CalmWhite)
             Text(
-                text = "${routineDaysLabel(routine.activeDaysMask)} · ${routine.tasks.size} task" +
+                text = (if (routine.enabled) "Active" else "Paused") + " · " +
+                    "${routineDaysLabel(routine.activeDaysMask)} · ${routine.tasks.size} task" +
                     if (routine.tasks.size == 1) "" else "s",
                 style = CalmType.labelMd,
                 color = CalmGray,
@@ -269,8 +273,13 @@ private fun RoutineSummaryRow(
             )
         }
         CalmButton(
+            text = if (routine.enabled) "PAUSE" else "RESUME",
+            style = CalmButtonStyle.Text,
+            onClick = { onEnabledChanged(!routine.enabled) },
+        )
+        CalmButton(
             text = "DELETE",
-            style = CalmButtonStyle.Outlined,
+            style = CalmButtonStyle.Text,
             onClick = onDelete,
         )
     }
@@ -316,6 +325,7 @@ fun RoutineBuilderDialog(
     val initial = routine ?: Routine(title = "", activeDaysMask = weekdaysMask(), tasks = emptyList())
     var title by remember(initial.id) { mutableStateOf(initial.title) }
     var activeDaysMask by remember(initial.id) { mutableStateOf(initial.activeDaysMask) }
+    var enabled by remember(initial.id) { mutableStateOf(initial.enabled) }
     var tasks by remember(initial.id) { mutableStateOf(initial.tasks.map { it.toDraft() }) }
     var saveAttempted by remember(initial.id) { mutableStateOf(false) }
     val validation = routineValidation(title, activeDaysMask, tasks)
@@ -348,6 +358,14 @@ fun RoutineBuilderDialog(
             RoutineDayToggleRow(
                 activeDaysMask = activeDaysMask,
                 onToggleDay = { day -> activeDaysMask = activeDaysMask xor day.mask }
+            )
+            CalmButton(
+                text = if (enabled) "PAUSE ROUTINE" else "RESUME ROUTINE",
+                style = CalmButtonStyle.Text,
+                onClick = { enabled = !enabled },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
             )
             SectionLabel("Tasks")
             if (tasks.isEmpty()) {
@@ -404,6 +422,7 @@ fun RoutineBuilderDialog(
                                 id = routine?.id ?: 0L,
                                 title = title.trim(),
                                 activeDaysMask = activeDaysMask,
+                                enabled = enabled,
                                 createdAtEpochMs = routine?.createdAtEpochMs ?: System.currentTimeMillis(),
                                 tasks = tasks.mapIndexed { index, task -> task.toDomain(index, routine?.id ?: 0L) },
                             ),

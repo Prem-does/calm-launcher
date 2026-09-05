@@ -30,10 +30,12 @@ data class Routine(
     val id: Long = 0L,
     val title: String,
     val activeDaysMask: Int,
+    val enabled: Boolean = true,
     val createdAtEpochMs: Long = 0L,
     val tasks: List<RoutineTask> = emptyList(),
 ) {
     fun isActiveOn(epochMs: Long, zoneId: ZoneId = ZoneId.systemDefault()): Boolean {
+        if (!enabled) return false
         val dayOfWeek = LocalDate.ofInstant(Instant.ofEpochMilli(epochMs), zoneId).dayOfWeek
         return activeDaysMask.hasDay(dayOfWeek)
     }

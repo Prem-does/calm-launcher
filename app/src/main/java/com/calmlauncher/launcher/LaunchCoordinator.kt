@@ -97,10 +97,17 @@ class LaunchCoordinator @Inject constructor(
      * which reads as a bug and invites another attempt. Now the block screen comes back and says
      * the extensions are gone.
      */
-    fun grantAppLimitOverrideAndLaunch(request: AppLaunchRequest, minutes: Int) {
+    fun grantAppLimitOverrideAndLaunch(
+        request: AppLaunchRequest,
+        minutes: Int,
+        onGranted: () -> Unit = {},
+    ) {
         scope.launch {
             when (appLimitRepository.extendOverride(request.packageName, minutes)) {
-                is OverrideResult.Granted -> request(request)
+                is OverrideResult.Granted -> {
+                    onGranted()
+                    request(request)
+                }
                 is OverrideResult.Denied -> {
                     val status = appLimitRepository.statusFor(request.packageName, request.label)
                     if (status != null) {

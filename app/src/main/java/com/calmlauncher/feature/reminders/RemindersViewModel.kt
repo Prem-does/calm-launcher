@@ -137,6 +137,12 @@ class RemindersViewModel @Inject constructor(
         viewModelScope.launch { routineRepository.deleteRoutine(routineId) }
     }
 
+    fun setRoutineEnabled(routine: Routine, enabled: Boolean) {
+        viewModelScope.launch {
+            routineRepository.saveRoutine(routine.copy(enabled = enabled))
+        }
+    }
+
     fun setRoutineCheckbox(taskId: Long, checked: Boolean) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()

@@ -75,10 +75,14 @@ fun LaunchGateHost(
                     viewModel.coordinator.grantAppLimitOverrideAndLaunch(
                         limit.request,
                         extensionMinutes,
-                    )
-                    appLimitBlock = null
+                    ) {
+                        appLimitBlock = null
+                    }
                 },
-                onDismiss = { appLimitBlock = null },
+                onDismiss = {
+                    appLimitBlock = null
+                    viewModel.cancel()
+                },
                 footnote = status.overrideExhaustedReason
                     ?: "${status.overridesRemaining} left today, " +
                     "${status.overrideMinutesRemaining}m of extra time.",
@@ -95,7 +99,10 @@ fun LaunchGateHost(
                 title = "APP BLOCKED",
                 appLabel = block.request.label,
                 detail = block.reason,
-                onDismiss = { blocked = null },
+                onDismiss = {
+                    blocked = null
+                    viewModel.cancel()
+                },
                 modifier = modifier,
             )
         }

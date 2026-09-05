@@ -100,6 +100,7 @@ fun RemindersScreen(
                     onNewRoutine = { editingRoutine = Routine(title = "", activeDaysMask = com.calmlauncher.domain.model.weekdaysMask()) },
                     onEditRoutine = { editingRoutine = it },
                     onDeleteRoutine = { pendingDeleteRoutine = it },
+                    onEnabledChanged = viewModel::setRoutineEnabled,
                     onCheckboxChanged = viewModel::setRoutineCheckbox,
                     onMetricChanged = { taskId, value -> viewModel.setRoutineMetricValue(taskId, value, value != null) },
                 )

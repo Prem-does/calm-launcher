@@ -23,6 +23,10 @@ class RoutineScheduler @Inject constructor(
 ) {
 
     fun schedule(routine: Routine, task: RoutineTask) {
+        if (!routine.enabled) {
+            cancel(task.id)
+            return
+        }
         val reminderMinute = task.reminderMinuteOfDay ?: return
         val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val triggerAt = nextOccurrence(routine, reminderMinute) ?: return
