@@ -91,6 +91,45 @@ fun EnvironmentScreen(
                 )
             }
 
+            SectionLabel("Focus length")
+            Text(
+                text = "The next Focus session will use this duration.",
+                style = CalmType.bodyMd,
+                color = CalmGray,
+                modifier = Modifier.padding(horizontal = Spacing.marginMobile),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+            ) {
+                listOf(15, 25, 26).forEach { minutes ->
+                    FocusDurationButton(
+                        minutes = minutes,
+                        selected = settings.focusDurationMinutes == minutes,
+                        onClick = { viewModel.update { it.copy(focusDurationMinutes = minutes) } },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.marginMobile),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+            ) {
+                listOf(45, 60).forEach { minutes ->
+                    FocusDurationButton(
+                        minutes = minutes,
+                        selected = settings.focusDurationMinutes == minutes,
+                        onClick = { viewModel.update { it.copy(focusDurationMinutes = minutes) } },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
             Spacer(Modifier.height(Spacing.stackLg))
         }
 
@@ -345,4 +384,19 @@ private fun AppCategory.label(): String = when (this) {
     AppCategory.STORE -> "Store"
     AppCategory.GAME -> "Games"
     AppCategory.OTHER -> "Other"
+}
+
+@Composable
+private fun FocusDurationButton(
+    minutes: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    CalmButton(
+        text = "${minutes}m",
+        style = if (selected) CalmButtonStyle.Filled else CalmButtonStyle.Outlined,
+        onClick = onClick,
+        modifier = modifier,
+    )
 }

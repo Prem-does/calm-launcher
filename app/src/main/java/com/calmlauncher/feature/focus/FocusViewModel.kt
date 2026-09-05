@@ -17,7 +17,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /** The default focus session length used when the user has never chosen one. */
-private const val DefaultFocusMinutes = 25
+private const val DefaultFocusMinutes = 26
 
 /**
  * Presentational state for the Focus screen: whether a session is live, the day's stable
@@ -109,19 +109,29 @@ class FocusViewModel @Inject constructor(
         }
     }
 
+    fun setFocusDuration(minutes: Int) {
+        viewModelScope.launch {
+            settingsRepository.update {
+                it.copy(focusDurationMinutes = minutes.coerceIn(1, 180))
+            }
+        }
+    }
+
     private fun formatRemaining(remainingMs: Long): String {
-        val totalMinutes = ((remainingMs + MINUTE_MS - 1) / MINUTE_MS).coerceAtLeast(0L)
-        val hours = totalMinutes / 60L
-        val minutes = totalMinutes % 60L
+        val totalSeconds = ((remainingMs + SECOND_MS - 1) / SECOND_MS).coerceAtLeast(0L)
+        val hours = totalSeconds / 3_600L
+        val minutes = (totalSeconds % 3_600L) / 60L
+        val seconds = totalSeconds % 60L
         return if (hours > 0L) {
             "${hours}h ${minutes.toString().padStart(2, '0')}m"
         } else {
-            "${minutes}m"
+            "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
         }
     }
 
     private companion object {
         const val MINUTE_MS = 60_000L
+        const val SECOND_MS = 1_000L
         const val MAX_INTENTION_LENGTH = 120
     }
 }

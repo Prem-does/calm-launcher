@@ -7,9 +7,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Emits the current wall-clock time in epoch millis: once immediately, then once per
- * minute aligned to the minute boundary (so the displayed clock flips exactly when the
- * minute changes rather than drifting). Collect on a background dispatcher.
+ * Emits the current wall-clock time in epoch millis: once immediately, then once per second
+ * aligned to the second boundary. This keeps active focus progress fluid without accumulating
+ * timer drift. Collect on a background dispatcher.
  */
 @Singleton
 class ClockTicker @Inject constructor() {
@@ -18,14 +18,14 @@ class ClockTicker @Inject constructor() {
         while (true) {
             val now = System.currentTimeMillis()
             emit(now)
-            // Sleep until the start of the next minute.
-            val msIntoMinute = now % MINUTE_MS
-            val untilNextMinute = MINUTE_MS - msIntoMinute
-            delay(untilNextMinute)
+            // Sleep until the start of the next second.
+            val msIntoSecond = now % SECOND_MS
+            val untilNextSecond = SECOND_MS - msIntoSecond
+            delay(untilNextSecond)
         }
     }
 
     private companion object {
-        const val MINUTE_MS = 60_000L
+        const val SECOND_MS = 1_000L
     }
 }
