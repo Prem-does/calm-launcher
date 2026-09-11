@@ -106,6 +106,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
     /** An extension is temporary even if the user never changes windows again. */
     private val overrideExpiryJobs = ConcurrentHashMap<String, Job>()
 
+    /** Prevents the just-dismissed app from winning the foreground race while HOME starts. */
+    private val exitSuppressedUntil = ConcurrentHashMap<String, Long>()
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         settingsRepository.settings
@@ -178,6 +181,7 @@ class FocusBlockAccessibilityService : AccessibilityService() {
 
         val pkg = received.packageName?.toString() ?: return
         if (pkg == packageName) return // never bounce ourselves
+        if (isExitSuppressed(pkg)) return
 
         // The user has moved on while an overlay was up (they hit home, or the app closed itself).
         // Don't leave a black screen floating over something innocent.
@@ -210,7 +214,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
                 .mapNotNull { window -> window.root?.packageName?.toString() }
         }.getOrDefault(emptyList())
 
-        val offender = visible.firstOrNull { it != packageName && isCachedBlocked(it) }
+        val offender = visible.firstOrNull {
+            it != packageName && !isExitSuppressed(it) && isCachedBlocked(it)
+        }
             ?: return false
         val status = blockedStatus[offender] ?: return false
         showLimitBlock(status)
@@ -248,9 +254,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
                 detail = "$label is blocked while Focus Mode is on.",
                 countdownSeconds = 0,
             ),
-            onExit = { goHome(pkg) },
+            onExit = { suppressAndGoHome(pkg) },
         )
-        if (!shown) goHome(pkg)
+        if (!shown) suppressAndGoHome(pkg)
     }
 
     /**
@@ -349,9 +355,9 @@ class FocusBlockAccessibilityService : AccessibilityService() {
             } else {
                 null
             },
-            onExit = { goHome(pkg) },
+            onExit = { suppressAndGoHome(pkg) },
         )
-        if (!shown) goHome(pkg)
+        if (!shown) suppressAndGoHome(pkg)
     }
 
     /** A single extension is worth the standard amount, capped by what's left in the budget. */
@@ -419,6 +425,20 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         // the front makes the app non-foreground without using unsafe process killing.
     }
 
+    private fun suppressAndGoHome(pkg: String) {
+        exitSuppressedUntil[pkg] = System.currentTimeMillis() + EXIT_SUPPRESSION_MS
+        goHome(pkg)
+    }
+
+    private fun isExitSuppressed(pkg: String): Boolean {
+        val until = exitSuppressedUntil[pkg] ?: return false
+        if (System.currentTimeMillis() >= until) {
+            exitSuppressedUntil.remove(pkg, until)
+            return false
+        }
+        return true
+    }
+
     /** Next local midnight, matching the day boundary the limit repository uses. */
     private fun nextDayReset(): Long {
         val cal = java.util.Calendar.getInstance().apply {
@@ -461,5 +481,6 @@ class FocusBlockAccessibilityService : AccessibilityService() {
         /** How long the extension stays on offer before the user is sent home anyway. */
 
         const val DEFAULT_EXTENSION_MINUTES = 10
+        const val EXIT_SUPPRESSION_MS = 2_000L
     }
 }

@@ -40,6 +40,7 @@ import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.domain.model.ClockStyle
+import com.calmlauncher.domain.model.AccentColor
 import com.calmlauncher.domain.model.FontScale
 import com.calmlauncher.domain.model.FontStyle
 import com.calmlauncher.domain.model.HomeGridColumns
@@ -93,6 +94,12 @@ fun CustomizationScreen(
                 selected = appearance.themeMode,
                 label = { it.label },
                 onSelect = viewModel::setThemeMode,
+            )
+
+            SectionLabel("Accent")
+            AccentChoiceRow(
+                selected = appearance.accent,
+                onSelect = viewModel::setAccent,
             )
 
             SectionLabel("Typography")
@@ -164,6 +171,48 @@ fun CustomizationScreen(
             Spacer(Modifier.height(Spacing.stackLg))
         }
     }
+}
+
+@Composable
+private fun AccentChoiceRow(
+    selected: AccentColor,
+    onSelect: (AccentColor) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.marginMobile),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+    ) {
+        AccentColor.entries.forEach { accent ->
+            val interaction = remember { MutableInteractionSource() }
+            val color = Color(accent.darkArgb)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .size(SWATCH_OUTER)
+                    .border(
+                        width = if (accent == selected) 2.dp else 1.dp,
+                        color = if (accent == selected) CalmWhite else CalmDivider,
+                        shape = CircleShape,
+                    )
+                    .padding(7.dp)
+                    .background(color, CircleShape)
+                    .clickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        onClick = { onSelect(accent) },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {}
+        }
+    }
+    Text(
+        text = selected.label,
+        style = CalmType.labelMd,
+        color = CalmGray,
+        modifier = Modifier.padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackSm),
+    )
 }
 
 /**

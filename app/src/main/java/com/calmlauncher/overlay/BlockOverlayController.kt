@@ -231,6 +231,10 @@ class BlockOverlayController @Inject constructor(
             isClickable = true
             isFocusable = true
             isFocusableInTouchMode = true
+            // Keep every unhandled touch inside this window. The action buttons are child views
+            // and still receive their own clicks; the root consumes the rest rather than letting
+            // an underlying app receive a touch during overlay transitions.
+            setOnTouchListener { _, _ -> true }
             // No layoutParams here on purpose — WindowManager.addView installs its own.
         }
 

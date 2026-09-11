@@ -4,7 +4,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import com.calmlauncher.core.designsystem.theme.CalmBlack
 import com.calmlauncher.core.designsystem.theme.CalmType
 import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
@@ -27,10 +24,8 @@ import com.calmlauncher.core.designsystem.theme.Spacing
  * left-aligned, with [Spacing.rowVertical] vertical padding, [label] in
  * [CalmType.bodyLg] and a closing [ThinDivider].
  *
- * Signature interaction: while pressed the row inverts to the Stitch "active block" —
- * [CalmWhite] background with [CalmBlack] text — instead of showing a ripple, observed
- * via the [MutableInteractionSource]. [onLongClick] is wired through
- * [combinedClickable]; [leading] is an optional slot for an app icon (ICONS display
+ * Signature interaction: the row has no ripple or pressed highlight. [onLongClick] is wired
+ * through [combinedClickable]; [leading] is an optional slot for an app icon (ICONS display
  * mode), shown before the label.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -43,12 +38,8 @@ fun AppListRow(
     leading: (@Composable () -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
 
-    val background: Color = if (pressed) CalmWhite else CalmBlack
-    val foreground: Color = if (pressed) CalmBlack else CalmWhite
-
-    Column(modifier = modifier.fillMaxWidth().background(background)) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,7 +59,7 @@ fun AppListRow(
             if (leading != null) {
                 leading()
             }
-            Text(text = label, style = CalmType.bodyLg, color = foreground)
+            Text(text = label, style = CalmType.bodyLg, color = CalmWhite)
         }
         ThinDivider()
     }
