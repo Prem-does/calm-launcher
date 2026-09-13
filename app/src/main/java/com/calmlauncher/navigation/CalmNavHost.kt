@@ -8,8 +8,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,7 +37,7 @@ import com.calmlauncher.core.designsystem.theme.CalmWhite
 import com.calmlauncher.core.designsystem.theme.Spacing
 import com.calmlauncher.feature.applist.AppListScreen
 import com.calmlauncher.feature.limits.AppLimitsScreen
-import com.calmlauncher.feature.focus.FocusScreen
+import com.calmlauncher.feature.focus.FocusEntryTransition
 import com.calmlauncher.feature.gate.LaunchGateHost
 import com.calmlauncher.feature.home.HomeScreen
 import com.calmlauncher.feature.onboarding.OnboardingScreen
@@ -51,6 +61,7 @@ import com.calmlauncher.feature.settings.ThemeViewModel
 @Composable
 fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val onboardingComplete by rootViewModel.onboardingComplete.collectAsStateWithLifecycle()
+    val appCatalogReady by rootViewModel.appCatalogReady.collectAsStateWithLifecycle()
     val themeViewModel: ThemeViewModel = hiltViewModel()
     // The full appearance, not just light/dark: collecting it here is what makes every
     // Customization change apply on the next frame, with no launcher restart.
@@ -68,6 +79,8 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
             val complete = onboardingComplete
             if (complete == null) {
                 LoadingRootSurface()
+            } else if (complete && !appCatalogReady) {
+                LoadingRootSurface()
             } else {
                 CalmNavHost(
                     navController = navController,
@@ -82,6 +95,17 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
 
 @Composable
 private fun LoadingRootSurface(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "loading-pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "loading-pulse-alpha",
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -89,16 +113,26 @@ private fun LoadingRootSurface(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        androidx.compose.material3.Text(
+        Text(
             text = "CALM",
             style = CalmType.headlineLgMobile,
             color = CalmWhite,
         )
-        androidx.compose.material3.Text(
-            text = "Starting...",
+        Spacer(Modifier.height(Spacing.stackMd))
+        CircularProgressIndicator(
+            modifier = Modifier
+                .height(28.dp)
+                .alpha(pulse),
+            color = CalmWhite,
+            strokeWidth = 1.5.dp,
+        )
+        Text(
+            text = "Preparing your space",
             style = CalmType.labelMd,
             color = CalmGray,
-            modifier = Modifier.padding(top = Spacing.stackSm),
+            modifier = Modifier
+                .padding(top = Spacing.stackMd)
+                .alpha(pulse),
         )
     }
 }
@@ -175,7 +209,7 @@ fun CalmNavHost(
         }
 
         composable(Routes.FOCUS) {
-            FocusScreen(onExit = { selectTab(Routes.HOME) })
+            FocusEntryTransition(onExit = { selectTab(Routes.HOME) })
         }
 
         composable(Routes.SEARCH) {

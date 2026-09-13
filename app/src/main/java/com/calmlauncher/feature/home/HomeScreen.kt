@@ -209,19 +209,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(44.dp))
 
-                // Optional neutral Calm AI insight line.
-                state.insight?.let { insight ->
-                    Text(
-                        text = insight,
-                        style = CalmType.labelMd,
-                        color = CalmGray,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = Spacing.stackMd),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
                 // Favorite shortcuts (oversized Swiss list).
                 if (state.favorites.isEmpty()) {
                     Text(

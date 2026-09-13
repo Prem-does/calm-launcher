@@ -3,6 +3,7 @@ package com.calmlauncher.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calmlauncher.domain.model.UiRestrictionState
+import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.SettingsRepository
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class RootViewModel @Inject constructor(
+    appRepository: AppRepository,
     settingsRepository: SettingsRepository,
     observeRestriction: ObserveRestrictionStateUseCase,
 ) : ViewModel() {
@@ -25,6 +27,10 @@ class RootViewModel @Inject constructor(
         settingsRepository.settings
             .map { it.onboardingComplete }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+        val appCatalogReady: StateFlow<Boolean> = appRepository.observeApps()
+            .map { true }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val restriction: StateFlow<UiRestrictionState> = observeRestriction()
         .stateIn(viewModelScope, SharingStarted.Eagerly, UiRestrictionState())

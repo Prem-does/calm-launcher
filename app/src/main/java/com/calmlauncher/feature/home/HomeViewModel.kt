@@ -13,7 +13,6 @@ import com.calmlauncher.domain.model.LaunchSource
 import com.calmlauncher.domain.repository.AppRepository
 import com.calmlauncher.domain.repository.ScreenTimeRepository
 import com.calmlauncher.domain.repository.SettingsRepository
-import com.calmlauncher.domain.usecase.BuildInsightsUseCase
 import com.calmlauncher.domain.usecase.ObserveRestrictionStateUseCase
 import com.calmlauncher.launcher.LaunchCoordinator
 import com.calmlauncher.feature.settings.applyEnvironmentSetup
@@ -39,7 +38,6 @@ class HomeViewModel @Inject constructor(
     connectivityObserver: ConnectivityObserver,
     private val settingsRepository: SettingsRepository,
     private val screenTimeRepository: ScreenTimeRepository,
-    buildInsights: BuildInsightsUseCase,
     observeRestriction: ObserveRestrictionStateUseCase,
     private val appRepository: AppRepository,
     private val launchCoordinator: LaunchCoordinator,
@@ -65,8 +63,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private val topInsight = buildInsights().map { it.firstOrNull()?.text }
-
     // combine() takes at most 5 flows directly; group the system/status streams into one
     // combine, then fold that together with the remaining flows in an outer combine.
     private val system = combine(
@@ -82,9 +78,8 @@ class HomeViewModel @Inject constructor(
         system,
         screenTime,
         appRepository.observeFavorites(),
-        topInsight,
         observeRestriction(),
-    ) { shell, screenTimeText, favorites, insight, restriction ->
+    ) { shell, screenTimeText, favorites, restriction ->
         HomeUiState(
             time = shell.clock.time,
             date = shell.clock.date,
@@ -93,7 +88,6 @@ class HomeViewModel @Inject constructor(
             signalText = shell.signal,
             environmentMode = shell.environment,
             favorites = favorites,
-            insight = insight,
             restriction = restriction,
         )
     }.stateIn(
