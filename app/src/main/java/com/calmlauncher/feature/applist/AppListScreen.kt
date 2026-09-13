@@ -1,5 +1,7 @@
 package com.calmlauncher.feature.applist
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,6 +58,7 @@ fun AppListScreen(
     viewModel: AppListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val listState = rememberLazyListState()
     val alphabetIndex = rememberAlphabetIndex(state.apps) { it.label }
     // Long-press opens the shared app menu rather than jumping straight to Settings, so
@@ -135,6 +139,18 @@ fun AppListScreen(
                     onClick = {
                         actionTarget = null
                         onOpenSettings()
+                    },
+                ),
+                AppAction(
+                    label = "Uninstall",
+                    onClick = {
+                        actionTarget = null
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_DELETE,
+                                Uri.parse("package:${app.packageName}"),
+                            ),
+                        )
                     },
                 ),
             ),

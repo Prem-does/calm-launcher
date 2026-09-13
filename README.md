@@ -63,6 +63,7 @@ A pure-black canvas that acts as the "resting state" of the device — an oversi
 
 ### App List & Management
 - **App List** — a text-only, icon-free vertical list that avoids "logo-hunting" behavior, with an alphabet side-index for fast navigation.
+- **App actions** — long-press any app in the drawer to add it to or remove it from the Home screen, open Settings, or start Android's standard uninstall confirmation.
 - **Manage Apps** — hide apps from the main list, categorize them, or pin favorites to the Home screen.
 
 ### Search
