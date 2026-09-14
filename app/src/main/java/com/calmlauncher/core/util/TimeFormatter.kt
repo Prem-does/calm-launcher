@@ -15,6 +15,8 @@ object TimeFormatter {
     private val timeFormatter12 = DateTimeFormatter.ofPattern("h:mm", Locale.getDefault())
     private val timeFormatter24 = DateTimeFormatter.ofPattern("H:mm", Locale.getDefault())
     private val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())
+    private val homeTimeFormatter = DateTimeFormatter.ofPattern("hh:mm", Locale.getDefault())
+    private val homeDateFormatter = DateTimeFormatter.ofPattern("EEE '·' dd MMM", Locale.US)
 
     fun formatTime(epochMs: Long, use24h: Boolean, zone: ZoneId = ZoneId.systemDefault()): String {
         val dt = Instant.ofEpochMilli(epochMs).atZone(zone)
@@ -25,6 +27,12 @@ object TimeFormatter {
         val dt = Instant.ofEpochMilli(epochMs).atZone(zone)
         return dt.format(dateFormatter)
     }
+
+    fun formatHomeTime(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+        Instant.ofEpochMilli(epochMs).atZone(zone).format(homeTimeFormatter)
+
+    fun formatHomeDate(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+        Instant.ofEpochMilli(epochMs).atZone(zone).format(homeDateFormatter).uppercase(Locale.US)
 
     /** "Friday" — used for weekly-pattern insight phrasing. */
     fun dayOfWeek(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =

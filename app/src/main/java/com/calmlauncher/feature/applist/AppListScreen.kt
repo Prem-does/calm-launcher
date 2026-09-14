@@ -2,6 +2,7 @@ package com.calmlauncher.feature.applist
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -145,12 +146,19 @@ fun AppListScreen(
                     label = "Uninstall",
                     onClick = {
                         actionTarget = null
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_DELETE,
-                                Uri.parse("package:${app.packageName}"),
-                            ),
-                        )
+                        val uninstallIntent = Intent(
+                            Intent.ACTION_UNINSTALL_PACKAGE,
+                            Uri.fromParts("package", app.packageName, null),
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        runCatching { context.startActivity(uninstallIntent) }
+                            .onFailure {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.fromParts("package", app.packageName, null),
+                                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
                     },
                 ),
             ),

@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -112,7 +113,6 @@ fun HomeScreen(
     ) { innerPadding ->
         val timeText = state.time.ifBlank { "--:--" }
         val dateText = state.date.ifBlank { "Loading home..." }
-        val screenTimeText = state.screenTimeText.ifBlank { "0m today" }
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,45 +151,40 @@ fun HomeScreen(
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // Clock presentation is a Customization choice. HIDDEN drops the time and
-                    // date entirely but keeps this block in place, so the long-press-for-Settings
-                    // gesture survives — hiding the clock must not hide the way into Settings.
                     if (clockStyle != ClockStyle.HIDDEN) {
                         Text(
                             text = timeText,
-                            style = when (clockStyle) {
-                                ClockStyle.COMPACT -> CalmType.headlineLgMobile
-                                else -> CalmType.heroTime.copy(
-                                    fontSize = 72.sp,
-                                    lineHeight = 76.sp,
-                                    letterSpacing = 0.sp,
-                                )
-                            },
-                            color = CalmWhite,
+                            style = CalmType.heroTime.copy(
+                                fontSize = 72.sp,
+                                lineHeight = 76.sp,
+                                letterSpacing = 0.sp,
+                            ),
+                            color = CalmWhite.copy(alpha = 0.98f),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    shadowElevation = 5f
+                                    ambientShadowColor = CalmWhite
+                                    spotShadowColor = CalmWhite
+                                },
                         )
                     }
-                    if (clockStyle == ClockStyle.LARGE || clockStyle == ClockStyle.WITH_DATE) {
+                    if (clockStyle != ClockStyle.HIDDEN) {
                         Text(
                             text = dateText,
-                            style = CalmType.headlineMd,
-                            color = CalmGray,
+                            style = CalmType.labelMd.copy(
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                letterSpacing = 1.4.sp,
+                            ),
+                            color = CalmWhite.copy(alpha = 0.78f),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = Spacing.stackSm),
                         )
                     }
-                    Text(
-                        text = screenTimeText,
-                        style = CalmType.labelMd.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            letterSpacing = 0.sp,
-                        ),
-                        color = CalmGray,
-                        modifier = Modifier.padding(top = Spacing.stackSm),
-                        textAlign = TextAlign.Center,
-                    )
                 }
 
                 if (environmentSwitcherOpen) {

@@ -43,11 +43,11 @@ class HomeViewModel @Inject constructor(
     private val launchCoordinator: LaunchCoordinator,
 ) : ViewModel() {
 
-    // Clock emits epoch millis → pre-format both the 12-hour time and the long date.
+    // Clock emits epoch millis → pre-format the AOD-style time and date for Home.
     private val clock = clockTicker.time.map { now ->
         ClockText(
-            time = TimeFormatter.formatTime(now, use24h = false),
-            date = TimeFormatter.formatDate(now),
+            time = TimeFormatter.formatHomeTime(now),
+            date = TimeFormatter.formatHomeDate(now),
         )
     }
 

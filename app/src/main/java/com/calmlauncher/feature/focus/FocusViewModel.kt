@@ -17,7 +17,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /** The default focus session length used when the user has never chosen one. */
-private const val DefaultFocusMinutes = 26
+private const val DefaultFocusMinutes = 25
 
 /**
  * Presentational state for the Focus screen: whether a session is live, the day's stable
@@ -33,6 +33,7 @@ data class FocusUiState(
     val remainingText: String = "--:--",
     val elapsedText: String = "0m",
     val progressFraction: Float = 0f,
+    val durationMinutes: Int = DefaultFocusMinutes,
     val intention: String = "",
 )
 
@@ -77,6 +78,7 @@ class FocusViewModel @Inject constructor(
             remainingText = formatRemaining(remainingMs),
             elapsedText = formatRemaining(elapsedMs),
             progressFraction = elapsedMs.toFloat() / durationMs.toFloat(),
+            durationMinutes = settings.focusDurationMinutes.coerceIn(1, 180),
             intention = settings.focusIntention,
         )
     }.stateIn(

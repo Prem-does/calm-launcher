@@ -2,6 +2,8 @@ package com.calmlauncher.feature.focus
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -28,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calmlauncher.core.designsystem.component.CalmButton
@@ -90,88 +94,93 @@ fun FocusScreen(
                 .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            FocusSessionPulse(state = state)
-
-            FocusIntention(
-                savedIntention = state.intention,
-                draft = intentionDraft,
-                editing = editingIntention,
-                onDraftChange = { intentionDraft = it.take(120) },
-                onEdit = { editingIntention = true },
-                onSave = {
-                    viewModel.saveIntention(intentionDraft)
-                    editingIntention = false
-                },
+            FocusSessionPulse(
+                state = state,
+                onDurationSelected = viewModel::setFocusDuration,
             )
-            // Centered, day-stable quote — the sole focal point.
+
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(top = Spacing.stackLg),
+                    .padding(top = Spacing.stackSm),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-            Text(
-                text = state.quote,
-                style = CalmType.headlineMd,
-                color = CalmWhite,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.marginMobile),
-            )
+                FocusIntention(
+                    savedIntention = state.intention,
+                    draft = intentionDraft,
+                    editing = editingIntention,
+                    onDraftChange = { intentionDraft = it.take(120) },
+                    onEdit = { editingIntention = true },
+                    onSave = {
+                        viewModel.saveIntention(intentionDraft)
+                        editingIntention = false
+                    },
+                )
 
-            CalmButton(
-                text = if (reflectionOpen) "HIDE REFLECTION" else "CAPTURE A THOUGHT",
-                onClick = { reflectionOpen = !reflectionOpen },
-                style = CalmButtonStyle.Text,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackLg),
-            )
-            if (reflectionOpen && reflectionState.prompt.isNotBlank()) {
+                // Centered, day-stable quote — the sole focal point.
                 Text(
-                    text = reflectionState.prompt,
-                    style = CalmType.bodyMd,
-                    color = CalmWhite.copy(alpha = 0.85f),
+                    text = state.quote,
+                    style = CalmType.headlineMd,
+                    color = CalmWhite,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.marginMobile)
                         .padding(top = Spacing.stackLg),
                 )
-            }
 
-            if (reflectionOpen) {
-                ReflectionField(
-                    value = reflectionState.response,
-                    onValueChange = reflectionViewModel::onResponseChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Spacing.marginMobile),
-                )
                 CalmButton(
-                    text = "SAVE THOUGHT",
-                    onClick = reflectionViewModel::save,
-                    style = CalmButtonStyle.Filled,
+                    text = if (reflectionOpen) "HIDE REFLECTION" else "CAPTURE A THOUGHT",
+                    onClick = { reflectionOpen = !reflectionOpen },
+                    style = CalmButtonStyle.Text,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.marginMobile, vertical = Spacing.gutter),
+                        .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackLg),
                 )
-                if (reflectionState.saveStatusText.isNotBlank()) {
+                if (reflectionOpen && reflectionState.prompt.isNotBlank()) {
                     Text(
-                        text = reflectionState.saveStatusText,
-                        style = CalmType.labelMd,
-                        color = CalmWhite.copy(alpha = 0.65f),
+                        text = reflectionState.prompt,
+                        style = CalmType.bodyMd,
+                        color = CalmWhite.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.marginMobile),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.marginMobile)
+                            .padding(top = Spacing.stackSm),
                     )
                 }
-            }
 
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.stackSm))
+                if (reflectionOpen) {
+                    ReflectionField(
+                        value = reflectionState.response,
+                        onValueChange = reflectionViewModel::onResponseChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.marginMobile)
+                            .padding(top = Spacing.stackSm),
+                    )
+                    CalmButton(
+                        text = "SAVE THOUGHT",
+                        onClick = reflectionViewModel::save,
+                        style = CalmButtonStyle.Filled,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.gutter),
+                    )
+                    if (reflectionState.saveStatusText.isNotBlank()) {
+                        Text(
+                            text = reflectionState.saveStatusText,
+                            style = CalmType.labelMd,
+                            color = CalmWhite.copy(alpha = 0.65f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.marginMobile),
+                        )
+                    }
+                }
+                }
 
             // Deliberate hold-to-exit control with its own progress bar + sub-label.
             HoldToConfirm(
@@ -186,7 +195,7 @@ fun FocusScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.marginMobile)
-                    .padding(bottom = Spacing.stackLg),
+                        .padding(top = Spacing.stackSm, bottom = Spacing.stackLg),
             )
         }
     }
@@ -245,39 +254,62 @@ private fun FocusIntention(
 }
 
 @Composable
-private fun FocusSessionPulse(state: FocusUiState) {
+private fun FocusSessionPulse(
+    state: FocusUiState,
+    onDurationSelected: (Int) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackLg),
+            .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("FOCUS SESSION", style = CalmType.labelMd, color = CalmWhite.copy(alpha = 0.6f))
         Text(
             text = state.remainingText,
-            style = CalmType.headlineLgMobile,
+            style = CalmType.headlineLgMobile.copy(
+                fontSize = 40.sp,
+                lineHeight = 44.sp,
+                letterSpacing = 0.sp,
+            ),
             color = CalmWhite,
-            modifier = Modifier.padding(top = Spacing.stackSm),
-        )
-        Text(
-            text = "remaining  •  ${state.elapsedText} invested",
-            style = CalmType.labelMd,
-            color = CalmGray,
-            modifier = Modifier.padding(top = Spacing.stackSm),
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = Spacing.gutter)
-                .height(4.dp)
-                .background(CalmGray),
+                .padding(top = Spacing.base)
+                .height(2.dp)
+                .background(CalmGray.copy(alpha = 0.35f)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(state.progressFraction.coerceIn(0f, 1f))
-                    .height(4.dp)
+                    .height(2.dp)
                     .background(CalmWhite),
             )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = Spacing.base),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+        ) {
+            listOf(15, 25, 45, 60).forEach { minutes ->
+                val interaction = remember { MutableInteractionSource() }
+                Text(
+                    text = "${minutes}M",
+                    style = CalmType.labelMd,
+                    color = if (state.durationMinutes == minutes) CalmWhite else CalmGray,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(
+                            interactionSource = interaction,
+                            indication = null,
+                            onClick = { onDurationSelected(minutes) },
+                        )
+                        .padding(vertical = Spacing.base),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
