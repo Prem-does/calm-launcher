@@ -11,7 +11,6 @@ import com.calmlauncher.domain.model.FontScale
 import com.calmlauncher.domain.model.FontStyle
 import com.calmlauncher.domain.model.HomeGridColumns
 import com.calmlauncher.domain.model.LayoutDensity
-import com.calmlauncher.domain.model.SearchBarStyle
 import com.calmlauncher.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -51,7 +50,6 @@ class AppearanceDataStore @Inject constructor(
             fontScale = enumOr(this[Keys.FONT_SCALE], defaults.fontScale),
             gridColumns = enumOr(this[Keys.GRID_COLUMNS], defaults.gridColumns),
             clockStyle = enumOr(this[Keys.CLOCK_STYLE], defaults.clockStyle),
-            searchBarStyle = enumOr(this[Keys.SEARCH_BAR_STYLE], defaults.searchBarStyle),
             density = enumOr(this[Keys.DENSITY], defaults.density),
         )
     }
@@ -65,7 +63,6 @@ class AppearanceDataStore @Inject constructor(
         prefs[Keys.FONT_SCALE] = fontScale.name
         prefs[Keys.GRID_COLUMNS] = gridColumns.name
         prefs[Keys.CLOCK_STYLE] = clockStyle.name
-        prefs[Keys.SEARCH_BAR_STYLE] = searchBarStyle.name
         prefs[Keys.DENSITY] = density.name
     }
 
@@ -80,7 +77,6 @@ class AppearanceDataStore @Inject constructor(
         val FONT_SCALE = stringPreferencesKey("appearance_font_scale")
         val GRID_COLUMNS = stringPreferencesKey("appearance_grid_columns")
         val CLOCK_STYLE = stringPreferencesKey("appearance_clock_style")
-        val SEARCH_BAR_STYLE = stringPreferencesKey("appearance_search_bar_style")
         val DENSITY = stringPreferencesKey("appearance_density")
     }
 }

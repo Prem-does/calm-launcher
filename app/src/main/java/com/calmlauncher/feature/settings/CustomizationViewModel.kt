@@ -9,7 +9,6 @@ import com.calmlauncher.domain.model.FontScale
 import com.calmlauncher.domain.model.FontStyle
 import com.calmlauncher.domain.model.HomeGridColumns
 import com.calmlauncher.domain.model.LayoutDensity
-import com.calmlauncher.domain.model.SearchBarStyle
 import com.calmlauncher.domain.model.ThemeMode
 import com.calmlauncher.domain.repository.AppearanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,8 +52,6 @@ class CustomizationViewModel @Inject constructor(
     fun setGridColumns(value: HomeGridColumns) = update { it.copy(gridColumns = value) }
 
     fun setClockStyle(value: ClockStyle) = update { it.copy(clockStyle = value) }
-
-    fun setSearchBarStyle(value: SearchBarStyle) = update { it.copy(searchBarStyle = value) }
 
     fun setDensity(value: LayoutDensity) = update { it.copy(density = value) }
 

@@ -5,6 +5,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -23,10 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.border
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -37,10 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -54,6 +48,7 @@ import com.calmlauncher.core.designsystem.component.CalmBackBar
 import com.calmlauncher.core.designsystem.component.CalmButton
 import com.calmlauncher.core.designsystem.component.CalmButtonStyle
 import com.calmlauncher.core.designsystem.component.CalmScaffold
+import com.calmlauncher.core.designsystem.component.CalmSearchField
 import com.calmlauncher.core.designsystem.component.SectionLabel
 import com.calmlauncher.core.designsystem.component.SettingRow
 import com.calmlauncher.core.designsystem.component.ThinDivider
@@ -166,9 +161,10 @@ fun AppLimitsScreen(
             }
 
             item {
-                SearchField(
+                CalmSearchField(
                     query = query,
                     onQueryChange = { query = it },
+                    placeholder = "Search apps",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),
@@ -398,32 +394,6 @@ private fun NoticeLine(text: String) {
     )
 }
 
-/** A bare underlined query field; no container, no icon. */
-@Composable
-private fun SearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val focusManager = LocalFocusManager.current
-    BasicTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier,
-        singleLine = true,
-        textStyle = CalmType.bodyLg.copy(color = CalmWhite),
-        cursorBrush = SolidColor(CalmWhite),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-        decorationBox = { inner ->
-            if (query.isBlank()) {
-                Text(text = "Search apps", style = CalmType.bodyLg, color = CalmGray)
-            }
-            inner()
-        },
-    )
-}
-
 /**
  * Editing one group: the shared timer, an on/off row, and the app picker. Full-screen black
  * so the app list has room to breathe instead of scrolling inside a dialog.
@@ -461,9 +431,10 @@ private fun AppLimitGroupEditor(
                 onClick = { enabled = !enabled },
             )
             SectionLabel("Apps · ${selectedPackages.size} selected")
-            SearchField(
+            CalmSearchField(
                 query = appQuery,
                 onQueryChange = { appQuery = it },
+                placeholder = "Search apps",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.marginMobile, vertical = Spacing.stackMd),

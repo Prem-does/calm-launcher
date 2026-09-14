@@ -45,7 +45,6 @@ import com.calmlauncher.domain.model.FontScale
 import com.calmlauncher.domain.model.FontStyle
 import com.calmlauncher.domain.model.HomeGridColumns
 import com.calmlauncher.domain.model.LayoutDensity
-import com.calmlauncher.domain.model.SearchBarStyle
 import com.calmlauncher.domain.model.ThemeMode
 
 /**
@@ -134,14 +133,6 @@ fun CustomizationScreen(
                 selected = appearance.clockStyle,
                 label = { it.label },
                 onSelect = viewModel::setClockStyle,
-            )
-
-            SectionLabel("Search bar")
-            ChoiceRow(
-                options = SearchBarStyle.entries,
-                selected = appearance.searchBarStyle,
-                label = { it.label },
-                onSelect = viewModel::setSearchBarStyle,
             )
 
             SectionLabel("Spacing")

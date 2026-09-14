@@ -26,7 +26,6 @@ data class AppearanceSettings(
     val fontScale: FontScale = FontScale.NORMAL,
     val gridColumns: HomeGridColumns = HomeGridColumns.ONE,
     val clockStyle: ClockStyle = ClockStyle.LARGE,
-    val searchBarStyle: SearchBarStyle = SearchBarStyle.UNDERLINE,
     val density: LayoutDensity = LayoutDensity.COMFORTABLE,
 )
 
@@ -116,28 +115,6 @@ enum class ClockStyle(val label: String) {
 
     /** No clock at all. */
     HIDDEN("Hidden"),
-}
-
-/**
- * How the search field is drawn.
- *
- * [UNDERLINE] is first and is the default because it is the launcher's existing treatment — anyone
- * who never opens Customization must see exactly what they saw before. There is deliberately no
- * "hidden" option: removing the input from the search screen would stop the screen doing its job,
- * which is a behavioural change and therefore out of scope for this section.
- */
-enum class SearchBarStyle(val label: String) {
-    /** A single rule beneath the text. The launcher's original look. */
-    UNDERLINE("Underline"),
-
-    /** A rounded outlined container. */
-    OUTLINED("Outlined"),
-
-    /** A filled surface container. */
-    FILLED("Filled"),
-
-    /** No border, rule or fill — just the caret and the text. */
-    MINIMAL("Minimal"),
 }
 
 /**
