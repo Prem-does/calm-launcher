@@ -45,6 +45,15 @@ data class NotificationRecord(
     val eventType: NotificationEventType,
 )
 
+data class FocusNotification(
+    val key: String,
+    val packageName: String,
+    val appName: String,
+    val title: String,
+    val preview: String,
+    val postedAtEpochMs: Long,
+)
+
 data class AnalyticsDashboardSnapshot(
     val today: DailyUsageRecord,
     val yesterday: DailyUsageRecord,

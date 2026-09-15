@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -179,6 +180,7 @@ private fun AppMenuLabel(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Text(
         text = app.label,
         style = CalmAppNameTextStyle,
@@ -187,6 +189,8 @@ private fun AppMenuLabel(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
                 onClick = onClick,
                 onLongClick = onLongClick,
             )

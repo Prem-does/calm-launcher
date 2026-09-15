@@ -1,5 +1,8 @@
 package com.calmlauncher.feature.home
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -28,13 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
@@ -83,6 +86,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     // Purely visual choices, read from the theme rather than passed in — see LocalAppearance.
     val appearance = LocalAppearance.current
     val clockStyle = appearance.clockStyle
@@ -161,24 +165,18 @@ fun HomeScreen(
                             ),
                             color = CalmWhite.copy(alpha = 0.98f),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    shadowElevation = 5f
-                                    ambientShadowColor = CalmWhite
-                                    spotShadowColor = CalmWhite
-                                },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     if (clockStyle != ClockStyle.HIDDEN) {
                         Text(
                             text = dateText,
                             style = CalmType.labelMd.copy(
-                                fontSize = 11.sp,
-                                lineHeight = 16.sp,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
                                 letterSpacing = 1.4.sp,
                             ),
-                            color = CalmWhite.copy(alpha = 0.78f),
+                            color = CalmWhite.copy(alpha = 0.88f),
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -269,6 +267,27 @@ fun HomeScreen(
                     onClick = {
                         actionTarget = null
                         viewModel.open(app)
+                    },
+                ),
+                AppAction(
+                    label = "Uninstall",
+                    onClick = {
+                        actionTarget = null
+                        val uninstallIntent = Intent(
+                            Intent.ACTION_UNINSTALL_PACKAGE,
+                            Uri.fromParts("package", app.packageName, null),
+                        )
+                        runCatching { context.startActivity(uninstallIntent) }
+                            .onFailure {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(
+                                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            Uri.fromParts("package", app.packageName, null),
+                                        ),
+                                    )
+                                }
+                            }
                     },
                 ),
             ),

@@ -19,6 +19,7 @@ class ToggleFocusUseCase @Inject constructor(
                 focusActive = true,
                 focusStartedAtEpochMs = nowEpochMs,
                 focusDurationMinutes = safeDuration,
+                focusDurationSeconds = safeDuration * 60,
             )
         }
     }

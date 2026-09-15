@@ -33,22 +33,8 @@ import com.calmlauncher.core.designsystem.theme.Spacing
 
 private val BarWidth = 192.dp
 private val BarHeight = 2.dp
-
-/** Resting / sub-label opacity for the hold control. */
 private const val MutedAlpha = 0.5f
 
-/**
- * A deliberate "hold to confirm" control, used as the Focus-Mode exit. A thin 2dp track
- * fills left-to-right while the user presses and holds; reaching 100% over [holdMillis]
- * invokes [onConfirm]. Releasing early animates the fill back to 0 so the gesture must
- * be completed in one continuous press. Below the bar, [label] is shown UPPERCASE in
- * [CalmType.labelLg] and the optional [subLabel] (default "Hold to exit") in
- * [CalmType.labelMd] at ~50% opacity.
- *
- * Implementation: the gesture only flips a [pressed] flag (releasing on up *and* on
- * cancel); a [LaunchedEffect] keyed on that flag owns the animation, so letting go
- * reliably cancels the fill and rewinds — a tap can never accidentally confirm.
- */
 @Composable
 fun HoldToConfirm(
     label: String,
@@ -63,18 +49,15 @@ fun HoldToConfirm(
 
     LaunchedEffect(pressed) {
         if (pressed) {
-            // Fill from the current value to full over the remaining time slice.
             val remaining = ((1f - progress) * holdMillis).toLong().coerceAtLeast(0L)
             animate(
                 initialValue = progress,
                 targetValue = 1f,
                 animationSpec = tween(durationMillis = remaining.toInt()),
             ) { value, _ -> progress = value }
-            // Reaching here without cancellation means the hold completed.
             currentOnConfirm()
             progress = 0f
         } else if (progress > 0f) {
-            // Released early — rewind to empty proportionally to how far we got.
             val rewind = (progress * holdMillis).toLong().coerceAtLeast(0L)
             animate(
                 initialValue = progress,
@@ -99,6 +82,13 @@ fun HoldToConfirm(
             },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Text(
+            text = label.uppercase(),
+            style = CalmType.labelLg,
+            color = CalmWhite,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = Spacing.gutter),
+        )
         Box(
             modifier = Modifier
                 .width(BarWidth)
@@ -114,14 +104,6 @@ fun HoldToConfirm(
                     .background(CalmWhite),
             )
         }
-
-        Text(
-            text = label.uppercase(),
-            style = CalmType.labelLg,
-            color = CalmWhite,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = Spacing.gutter),
-        )
         if (subLabel != null) {
             Text(
                 text = subLabel,

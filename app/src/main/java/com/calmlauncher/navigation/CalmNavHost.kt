@@ -13,16 +13,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.alpha
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.KeyframesSpec
+import androidx.compose.animation.core.keyframes
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.offset
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -63,12 +70,18 @@ import com.calmlauncher.feature.settings.ThemeViewModel
 fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val onboardingComplete by rootViewModel.onboardingComplete.collectAsStateWithLifecycle()
     val appCatalogReady by rootViewModel.appCatalogReady.collectAsStateWithLifecycle()
+    var startupAnimationComplete by remember { mutableStateOf(false) }
     val themeViewModel: ThemeViewModel = hiltViewModel()
     // The full appearance, not just light/dark: collecting it here is what makes every
     // Customization change apply on the next frame, with no launcher restart.
     val appearance by themeViewModel.appearance.collectAsStateWithLifecycle()
     val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
     val navController = rememberNavController()
+
+    LaunchedEffect(Unit) {
+        delay(StartupAnimationDurationMillis)
+        startupAnimationComplete = true
+    }
 
     CalmTheme(appearance = appearance) {
         Box(
@@ -78,7 +91,7 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
                 .grayscale(restriction.grayscale, restriction.grayscaleAmount),
         ) {
             val complete = onboardingComplete
-            if (complete == null) {
+            if (!startupAnimationComplete || complete == null) {
                 LoadingRootSurface()
             } else if (complete && !appCatalogReady) {
                 LoadingRootSurface()
@@ -96,17 +109,6 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
 
 @Composable
 private fun LoadingRootSurface(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "loading-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "loading-pulse-alpha",
-    )
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -114,29 +116,170 @@ private fun LoadingRootSurface(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = "CALM",
-            style = CalmType.headlineLgMobile,
-            color = CalmWhite,
-        )
+        var showSubtitle by remember { mutableStateOf(false) }
+        LoadingWord(onComplete = { showSubtitle = true })
+        if (showSubtitle) {
+            LoadingSubtitle()
+        }
         Spacer(Modifier.height(Spacing.stackMd))
         CircularProgressIndicator(
             modifier = Modifier
-                .height(28.dp)
-                .alpha(pulse),
+                .height(28.dp),
             color = CalmWhite,
             strokeWidth = 1.5.dp,
         )
-        Text(
-            text = "Preparing your space",
-            style = CalmType.labelMd,
-            color = CalmGray,
-            modifier = Modifier
-                .padding(top = Spacing.stackMd)
-                .alpha(pulse),
-        )
     }
 }
+
+@Composable
+private fun LoadingWord(onComplete: () -> Unit) {
+    val letters = remember { "CALM".map { LoadingLetterAnimation() } }
+
+    LaunchedEffect(Unit) {
+        coroutineScope {
+            letters.forEachIndexed { index, letter ->
+                launch {
+                    delay(index * LoadingLetterDelayMillis)
+                    coroutineScope {
+                        launch {
+                            letter.alpha.animateTo(
+                                1f,
+                                animationSpec = loadingKeyframes {
+                                    0f at 0
+                                    0.5f at 200
+                                    1f at 400
+                                },
+                            )
+                        }
+                        launch {
+                            letter.blur.animateTo(
+                                0f,
+                                animationSpec = loadingKeyframes {
+                                    10f at 0
+                                    5f at 200
+                                    0f at 400
+                                },
+                            )
+                        }
+                        launch {
+                            letter.offset.animateTo(
+                                0f,
+                                animationSpec = loadingKeyframes {
+                                    -50f at 0
+                                    5f at 200
+                                    0f at 400
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        onComplete()
+    }
+
+    androidx.compose.foundation.layout.Row {
+        "CALM".forEachIndexed { index, character ->
+            val animation = letters[index]
+            Text(
+                text = character.toString(),
+                style = CalmType.headlineLgMobile,
+                color = CalmWhite,
+                modifier = Modifier
+                    .blur(animation.blur.value.dp)
+                    .offset(y = animation.offset.value.dp)
+                    .graphicsLayer { this.alpha = animation.alpha.value },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingSubtitle() {
+    val labels = remember { "Preparing your space".split(" ") }
+    val animations = remember { labels.map { LoadingLetterAnimation() } }
+
+    LaunchedEffect(Unit) {
+        coroutineScope {
+            animations.forEachIndexed { index, word ->
+                launch {
+                    delay(index * LoadingSubtitleDelayMillis)
+                    coroutineScope {
+                        launch {
+                            word.alpha.animateTo(
+                                1f,
+                                animationSpec = loadingKeyframes(LoadingSubtitleAnimationDurationMillis) {
+                                    0f at 0
+                                    0.5f at 200
+                                    1f at 400
+                                },
+                            )
+                        }
+                        launch {
+                            word.blur.animateTo(
+                                0f,
+                                animationSpec = loadingKeyframes(LoadingSubtitleAnimationDurationMillis) {
+                                    10f at 0
+                                    5f at 200
+                                    0f at 400
+                                },
+                            )
+                        }
+                        launch {
+                            word.offset.animateTo(
+                                0f,
+                                animationSpec = loadingKeyframes(LoadingSubtitleAnimationDurationMillis) {
+                                    -50f at 0
+                                    5f at 200
+                                    0f at 400
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.padding(top = Spacing.stackSm),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        labels.forEachIndexed { index, label ->
+            val animation = animations[index]
+            Text(
+                text = label,
+                style = CalmType.labelMd,
+                color = CalmGray,
+                modifier = Modifier
+                    .blur(animation.blur.value.dp)
+                    .offset(y = animation.offset.value.dp)
+                    .graphicsLayer { this.alpha = animation.alpha.value },
+            )
+        }
+    }
+}
+
+private class LoadingLetterAnimation {
+    val alpha = Animatable(0f)
+    val blur = Animatable(10f)
+    val offset = Animatable(-50f)
+}
+
+private fun loadingKeyframes(
+    durationMillis: Int = LoadingLetterAnimationDurationMillis,
+    block: KeyframesSpec.KeyframesSpecConfig<Float>.() -> Unit,
+) =
+    keyframes {
+        this.durationMillis = durationMillis
+        this.block()
+    }
+
+private const val LoadingLetterDelayMillis = 200L
+private const val LoadingSubtitleDelayMillis = 100L
+private const val LoadingLetterAnimationDurationMillis = 700
+private const val LoadingSubtitleAnimationDurationMillis = 400
+private const val StartupAnimationDurationMillis = 1_900L
 
 @Composable
 fun CalmNavHost(

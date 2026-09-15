@@ -90,6 +90,8 @@ class SettingsDataStore @Inject constructor(
             focusActive = this[Keys.FOCUS_ACTIVE] ?: defaults.focusActive,
             focusStartedAtEpochMs = this[Keys.FOCUS_STARTED_AT] ?: defaults.focusStartedAtEpochMs,
             focusDurationMinutes = this[Keys.FOCUS_DURATION_MINUTES] ?: defaults.focusDurationMinutes,
+            focusDurationSeconds = this[Keys.FOCUS_DURATION_SECONDS]
+                ?: (this[Keys.FOCUS_DURATION_MINUTES] ?: defaults.focusDurationMinutes) * 60,
             focusIntention = this[Keys.FOCUS_INTENTION] ?: defaults.focusIntention,
             favorites = this[Keys.FAVORITES].toFavorites(defaults.favorites),
             favoritesSeeded = this[Keys.FAVORITES_SEEDED] ?: defaults.favoritesSeeded,
@@ -131,6 +133,7 @@ class SettingsDataStore @Inject constructor(
         prefs[Keys.FOCUS_ACTIVE] = focusActive
         prefs[Keys.FOCUS_STARTED_AT] = focusStartedAtEpochMs
         prefs[Keys.FOCUS_DURATION_MINUTES] = focusDurationMinutes
+        prefs[Keys.FOCUS_DURATION_SECONDS] = focusDurationSeconds
         prefs[Keys.FOCUS_INTENTION] = focusIntention
         prefs[Keys.FAVORITES] = favorites.joinToString(FAVORITES_DELIMITER)
         prefs[Keys.FAVORITES_SEEDED] = favoritesSeeded
@@ -200,6 +203,7 @@ class SettingsDataStore @Inject constructor(
         val FOCUS_ACTIVE = booleanPreferencesKey("focus_active")
         val FOCUS_STARTED_AT = longPreferencesKey("focus_started_at")
         val FOCUS_DURATION_MINUTES = intPreferencesKey("focus_duration_minutes")
+        val FOCUS_DURATION_SECONDS = intPreferencesKey("focus_duration_seconds")
         val FOCUS_INTENTION = stringPreferencesKey("focus_intention")
         val FAVORITES = stringPreferencesKey("favorites")
         val FAVORITES_SEEDED = booleanPreferencesKey("favorites_seeded")

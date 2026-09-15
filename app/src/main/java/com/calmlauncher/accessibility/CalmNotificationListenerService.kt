@@ -2,7 +2,9 @@ package com.calmlauncher.accessibility
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.calmlauncher.data.system.FocusNotificationInbox
 import com.calmlauncher.domain.model.AppCategory
+import com.calmlauncher.domain.model.FocusNotification
 import com.calmlauncher.domain.model.NotificationEventType
 import com.calmlauncher.domain.model.LauncherSettings
 import com.calmlauncher.domain.repository.AnalyticsRepository
@@ -30,11 +32,13 @@ class CalmNotificationListenerService : NotificationListenerService() {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var appRepository: AppRepository
     @Inject lateinit var analyticsRepository: AnalyticsRepository
+    @Inject lateinit var focusNotificationInbox: FocusNotificationInbox
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile private var settings: LauncherSettings = LauncherSettings()
     @Volatile private var categories: Map<String, AppCategory> = emptyMap()
+    @Volatile private var favoritePackages: Set<String> = emptySet()
 
     override fun onListenerConnected() {
         super.onListenerConnected()
@@ -43,6 +47,9 @@ class CalmNotificationListenerService : NotificationListenerService() {
             .launchIn(scope)
         appRepository.observeApps()
             .onEach { apps -> categories = apps.associate { it.packageName to it.category } }
+            .launchIn(scope)
+        appRepository.observeFavorites()
+            .onEach { apps -> favoritePackages = apps.map { it.packageName }.toSet() }
             .launchIn(scope)
     }
 
@@ -58,6 +65,29 @@ class CalmNotificationListenerService : NotificationListenerService() {
             }
         }
         if (pkg == packageName) return
+        if (!settings.focusActive) return
+        val notification = sbn.notification
+        val extras = notification.extras
+        val title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString().orEmpty()
+        val preview = (extras.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT)
+            ?: extras.getCharSequence(android.app.Notification.EXTRA_TEXT))?.toString().orEmpty()
+        if (pkg in favoritePackages) {
+            scope.launch {
+                val appName = appRepository.getApp(pkg)?.label ?: pkg
+                focusNotificationInbox.show(
+                    FocusNotification(
+                        key = sbn.key,
+                        packageName = pkg,
+                        appName = appName,
+                        title = title.ifBlank { appName },
+                        preview = preview,
+                        postedAtEpochMs = sbn.postTime,
+                    ),
+                )
+            }
+        } else {
+            focusNotificationInbox.recordSilenced()
+        }
         val category = categories[pkg] ?: return
         val distracting = category == AppCategory.SOCIAL ||
             category == AppCategory.ENTERTAINMENT ||
@@ -75,6 +105,7 @@ class CalmNotificationListenerService : NotificationListenerService() {
     ) {
         val pkg = sbn?.packageName ?: return
         if (pkg == packageName) return
+        sbn.key.let(focusNotificationInbox::remove)
         val eventType = when (reason) {
             REASON_CLICK -> NotificationEventType.OPENED
             REASON_APP_CANCEL,

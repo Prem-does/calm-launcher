@@ -10,8 +10,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.calmlauncher.navigation.CalmRoot
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -24,6 +27,8 @@ class LauncherActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "LauncherActivity"
+        private const val StartupAnimationDurationMillis = 1_900L
+        private const val NotificationPermissionRequestedKey = "notification_permission_requested"
     }
 
     /**
@@ -41,11 +46,17 @@ class LauncherActivity : ComponentActivity() {
             CalmRoot()
         }
 
-        ensureNotificationPermission()
+        lifecycleScope.launch {
+            delay(StartupAnimationDurationMillis)
+            ensureNotificationPermission()
+        }
     }
 
     private fun ensureNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val preferences = getPreferences(MODE_PRIVATE)
+        if (preferences.getBoolean(NotificationPermissionRequestedKey, false)) return
+        preferences.edit().putBoolean(NotificationPermissionRequestedKey, true).apply()
         val granted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.POST_NOTIFICATIONS,
