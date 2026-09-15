@@ -78,11 +78,6 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val restriction by rootViewModel.restriction.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
-    LaunchedEffect(Unit) {
-        delay(StartupAnimationDurationMillis)
-        startupAnimationComplete = true
-    }
-
     CalmTheme(appearance = appearance) {
         Box(
             modifier = Modifier
@@ -91,10 +86,8 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
                 .grayscale(restriction.grayscale, restriction.grayscaleAmount),
         ) {
             val complete = onboardingComplete
-            if (!startupAnimationComplete || complete == null) {
-                LoadingRootSurface()
-            } else if (complete && !appCatalogReady) {
-                LoadingRootSurface()
+            if (!startupAnimationComplete || complete == null || (complete && !appCatalogReady)) {
+                LoadingRootSurface(onAnimationComplete = { startupAnimationComplete = true })
             } else {
                 CalmNavHost(
                     navController = navController,
@@ -108,7 +101,10 @@ fun CalmRoot(rootViewModel: RootViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun LoadingRootSurface(modifier: Modifier = Modifier) {
+private fun LoadingRootSurface(
+    modifier: Modifier = Modifier,
+    onAnimationComplete: () -> Unit,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -119,7 +115,7 @@ private fun LoadingRootSurface(modifier: Modifier = Modifier) {
         var showSubtitle by remember { mutableStateOf(false) }
         LoadingWord(onComplete = { showSubtitle = true })
         if (showSubtitle) {
-            LoadingSubtitle()
+            LoadingSubtitle(onComplete = onAnimationComplete)
         }
         Spacer(Modifier.height(Spacing.stackMd))
         CircularProgressIndicator(
@@ -195,7 +191,7 @@ private fun LoadingWord(onComplete: () -> Unit) {
 }
 
 @Composable
-private fun LoadingSubtitle() {
+private fun LoadingSubtitle(onComplete: () -> Unit) {
     val labels = remember { "Preparing your space".split(" ") }
     val animations = remember { labels.map { LoadingLetterAnimation() } }
 
@@ -239,6 +235,7 @@ private fun LoadingSubtitle() {
                 }
             }
         }
+        onComplete()
     }
 
     androidx.compose.foundation.layout.Row(

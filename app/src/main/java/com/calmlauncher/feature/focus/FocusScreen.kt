@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,7 +97,7 @@ fun FocusScreen(
         QuickTarget.CHAPTERS -> "$chapters chapters"
         QuickTarget.DEEP_WORK -> "Deep work"
         QuickTarget.TASKS -> "$tasks tasks"
-        QuickTarget.PAGES -> "Read $pages pages"
+        QuickTarget.PAGES -> "$pages pages"
         QuickTarget.REFLECTION -> "Reflection"
     }
     fun count(target: QuickTarget) = when (target) {
@@ -147,7 +148,7 @@ fun FocusScreen(
 
     Column(
         modifier = modifier.fillMaxSize().background(CalmBlack).statusBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(horizontal = Spacing.marginMobile),
+            .padding(horizontal = Spacing.marginMobile),
     ) {
         StatusRow(state.currentTime)
         TimerBlock(state, onOpenEditor = { timerEditorOpen = true })
@@ -186,9 +187,10 @@ fun FocusScreen(
     if (timerEditorOpen) {
         TimerEditorDialog(
             currentMinutes = state.durationMinutes,
+            currentSeconds = state.durationSeconds,
             onDismiss = { timerEditorOpen = false },
-            onApply = { minutes ->
-                viewModel.adjustRemainingMinutes(minutes - state.durationMinutes)
+            onApply = { seconds ->
+                viewModel.applyFocusDuration(seconds)
                 timerEditorOpen = false
             },
         )
@@ -231,10 +233,12 @@ private fun TimerBlock(state: FocusUiState, onOpenEditor: () -> Unit) {
 @Composable
 private fun TimerEditorDialog(
     currentMinutes: Int,
+    currentSeconds: Int,
     onDismiss: () -> Unit,
     onApply: (Int) -> Unit,
 ) {
     var selectedMinutes by remember(currentMinutes) { mutableIntStateOf(currentMinutes) }
+    var selectedSeconds by remember(currentSeconds) { mutableIntStateOf(currentSeconds % 60) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -249,11 +253,25 @@ private fun TimerEditorDialog(
         ) {
             MicroLabel("CHANGE FOCUS TIME")
             Text(text = "Minutes", style = CalmType.labelMd, color = CalmGray, modifier = Modifier.padding(top = Spacing.stackMd))
-            TimerWheelPicker(
-                value = selectedMinutes,
-                onValueChange = { selectedMinutes = it },
-                modifier = Modifier.padding(top = Spacing.stackSm),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.stackSm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.gutter),
+            ) {
+                TimerWheelPicker(
+                    value = selectedMinutes,
+                    minimum = 0,
+                    maximum = 720,
+                    onValueChange = { selectedMinutes = it },
+                    modifier = Modifier.weight(1f),
+                )
+                TimerWheelPicker(
+                    value = selectedSeconds,
+                    minimum = 0,
+                    maximum = 59,
+                    onValueChange = { selectedSeconds = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.stackMd),
                 horizontalArrangement = Arrangement.End,
@@ -276,7 +294,7 @@ private fun TimerEditorDialog(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = {
-                            onApply(selectedMinutes)
+                            onApply((selectedMinutes * 60 + selectedSeconds).coerceAtLeast(1))
                         },
                     ).padding(Spacing.stackSm),
                 )
@@ -288,12 +306,15 @@ private fun TimerEditorDialog(
 @Composable
 private fun TimerWheelPicker(
     value: Int,
+    minimum: Int,
+    maximum: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
+    val currentValue = rememberUpdatedState(value)
     var dragDistance by remember { mutableStateOf(0f) }
-    val tickDistance = 28f
+    val tickDistance = 10f
 
     Box(
         modifier = modifier
@@ -301,20 +322,20 @@ private fun TimerWheelPicker(
             .height(132.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, CalmDivider, RoundedCornerShape(8.dp))
-            .pointerInput(value) {
+            .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
-                        var nextValue = value
+                        var nextValue = currentValue.value
                         dragDistance += dragAmount
                         while (dragDistance <= -tickDistance) {
-                            nextValue = (nextValue + 1).coerceAtMost(720)
+                            nextValue = (nextValue + 1).coerceAtMost(maximum)
                             onValueChange(nextValue)
                             dragDistance += tickDistance
                             view.playSoundEffect(SoundEffectConstants.CLICK)
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         }
                         while (dragDistance >= tickDistance) {
-                            nextValue = (nextValue - 1).coerceAtLeast(1)
+                            nextValue = (nextValue - 1).coerceAtLeast(minimum)
                             onValueChange(nextValue)
                             dragDistance -= tickDistance
                             view.playSoundEffect(SoundEffectConstants.CLICK)
@@ -328,9 +349,9 @@ private fun TimerWheelPicker(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = (value - 1).coerceAtLeast(1).toString(), style = CalmType.labelMd, color = CalmGray.copy(alpha = 0.45f))
-            Text(text = value.toString(), style = CalmType.headlineMd, color = CalmWhite, modifier = Modifier.padding(vertical = Spacing.stackSm))
-            Text(text = (value + 1).coerceAtMost(720).toString(), style = CalmType.labelMd, color = CalmGray.copy(alpha = 0.45f))
+            Text(text = "${(value - 1).coerceAtLeast(minimum)}", style = CalmType.labelMd, color = CalmGray.copy(alpha = 0.45f))
+            Text(text = value.toString().padStart(2, '0'), style = CalmType.headlineMd, color = CalmWhite, modifier = Modifier.padding(vertical = Spacing.stackSm))
+            Text(text = "${(value + 1).coerceAtMost(maximum)}", style = CalmType.labelMd, color = CalmGray.copy(alpha = 0.45f))
         }
     }
 }
@@ -373,7 +394,7 @@ private fun QuickDial(selected: QuickTarget?, pushups: Int, chapters: Int, tasks
     }
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         NumericChip(QuickTarget.TASKS, "$tasks tasks", tasks.toString(), selected, onSelect, onCycle)
-        NumericChip(QuickTarget.PAGES, "Read $pages pages", pages.toString(), selected, onSelect, onCycle)
+        NumericChip(QuickTarget.PAGES, "$pages pages", pages.toString(), selected, onSelect, onCycle)
         SimpleChip(QuickTarget.REFLECTION, "Reflection", selected, onSelect)
     }
 }
